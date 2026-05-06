@@ -1,9 +1,13 @@
-.PHONY: install test run-local dbt-local
+.PHONY: install test runtime-smoke run-local dbt-local
 
 PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
+export PREFECT_HOME ?= .tmp/prefect
+
+$(PREFECT_HOME):
+	mkdir -p $(PREFECT_HOME)
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -13,8 +17,11 @@ install:
 test:
 	$(VENV_PYTHON) -m pytest
 
-run-local:
-	$(VENV_PYTHON) -m pipelines.flows.lending_pipeline_flow --run-mode local --dbt-target dev_duckdb
+runtime-smoke: $(PREFECT_HOME)
+	$(VENV_PYTHON) -c "import boto3, duckdb, pandas, prefect, requests, snowflake.connector, yaml; import dbt.cli.main"
+
+run-local: $(PREFECT_HOME)
+	scripts/run_local_pipeline.sh
 
 dbt-local:
-	cd dbt && dbt build --target dev_duckdb
+	scripts/run_dbt_local.sh

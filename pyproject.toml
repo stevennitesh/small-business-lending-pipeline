@@ -4,7 +4,19 @@ version = "0.1.0"
 description = "Analytics engineering pipeline for SBA small-business lending intelligence."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "boto3",
+    "dbt-core",
+    "dbt-duckdb",
+    "dbt-snowflake",
+    "duckdb",
+    "pandas",
+    "prefect",
+    "python-dotenv",
+    "pyyaml",
+    "requests",
+    "snowflake-connector-python",
+]
 
 [project.optional-dependencies]
 dev = [
