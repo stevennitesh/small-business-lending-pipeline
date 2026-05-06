@@ -6,6 +6,7 @@
 *.key
 *.p8
 secrets/
+.tmp/
 
 # Python
 __pycache__/
