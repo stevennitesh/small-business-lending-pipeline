@@ -1,0 +1,8 @@
+services:
+  pipeline:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: make test

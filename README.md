@@ -85,6 +85,10 @@ flowchart LR
 5. **Regional Business Health** — lending normalized by establishments and business-health context.
 6. **Data Quality and Pipeline Health** — source freshness, validation pass rate, row counts, failed/warning checks.
 
+## Screenshots
+
+Dashboard, dbt, Prefect, S3, and Snowflake evidence screenshots will be added as the implementation reaches the relevant milestones.
+
 ## Repository Structure
 
 ```text
@@ -132,6 +136,15 @@ python -m pipelines.flows.lending_pipeline_flow \
   --run-mode local \
   --dbt-target dev_duckdb
 ```
+
+## Testing
+
+```bash
+make install
+make test
+```
+
+The initial repository skeleton includes placeholder tests. Source extraction, validation, dbt, orchestration, and dashboard checks will be added with their implementation slices.
 
 ## Final Warehouse Run
 

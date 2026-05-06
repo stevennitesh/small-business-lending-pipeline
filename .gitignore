@@ -1,0 +1,53 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local data and warehouse outputs
+data/raw/**
+data/manifests/**
+data/validation/**
+data/warehouse/**
+data/exports/**
+!data/raw/.gitkeep
+!data/manifests/.gitkeep
+!data/validation/.gitkeep
+!data/warehouse/.gitkeep
+!data/exports/.gitkeep
+!data/exports/powerbi/
+!data/exports/powerbi/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# dbt generated artifacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+
+# Power BI local artifacts
+*.pbix
+powerbi/screenshots/**
+!powerbi/screenshots/.gitkeep
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
