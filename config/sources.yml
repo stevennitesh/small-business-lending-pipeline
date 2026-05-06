@@ -1,0 +1,33 @@
+sources:
+  sba_foia:
+    enabled: true
+    source_system: sba
+    publisher: U.S. Small Business Administration
+    dataset_name: 7a_504_foia
+    refresh_cadence: quarterly
+    grain: loan_record
+    raw_storage_subdir: data/raw/sba
+    manifest_subdir: data/manifests/sba
+    validation_subdir: data/validation/sba
+
+  census_bds:
+    enabled: true
+    source_system: census
+    publisher: U.S. Census Bureau
+    dataset_name: bds
+    refresh_cadence: annual
+    grain: state_year
+    raw_storage_subdir: data/raw/census
+    manifest_subdir: data/manifests/census
+    validation_subdir: data/validation/census
+
+  bls_laus:
+    enabled: true
+    source_system: bls
+    publisher: U.S. Bureau of Labor Statistics
+    dataset_name: laus
+    refresh_cadence: monthly
+    grain: state_month_series
+    raw_storage_subdir: data/raw/bls
+    manifest_subdir: data/manifests/bls
+    validation_subdir: data/validation/bls

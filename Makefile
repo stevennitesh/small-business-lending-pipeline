@@ -1,13 +1,18 @@
-.PHONY: install test runtime-smoke run-local dbt-local
+.PHONY: install test runtime-smoke run-local dbt-local dbt-seed-local
 
 PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
 export PREFECT_HOME ?= .tmp/prefect
+DBT_PROFILES_TMP ?= .tmp/dbt_profiles
 
 $(PREFECT_HOME):
 	mkdir -p $(PREFECT_HOME)
+
+$(DBT_PROFILES_TMP)/profiles.yml: dbt/profiles.yml.example
+	mkdir -p $(DBT_PROFILES_TMP)
+	cp dbt/profiles.yml.example $(DBT_PROFILES_TMP)/profiles.yml
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -25,3 +30,6 @@ run-local: $(PREFECT_HOME)
 
 dbt-local:
 	scripts/run_dbt_local.sh
+
+dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
+	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb

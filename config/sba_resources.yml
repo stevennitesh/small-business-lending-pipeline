@@ -1,0 +1,49 @@
+sba_resources:
+  dataset_name: 7a_504_foia
+  discovery:
+    strategy: sba_open_data_metadata
+    allow_dynamic_url_resolution: true
+    cache_subdir: .tmp/sba_resources
+  resources:
+    - logical_name: sba_foia_data_dictionary
+      program: all
+      source_period: all
+      expected_format: xlsx
+      required: true
+      title_pattern: "7a_504_FOIA Data Dictionary"
+    - logical_name: sba_7a_fy1991_fy1999
+      program: 7a
+      source_period: fy1991_fy1999
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 7(a), FY1991-FY1999"
+    - logical_name: sba_7a_fy2000_fy2009
+      program: 7a
+      source_period: fy2000_fy2009
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 7(a), FY2000-FY2009"
+    - logical_name: sba_7a_fy2010_fy2019
+      program: 7a
+      source_period: fy2010_fy2019
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 7(a), FY2010-FY2019"
+    - logical_name: sba_7a_fy2020_present
+      program: 7a
+      source_period: fy2020_present
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 7(a), FY2020-Present"
+    - logical_name: sba_504_fy1991_fy2009
+      program: 504
+      source_period: fy1991_fy2009
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 504, FY1991-FY2009"
+    - logical_name: sba_504_fy2010_present
+      program: 504
+      source_period: fy2010_present
+      expected_format: csv
+      required: true
+      title_pattern: "FOIA - 504, FY2010-Present"

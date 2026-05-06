@@ -1,0 +1,20 @@
+name: small_business_lending_pipeline
+version: "1.0.0"
+config-version: 2
+
+profile: small_business_lending_pipeline
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+seeds:
+  small_business_lending_pipeline:
+    +schema: seeds
+    +quote_columns: false

@@ -1,0 +1,24 @@
+validation_thresholds:
+  sba_foia:
+    min_total_rows: 100000
+    required_column_groups:
+      - approval_date
+      - borrower_state
+      - gross_approval_amount
+      - lender_name
+    max_required_field_null_rate: 0.05
+
+  census_bds:
+    min_rows: 51
+    required_columns:
+      - YEAR
+      - state
+      - ESTAB
+      - ESTABS_ENTRY
+      - ESTABS_EXIT
+
+  bls_laus:
+    min_state_count: 51
+    required_period_pattern: "^M(0[1-9]|1[0-2])$"
+    unemployment_rate_min: 0
+    unemployment_rate_max: 100

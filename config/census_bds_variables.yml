@@ -1,0 +1,38 @@
+census_bds:
+  endpoint: https://api.census.gov/data/timeseries/bds
+  geography: state
+  start_year: 2010
+  variables:
+    - name: YEAR
+      business_meaning: Reference year
+      required: true
+    - name: NAME
+      business_meaning: Geography display name
+      required: true
+    - name: state
+      business_meaning: State FIPS code
+      required: true
+    - name: ESTAB
+      business_meaning: Number of establishments
+      required: true
+    - name: ESTABS_ENTRY
+      business_meaning: Establishments born during the last 12 months
+      required: true
+    - name: ESTABS_ENTRY_RATE
+      business_meaning: Establishment entry rate
+      required: true
+    - name: ESTABS_EXIT
+      business_meaning: Establishments exited during the last 12 months
+      required: true
+    - name: ESTABS_EXIT_RATE
+      business_meaning: Establishment exit rate
+      required: true
+    - name: FIRM
+      business_meaning: Number of firms
+      required: true
+    - name: JOB_CREATION
+      business_meaning: Jobs created from expanding or opening establishments
+      required: true
+    - name: JOB_DESTRUCTION
+      business_meaning: Jobs lost from contracting or closing establishments
+      required: true
