@@ -66,6 +66,11 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
         "SHA256_CHECKSUM",
     } <= set(loaded_sba.columns)
     assert loaded_sba["PIPELINE_RUN_ID"].tolist() == ["run-123", "run-123"]
+    validation_frame = writer.written_frames["RAW_VALIDATION_RESULT"]
+    assert validation_frame["EXPECTED_VALUE"].tolist() == ["1"]
+    assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
+    loaded_bls = writer.written_frames["RAW_BLS_LAUS_STATE_MONTH"]
+    assert loaded_bls["FOOTNOTES"].tolist() == ["[]", "[]"]
 
 
 def test_snowflake_loader_blocks_failed_validation(tmp_path):
@@ -200,8 +205,8 @@ def _validation_result(status: str = "passed") -> ValidationResult:
         check_type="validity",
         severity="fail",
         status=status,
-        expected_value="raw validation passed",
-        observed_value=status,
+        expected_value=1,
+        observed_value={"status": status},
         message=f"Validation status is {status}.",
         checked_at_utc="2026-05-07T12:00:00Z",
     )
@@ -231,12 +236,14 @@ def _build_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:
                         "state_fips": "01",
                         "observed_month": "2023-01-01",
                         "value": 2.6,
+                        "footnotes": [],
                     },
                     {
                         "series_id": "LASST020000000000003",
                         "state_fips": "02",
                         "observed_month": "2023-01-01",
                         "value": 3.8,
+                        "footnotes": [],
                     },
                 ]
             }

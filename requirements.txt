@@ -9,4 +9,4 @@ pytest
 python-dotenv
 pyyaml
 requests
-snowflake-connector-python
+snowflake-connector-python[pandas]

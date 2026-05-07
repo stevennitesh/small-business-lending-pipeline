@@ -191,7 +191,7 @@ def load_raw_extracts_to_snowflake(
     )
 
     validation_frame = _snowflake_frame(
-        _normalize_records([result.to_dict() for result in validation_results])
+        _normalize_validation_records([result.to_dict() for result in validation_results])
     )
     _write_frame(
         connection=connection,
@@ -350,10 +350,39 @@ def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(normalized_records)
 
 
+def _normalize_validation_records(records: list[dict[str, Any]]) -> pd.DataFrame:
+    normalized = []
+    for record in records:
+        normalized_record = {
+            key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value
+            for key, value in record.items()
+        }
+        normalized_record["expected_value"] = _snowflake_cell_value(
+            normalized_record.get("expected_value")
+        )
+        normalized_record["observed_value"] = _snowflake_cell_value(
+            normalized_record.get("observed_value")
+        )
+        normalized.append(normalized_record)
+    return pd.DataFrame(normalized)
+
+
 def _snowflake_frame(frame: pd.DataFrame) -> pd.DataFrame:
     snowflake_frame = frame.copy()
+    for column_name in snowflake_frame.select_dtypes(include=["object"]).columns:
+        snowflake_frame[column_name] = snowflake_frame[column_name].map(
+            _snowflake_cell_value
+        )
     snowflake_frame.columns = [str(column).upper() for column in snowflake_frame.columns]
     return snowflake_frame
+
+
+def _snowflake_cell_value(value: Any) -> str | None:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True)
+    if pd.isna(value):
+        return None
+    return str(value)
 
 
 def main() -> None:

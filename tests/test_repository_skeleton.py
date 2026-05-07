@@ -73,7 +73,7 @@ def test_required_runtime_dependencies_are_declared():
         "pytest",
     }
     declared_dependencies = {
-        line.strip()
+        line.strip().split("[", 1)[0]
         for line in Path("requirements.txt").read_text().splitlines()
         if line.strip() and not line.startswith("#")
     }
