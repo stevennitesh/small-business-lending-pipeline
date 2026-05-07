@@ -10,12 +10,12 @@ from pipelines.validation.validation_result import ValidationFailedError
 
 
 def test_local_flow_declares_expected_stage_order():
-    assert local_flow.FLOW_STAGES == (
+    assert local_flow.LOCAL_FLOW_STAGES == (
         "initialize_run",
         "load_config",
         "extract_sources",
-        "validate_raw_outputs",
         "write_manifests",
+        "validate_raw_outputs",
         "load_duckdb_raw_tables",
         "run_dbt_build",
         "collect_dbt_artifacts",
@@ -23,6 +23,96 @@ def test_local_flow_declares_expected_stage_order():
         "export_bi_tables",
         "write_run_summary",
     )
+
+
+def test_final_flow_declares_expected_stage_order():
+    assert local_flow.FINAL_FLOW_STAGES == (
+        "initialize_run",
+        "load_config",
+        "require_final_mode_config",
+        "extract_sources",
+        "write_manifests",
+        "validate_raw_outputs",
+        "upload_raw_artifacts_to_s3",
+        "load_snowflake_raw_tables",
+        "run_dbt_build",
+        "collect_dbt_artifacts",
+        "upload_dbt_artifacts_to_s3",
+        "validate_bi_tables",
+        "write_run_summary",
+    )
+    assert local_flow.FINAL_FLOW_STAGES.index("validate_raw_outputs") < (
+        local_flow.FINAL_FLOW_STAGES.index("upload_raw_artifacts_to_s3")
+    )
+    assert local_flow.FINAL_FLOW_STAGES.index("validate_raw_outputs") < (
+        local_flow.FINAL_FLOW_STAGES.index("load_snowflake_raw_tables")
+    )
+    assert local_flow.FINAL_FLOW_STAGES.index("run_dbt_build") < (
+        local_flow.FINAL_FLOW_STAGES.index("validate_bi_tables")
+    )
+
+
+def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
+    for variable_name in (
+        "S3_BUCKET",
+        "SNOWFLAKE_ACCOUNT",
+        "SNOWFLAKE_USER",
+        "SNOWFLAKE_PASSWORD",
+        "SNOWFLAKE_ROLE",
+        "SNOWFLAKE_WAREHOUSE",
+        "SNOWFLAKE_DATABASE",
+    ):
+        monkeypatch.delenv(variable_name, raising=False)
+    monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
+
+    context = local_flow.initialize_run.fn(
+        run_mode="final",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="final-missing-config",
+    )
+
+    with pytest.raises(RuntimeError, match="Missing final mode configuration"):
+        local_flow.require_final_mode_config.fn(context)
+
+
+def test_final_summary_records_cloud_outputs(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="final",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="final-run",
+    )
+
+    summary_path = local_flow.write_run_summary.fn(
+        context,
+        status="success",
+        completed_stages=["initialize_run", "write_run_summary"],
+        s3_upload_summary={
+            "bucket": "unit-test-bucket",
+            "uploaded_objects": ["s3://unit-test-bucket/raw/example.csv"],
+        },
+        snowflake_raw_load_summary={
+            "database": "SMALL_BUSINESS_LENDING",
+            "raw_schema": "RAW",
+            "table_row_counts": {"RAW.RAW_SBA_7A_FOIA": 1},
+        },
+    )
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert summary["run_mode"] == "final"
+    assert summary["s3_upload_summary"]["bucket"] == "unit-test-bucket"
+    assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
+        "RAW.RAW_SBA_7A_FOIA": 1
+    }
 
 
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
@@ -33,6 +123,7 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
         pipeline_run_id="test-run",
     )
 
@@ -54,6 +145,7 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
         pipeline_run_id="failed-run",
     )
     extraction_paths = local_flow.extract_sources.fn(context)

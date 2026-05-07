@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import subprocess
 import sys
 import uuid
@@ -13,14 +14,28 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+from dotenv import load_dotenv
 from prefect import flow, get_run_logger, task
 
 from pipelines.extract.bls_laus_extract import parse_monthly_period
 from pipelines.load.duckdb_loader import RawLoadSummary, load_raw_extracts
+from pipelines.load.s3_loader import (
+    S3UploadSummary,
+    build_dbt_artifact_upload_item,
+    upload_items_to_s3,
+    upload_run_artifacts_to_s3,
+)
+from pipelines.load.snowflake_loader import (
+    SnowflakeConfig,
+    SnowflakeRawLoadSummary,
+    connect_to_snowflake,
+    load_raw_extracts_to_snowflake,
+)
 from pipelines.utils.config import load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, write_manifest
+from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
 from pipelines.validation.raw_checks import check_raw_manifest
 from pipelines.validation.schema_checks import (
     check_bls_laus_payload,
@@ -35,12 +50,12 @@ from pipelines.validation.validation_result import (
 )
 
 
-FLOW_STAGES = (
+LOCAL_FLOW_STAGES = (
     "initialize_run",
     "load_config",
     "extract_sources",
-    "validate_raw_outputs",
     "write_manifests",
+    "validate_raw_outputs",
     "load_duckdb_raw_tables",
     "run_dbt_build",
     "collect_dbt_artifacts",
@@ -48,6 +63,24 @@ FLOW_STAGES = (
     "export_bi_tables",
     "write_run_summary",
 )
+
+FINAL_FLOW_STAGES = (
+    "initialize_run",
+    "load_config",
+    "require_final_mode_config",
+    "extract_sources",
+    "write_manifests",
+    "validate_raw_outputs",
+    "upload_raw_artifacts_to_s3",
+    "load_snowflake_raw_tables",
+    "run_dbt_build",
+    "collect_dbt_artifacts",
+    "upload_dbt_artifacts_to_s3",
+    "validate_bi_tables",
+    "write_run_summary",
+)
+
+FLOW_STAGES = LOCAL_FLOW_STAGES
 
 BI_TABLES = (
     "bi_executive_overview",
@@ -70,6 +103,7 @@ class LocalRunContext:
     dbt_profiles_dir: Path
     dbt_target: str
     run_started_at_utc: str
+    s3_bucket: str | None = None
 
     @property
     def run_validation_dir(self) -> Path:
@@ -78,6 +112,10 @@ class LocalRunContext:
     @property
     def run_export_dir(self) -> Path:
         return self.data_root / "exports" / "powerbi" / f"pipeline_run_id={self.pipeline_run_id}"
+
+    @property
+    def stage_order(self) -> tuple[str, ...]:
+        return FINAL_FLOW_STAGES if self.run_mode == "final" else LOCAL_FLOW_STAGES
 
 
 @dataclass(frozen=True)
@@ -126,9 +164,10 @@ def initialize_run(
     duckdb_path: str,
     dbt_project_dir: str,
     dbt_profiles_dir: str,
+    s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
 ) -> LocalRunContext:
-    run_id = pipeline_run_id or f"local-{uuid.uuid4()}"
+    run_id = pipeline_run_id or f"{run_mode}-{uuid.uuid4()}"
     context = LocalRunContext(
         pipeline_run_id=run_id,
         run_mode=run_mode,
@@ -138,6 +177,7 @@ def initialize_run(
         dbt_profiles_dir=Path(dbt_profiles_dir),
         dbt_target=dbt_target,
         run_started_at_utc=utc_now_iso(),
+        s3_bucket=s3_bucket,
     )
     context.data_root.mkdir(parents=True, exist_ok=True)
     context.run_validation_dir.mkdir(parents=True, exist_ok=True)
@@ -152,9 +192,30 @@ def load_config(config_dir: str = "config") -> dict[str, Any]:
 
 
 @task
+def require_final_mode_config(context: LocalRunContext) -> str:
+    if context.run_mode != "final":
+        return context.s3_bucket or ""
+
+    load_dotenv(override=True)
+    bucket = _s3_bucket(context)
+    missing = []
+    if not bucket:
+        missing.append("S3_BUCKET")
+    try:
+        SnowflakeConfig.from_env()
+    except Exception as exc:
+        raise RuntimeError(f"Missing final mode configuration: {exc}") from exc
+    if missing:
+        raise RuntimeError(
+            "Missing final mode configuration: " + ", ".join(sorted(missing))
+        )
+    return bucket
+
+
+@task
 def extract_sources(context: LocalRunContext) -> ExtractionPaths:
-    if context.run_mode != "local":
-        raise ValueError("Only local fixture-backed runs are implemented for T17.")
+    if context.run_mode not in {"local", "final"}:
+        raise ValueError("run_mode must be 'local' or 'final'.")
     return _write_local_fixture_extracts(context)
 
 
@@ -231,7 +292,46 @@ def load_duckdb_raw_tables(
 
 
 @task
+def upload_raw_artifacts_to_s3(
+    context: LocalRunContext,
+    extraction_paths: ExtractionPaths,
+    validation_result_path: Path,
+) -> S3UploadSummary:
+    return upload_run_artifacts_to_s3(
+        manifest_paths=list(extraction_paths.manifest_paths),
+        validation_result_path=validation_result_path,
+        bucket=_s3_bucket(context),
+        run_mode=context.run_mode,
+    )
+
+
+@task
+def load_snowflake_raw_tables(
+    context: LocalRunContext,
+    extraction_paths: ExtractionPaths,
+    validation_result_path: Path,
+) -> SnowflakeRawLoadSummary:
+    config = SnowflakeConfig.from_env()
+    connection = connect_to_snowflake(config)
+    try:
+        return load_raw_extracts_to_snowflake(
+            connection=connection,
+            database=config.database,
+            raw_schema=config.raw_schema,
+            audit_schema=config.audit_schema,
+            sba_7a_manifest_paths=extraction_paths.sba_7a_manifest_paths,
+            sba_504_manifest_paths=extraction_paths.sba_504_manifest_paths,
+            census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
+            bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
+            validation_result_paths=[validation_result_path],
+        )
+    finally:
+        connection.close()
+
+
+@task
 def run_dbt_build(context: LocalRunContext) -> DbtBuildResult:
+    load_dotenv(override=True)
     _ensure_dbt_profile(context)
     dbt_executable = _dbt_executable()
     command = (
@@ -279,7 +379,37 @@ def collect_dbt_artifacts(context: LocalRunContext) -> dict[str, str]:
 
 
 @task
+def upload_dbt_artifacts_to_s3(
+    context: LocalRunContext,
+    extraction_paths: ExtractionPaths,
+    dbt_artifacts: dict[str, str],
+) -> S3UploadSummary:
+    if not dbt_artifacts:
+        return S3UploadSummary(bucket=_s3_bucket(context), uploaded_objects=())
+
+    first_manifest = json.loads(
+        extraction_paths.manifest_paths[0].read_text(encoding="utf-8")
+    )
+    items = [
+        build_dbt_artifact_upload_item(
+            artifact_path,
+            ingestion_date=str(first_manifest["ingestion_date"]),
+            pipeline_run_id=str(first_manifest["pipeline_run_id"]),
+        )
+        for artifact_path in dbt_artifacts.values()
+    ]
+    return upload_items_to_s3(
+        items,
+        bucket=_s3_bucket(context),
+        required=context.run_mode == "final",
+    )
+
+
+@task
 def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
+    if context.run_mode == "final":
+        return _validate_snowflake_bi_tables()
+
     row_counts: dict[str, int] = {}
     with duckdb.connect(str(context.duckdb_path)) as connection:
         for table_name in BI_TABLES:
@@ -319,6 +449,8 @@ def write_run_summary(
     dbt_artifacts: dict[str, str] | None = None,
     bi_row_counts: dict[str, int] | None = None,
     export_paths: list[str] | None = None,
+    s3_upload_summary: dict[str, Any] | None = None,
+    snowflake_raw_load_summary: dict[str, Any] | None = None,
 ) -> Path:
     summary = PipelineRunSummary(
         pipeline_run_id=context.pipeline_run_id,
@@ -337,7 +469,16 @@ def write_run_summary(
     )
     summary_path = context.run_validation_dir / "run_summary.json"
     summary_path.write_text(
-        json.dumps(summary.to_dict(), indent=2, sort_keys=True) + "\n",
+        json.dumps(
+            {
+                **summary.to_dict(),
+                "s3_upload_summary": s3_upload_summary or {},
+                "snowflake_raw_load_summary": snowflake_raw_load_summary or {},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
     return summary_path
@@ -352,6 +493,7 @@ def lending_pipeline_flow(
     duckdb_path: str = "data/warehouse/small_business_lending.duckdb",
     dbt_project_dir: str = "dbt",
     dbt_profiles_dir: str = ".tmp/dbt_profiles",
+    s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
 ) -> str:
     logger = get_run_logger()
@@ -363,6 +505,7 @@ def lending_pipeline_flow(
         duckdb_path=duckdb_path,
         dbt_project_dir=dbt_project_dir,
         dbt_profiles_dir=dbt_profiles_dir,
+        s3_bucket=s3_bucket,
         pipeline_run_id=pipeline_run_id,
     )
     completed_stages.append("initialize_run")
@@ -371,11 +514,17 @@ def lending_pipeline_flow(
     dbt_artifacts: dict[str, str] = {}
     bi_row_counts: dict[str, int] = {}
     export_paths: list[str] = []
+    s3_upload_summary: dict[str, Any] = {}
+    snowflake_raw_load_summary: dict[str, Any] = {}
     failed_stage: str | None = None
 
     try:
         load_config()
         completed_stages.append("load_config")
+
+        if context.run_mode == "final":
+            require_final_mode_config(context)
+            completed_stages.append("require_final_mode_config")
 
         extraction_paths = extract_sources(context)
         completed_stages.extend(["extract_sources", "write_manifests"])
@@ -383,8 +532,25 @@ def lending_pipeline_flow(
         validation_result_path = validate_raw_outputs(context, extraction_paths)
         completed_stages.append("validate_raw_outputs")
 
-        load_duckdb_raw_tables(context, extraction_paths, validation_result_path)
-        completed_stages.append("load_duckdb_raw_tables")
+        if context.run_mode == "final":
+            raw_s3_summary = upload_raw_artifacts_to_s3(
+                context,
+                extraction_paths,
+                validation_result_path,
+            )
+            s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
+            completed_stages.append("upload_raw_artifacts_to_s3")
+
+            snowflake_summary = load_snowflake_raw_tables(
+                context,
+                extraction_paths,
+                validation_result_path,
+            )
+            snowflake_raw_load_summary = snowflake_summary.to_dict()
+            completed_stages.append("load_snowflake_raw_tables")
+        else:
+            load_duckdb_raw_tables(context, extraction_paths, validation_result_path)
+            completed_stages.append("load_duckdb_raw_tables")
 
         run_dbt_build(context)
         completed_stages.append("run_dbt_build")
@@ -392,11 +558,21 @@ def lending_pipeline_flow(
         dbt_artifacts = collect_dbt_artifacts(context)
         completed_stages.append("collect_dbt_artifacts")
 
+        if context.run_mode == "final":
+            dbt_s3_summary = upload_dbt_artifacts_to_s3(
+                context,
+                extraction_paths,
+                dbt_artifacts,
+            )
+            s3_upload_summary["dbt_artifacts"] = dbt_s3_summary.to_dict()
+            completed_stages.append("upload_dbt_artifacts_to_s3")
+
         bi_row_counts = validate_bi_tables(context)
         completed_stages.append("validate_bi_tables")
 
-        export_paths = export_bi_tables(context)
-        completed_stages.append("export_bi_tables")
+        if context.run_mode == "local":
+            export_paths = export_bi_tables(context)
+            completed_stages.append("export_bi_tables")
 
         summary_path = write_run_summary(
             context,
@@ -406,11 +582,17 @@ def lending_pipeline_flow(
             dbt_artifacts=dbt_artifacts,
             bi_row_counts=bi_row_counts,
             export_paths=export_paths,
+            s3_upload_summary=s3_upload_summary,
+            snowflake_raw_load_summary=snowflake_raw_load_summary,
         )
-        logger.info("Local lending pipeline completed: %s", summary_path)
+        logger.info(
+            "%s lending pipeline completed: %s",
+            context.run_mode.title(),
+            summary_path,
+        )
         return str(summary_path)
     except Exception as exc:
-        failed_stage = _failed_stage(completed_stages)
+        failed_stage = _failed_stage(completed_stages, context.stage_order)
         summary_path = write_run_summary(
             context,
             status="failed",
@@ -421,8 +603,15 @@ def lending_pipeline_flow(
             dbt_artifacts=dbt_artifacts,
             bi_row_counts=bi_row_counts,
             export_paths=export_paths,
+            s3_upload_summary=s3_upload_summary,
+            snowflake_raw_load_summary=snowflake_raw_load_summary,
         )
-        logger.error("Local lending pipeline failed at %s: %s", failed_stage, exc)
+        logger.error(
+            "%s lending pipeline failed at %s: %s",
+            context.run_mode.title(),
+            failed_stage,
+            exc,
+        )
         logger.error("Failure summary written to %s", summary_path)
         raise
 
@@ -442,7 +631,12 @@ def _write_local_fixture_extracts(context: LocalRunContext) -> ExtractionPaths:
             file_format=file_format,
             schema_fields=schema_fields,
         )
-        for resource_name, (raw_file_path, row_count, file_format, schema_fields) in raw_paths.items()
+        for resource_name, (
+            raw_file_path,
+            row_count,
+            file_format,
+            schema_fields,
+        ) in raw_paths.items()
     }
     return ExtractionPaths(
         sba_7a_manifest_paths=(manifest_paths["sba_7a_fy2020_present"],),
@@ -598,6 +792,15 @@ def _write_fixture_manifest(
     schema_fields: list[str],
 ) -> Path:
     source_system, dataset_name = _manifest_source(resource_name)
+    ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
+    s3_raw_key = build_raw_s3_key(
+        source_system=source_system,
+        dataset_name=dataset_name,
+        resource_name=resource_name,
+        ingestion_date=ingestion_date,
+        pipeline_run_id=context.pipeline_run_id,
+        filename=raw_file_path.name,
+    )
     manifest = ExtractionManifest(
         pipeline_run_id=context.pipeline_run_id,
         source_system=source_system,
@@ -605,9 +808,9 @@ def _write_fixture_manifest(
         resource_name=resource_name,
         source_url=f"fixture://{resource_name}",
         extracted_at_utc=context.run_started_at_utc,
-        ingestion_date=date.fromisoformat(context.run_started_at_utc[:10]).isoformat(),
+        ingestion_date=ingestion_date,
         local_raw_path=str(raw_file_path),
-        s3_raw_uri=f"s3://local-fixtures/raw/{source_system}/{dataset_name}/{raw_file_path.name}",
+        s3_raw_uri=build_s3_uri(context.s3_bucket or "local-fixtures", s3_raw_key),
         file_format=file_format,
         row_count=row_count,
         sha256_checksum=calculate_sha256(raw_file_path),
@@ -788,6 +991,11 @@ def _manifest_source(resource_name: str) -> tuple[str, str]:
 def _ensure_dbt_profile(context: LocalRunContext) -> None:
     context.dbt_profiles_dir.mkdir(parents=True, exist_ok=True)
     profile_path = context.dbt_profiles_dir / "profiles.yml"
+    if context.run_mode == "final" or context.dbt_target == "prod_snowflake":
+        example_profile = context.dbt_project_dir / "profiles.yml.example"
+        shutil.copyfile(example_profile, profile_path)
+        return
+
     profile_path.write_text(
         f"""small_business_lending_pipeline:
   target: {context.dbt_target}
@@ -808,8 +1016,32 @@ def _dbt_executable() -> Path:
     return Path("dbt")
 
 
-def _failed_stage(completed_stages: list[str]) -> str:
-    for stage in FLOW_STAGES:
+def _validate_snowflake_bi_tables() -> dict[str, int]:
+    config = SnowflakeConfig.from_env()
+    connection = connect_to_snowflake(config)
+    try:
+        row_counts: dict[str, int] = {}
+        with connection.cursor() as cursor:
+            for table_name in BI_TABLES:
+                cursor.execute(f"select count(*) from BI.{table_name.upper()}")
+                row_count = int(cursor.fetchone()[0])
+                if row_count <= 0:
+                    raise RuntimeError(f"BI table BI.{table_name.upper()} has no rows.")
+                row_counts[table_name] = row_count
+        return row_counts
+    finally:
+        connection.close()
+
+
+def _s3_bucket(context: LocalRunContext) -> str | None:
+    return context.s3_bucket or os.getenv("S3_BUCKET") or None
+
+
+def _failed_stage(
+    completed_stages: list[str],
+    stage_order: tuple[str, ...] = FLOW_STAGES,
+) -> str:
+    for stage in stage_order:
         if stage not in completed_stages and stage != "write_run_summary":
             return stage
     return "unknown"
@@ -826,6 +1058,7 @@ def main() -> None:
     )
     parser.add_argument("--dbt-project-dir", default="dbt")
     parser.add_argument("--dbt-profiles-dir", default=".tmp/dbt_profiles")
+    parser.add_argument("--s3-bucket")
     parser.add_argument("--pipeline-run-id")
     args = parser.parse_args()
 
@@ -836,6 +1069,7 @@ def main() -> None:
         duckdb_path=args.duckdb_path,
         dbt_project_dir=args.dbt_project_dir,
         dbt_profiles_dir=args.dbt_profiles_dir,
+        s3_bucket=args.s3_bucket,
         pipeline_run_id=args.pipeline_run_id,
     )
     print(summary_path)

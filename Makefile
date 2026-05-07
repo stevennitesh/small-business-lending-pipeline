@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local dbt-local dbt-seed-local
+.PHONY: install test runtime-smoke run-local run-final dbt-local dbt-seed-local
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -28,6 +28,9 @@ runtime-smoke: $(PREFECT_HOME)
 
 run-local: $(PREFECT_HOME)
 	scripts/run_local_pipeline.sh
+
+run-final: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
+	scripts/run_final_pipeline.sh
 
 dbt-local:
 	scripts/run_dbt_local.sh
