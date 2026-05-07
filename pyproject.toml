@@ -27,3 +27,7 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q"
+markers = [
+    "live_api: optional tests that call live public APIs",
+    "cloud: optional tests that require cloud credentials or services",
+]
