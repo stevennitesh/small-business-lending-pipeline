@@ -1,0 +1,138 @@
+version: 2
+
+models:
+  - name: mart_lending_monthly_state
+    description: Monthly state-level lending KPI mart.
+    meta:
+      grain: one row per project state and approval month
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_month"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved in the state-month.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount in the state-month.
+        data_tests:
+          - non_negative
+
+  - name: mart_lending_annual_state
+    description: Annual state-level lending KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount in the state-year.
+        data_tests:
+          - non_negative
+
+  - name: mart_lending_lender_state_period
+    description: Annual state-lender lending KPI mart.
+    meta:
+      grain: one row per project state, approval year, and lender
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "lender_key"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved for the lender in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount for the lender in the state-year.
+        data_tests:
+          - non_negative
+      - name: lender_approved_amount_share
+        description: Lender share of approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_lending_concentration_state_period
+    description: Annual state lender-concentration KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount in the state-year.
+        data_tests:
+          - non_negative
+      - name: top_5_lender_share
+        description: Share of approved dollars from the top five lenders in the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_lending_industry_state_period
+    description: Annual state-industry lending KPI mart.
+    meta:
+      grain: one row per project state, approval year, and NAICS sector
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "naics_key"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved for the industry in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount for the industry in the state-year.
+        data_tests:
+          - non_negative
+      - name: industry_approved_amount_share
+        description: Industry share of approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_lending_program_state_period
+    description: Annual state-program lending KPI mart.
+    meta:
+      grain: one row per project state, approval year, and SBA loan program
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
+    columns:
+      - name: loan_count
+        description: Number of SBA loans approved for the program in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Total gross approval amount for the program in the state-year.
+        data_tests:
+          - non_negative
+      - name: program_approved_amount_share
+        description: Program share of approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
