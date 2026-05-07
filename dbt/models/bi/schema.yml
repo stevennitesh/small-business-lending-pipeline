@@ -11,6 +11,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: total_approved_loan_amount
         description: Approved SBA loan dollars.
       - name: loan_count
@@ -32,6 +39,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: total_approved_loan_amount
         description: Approved SBA loan dollars.
       - name: loan_count
@@ -49,6 +63,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: top_5_lender_share
         description: Top-five lender share of approved dollars.
       - name: lender_count
@@ -64,6 +85,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year", "naics_key"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: industry_approved_amount_share
         description: Industry share of approved dollars in the state-year.
 
@@ -77,6 +105,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: program_approved_amount_share
         description: Program share of approved dollars in the state-year.
 
@@ -90,6 +125,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loans_per_1000_establishments
         description: SBA loan count per 1,000 establishments.
       - name: approved_loan_dollars_per_establishment

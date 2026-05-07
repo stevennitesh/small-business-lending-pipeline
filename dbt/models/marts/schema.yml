@@ -3,6 +3,8 @@ version: 2
 models:
   - name: dim_date
     description: Calendar date dimension covering dates present in staged source facts.
+    meta:
+      grain: one row per calendar date
     columns:
       - name: date_key
         description: Integer date key in YYYYMMDD format.
@@ -12,6 +14,8 @@ models:
 
   - name: dim_state
     description: State and District of Columbia geography dimension.
+    meta:
+      grain: one row per state or District of Columbia FIPS code
     columns:
       - name: state_key
         description: Two-character state FIPS key.
@@ -21,6 +25,8 @@ models:
 
   - name: dim_naics
     description: NAICS sector dimension with an explicit unknown row.
+    meta:
+      grain: one row per NAICS sector key
     columns:
       - name: naics_key
         description: NAICS sector key or UNKNOWN.
@@ -30,6 +36,8 @@ models:
 
   - name: dim_lender
     description: Cleaned lender dimension with an explicit unknown row.
+    meta:
+      grain: one row per cleaned lender key
     columns:
       - name: lender_key
         description: Surrogate lender key or UNKNOWN.
@@ -39,6 +47,8 @@ models:
 
   - name: dim_loan_program
     description: SBA loan program dimension.
+    meta:
+      grain: one row per SBA loan program
     columns:
       - name: loan_program_key
         description: SBA program key.
@@ -48,6 +58,8 @@ models:
 
   - name: dim_source_file
     description: Source-file lineage dimension for raw files represented in modeled facts.
+    meta:
+      grain: one row per local raw file path
     columns:
       - name: source_file_key
         description: Surrogate key for a raw file and checksum pair.
@@ -58,6 +70,7 @@ models:
   - name: fact_sba_loans
     description: Loan-level SBA fact table for aggregation by downstream marts.
     meta:
+      grain: one row per SBA loan record
       expose_to_powerbi: false
     columns:
       - name: sba_loan_fact_key
@@ -121,6 +134,8 @@ models:
 
   - name: fact_laus_state_month
     description: Monthly state LAUS unemployment-rate fact table.
+    meta:
+      grain: one row per state, observed month, and LAUS measure
     columns:
       - name: laus_state_month_fact_key
         description: Unique state-month-measure fact key.
@@ -154,6 +169,8 @@ models:
 
   - name: fact_bds_state_year
     description: Annual state Census BDS fact table.
+    meta:
+      grain: one row per state and year
     columns:
       - name: bds_state_year_fact_key
         description: Unique state-year fact key.

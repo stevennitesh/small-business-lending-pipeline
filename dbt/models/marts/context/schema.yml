@@ -10,6 +10,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "observed_month"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: unemployment_rate
         description: Monthly state unemployment rate.
         data_tests:
@@ -29,6 +36,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: annual_average_unemployment_rate
         description: Annual average state unemployment rate.
         data_tests:
@@ -48,6 +62,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: establishment_count
         description: Number of establishments.
         data_tests:
@@ -71,6 +92,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: annual_average_unemployment_rate
         description: Annual average state unemployment rate.
       - name: establishment_count

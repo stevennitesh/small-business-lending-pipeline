@@ -3,6 +3,8 @@ version: 2
 models:
   - name: stg_sba_7a_loans
     description: Canonical staged SBA 7(a) loan records from the latest successful FOIA snapshots.
+    meta:
+      grain: one row per source SBA 7(a) loan record from the latest successful snapshot
     columns:
       - name: loan_record_key
         description: Stable staged loan record key derived from source lineage and row identity.
@@ -13,6 +15,8 @@ models:
 
   - name: stg_sba_504_loans
     description: Canonical staged SBA 504 loan records from the latest successful FOIA snapshots.
+    meta:
+      grain: one row per source SBA 504 loan record from the latest successful snapshot
     columns:
       - name: loan_record_key
         description: Stable staged loan record key derived from source lineage and row identity.
@@ -23,6 +27,8 @@ models:
 
   - name: stg_sba_loans
     description: Combined canonical SBA loan staging model for 7(a) and 504 records.
+    meta:
+      grain: one row per source SBA loan record from the latest successful snapshots
     columns:
       - name: loan_record_key
         description: Stable staged loan record key derived from source lineage and row identity.
@@ -54,6 +60,8 @@ models:
 
   - name: stg_census_bds_state_year
     description: Canonical Census BDS state-year staging model from the latest successful snapshot.
+    meta:
+      grain: one row per state and year from the latest successful BDS snapshot
     data_tests:
       - unique_combination_of_columns:
           arguments:
@@ -61,6 +69,11 @@ models:
     columns:
       - name: state_fips
         description: Census state FIPS code.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: year
         description: BDS reference year.
       - name: state_match_status
@@ -72,11 +85,20 @@ models:
 
   - name: stg_bls_laus_state_month
     description: Canonical BLS LAUS state-month unemployment-rate staging model from the latest successful snapshot.
+    meta:
+      grain: one row per state, observed month, and measure from the latest successful LAUS snapshot
     data_tests:
       - unique_combination_of_columns:
           arguments:
             combination_of_columns: ["state_fips", "observed_month", "measure_name"]
     columns:
+      - name: state_fips
+        description: BLS state FIPS code.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: unemployment_rate
         description: Monthly state unemployment rate.
         data_tests:
@@ -93,6 +115,8 @@ models:
 
   - name: stg_ingestion_manifest
     description: Staged ingestion manifests with latest-successful snapshot flag.
+    meta:
+      grain: one row per ingested source resource snapshot
     columns:
       - name: pipeline_run_id
         description: Pipeline run identifier.
@@ -101,6 +125,8 @@ models:
 
   - name: stg_validation_result
     description: Staged raw validation results.
+    meta:
+      grain: one row per validation check result
     columns:
       - name: validation_check_id
         description: Stable validation check identifier.

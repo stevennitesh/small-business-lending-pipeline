@@ -10,6 +10,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_month"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved in the state-month.
         data_tests:
@@ -28,6 +35,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved in the state-year.
         data_tests:
@@ -46,6 +60,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year", "lender_key"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved for the lender in the state-year.
         data_tests:
@@ -71,6 +92,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved in the state-year.
         data_tests:
@@ -96,6 +124,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year", "naics_key"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved for the industry in the state-year.
         data_tests:
@@ -121,6 +156,13 @@ models:
           arguments:
             combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
     columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
       - name: loan_count
         description: Number of SBA loans approved for the program in the state-year.
         data_tests:
