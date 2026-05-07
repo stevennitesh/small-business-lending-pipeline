@@ -18,3 +18,16 @@ seeds:
   small_business_lending_pipeline:
     +schema: seeds
     +quote_columns: false
+
+models:
+  small_business_lending_pipeline:
+    staging:
+      +schema: staging
+      audit:
+        +schema: audit
+    marts:
+      +schema: marts
+      pipeline:
+        +schema: audit
+    bi:
+      +schema: bi

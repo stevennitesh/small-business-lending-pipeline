@@ -6,7 +6,7 @@ select
         "measure_name"
     ]) }} as laus_state_month_fact_key,
     state_fips as state_key,
-    try_cast(strftime(observed_month, '%Y%m%d') as integer) as date_key,
+    {{ date_key('observed_month') }} as date_key,
     source_file.source_file_key,
     series_id,
     observed_month,

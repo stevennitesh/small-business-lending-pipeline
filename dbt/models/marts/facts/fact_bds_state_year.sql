@@ -5,7 +5,7 @@ select
         "year"
     ]) }} as bds_state_year_fact_key,
     state_fips as state_key,
-    try_cast(strftime(make_date(year, 1, 1), '%Y%m%d') as integer) as date_key,
+    {{ date_key(year_start_date('year')) }} as date_key,
     source_file.source_file_key,
     year,
     establishments,

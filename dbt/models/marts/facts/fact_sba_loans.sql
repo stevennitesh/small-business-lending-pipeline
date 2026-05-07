@@ -20,7 +20,7 @@ select
     project_state_fips as project_state_key,
     borrower_state_fips as borrower_state_key,
     source_file.source_file_key,
-    try_cast(strftime(approval_date, '%Y%m%d') as integer) as approval_date_key,
+    {{ date_key('approval_date') }} as approval_date_key,
     approval_date,
     approval_fiscal_year,
     first_disbursement_date,
