@@ -1,0 +1,108 @@
+version: 2
+
+models:
+  - name: stg_sba_7a_loans
+    description: Canonical staged SBA 7(a) loan records from the latest successful FOIA snapshots.
+    columns:
+      - name: loan_record_key
+        description: Stable staged loan record key derived from source lineage and row identity.
+      - name: loan_program
+        description: SBA loan program identifier.
+      - name: gross_approval_amount
+        description: Gross SBA approval amount from the FOIA source.
+
+  - name: stg_sba_504_loans
+    description: Canonical staged SBA 504 loan records from the latest successful FOIA snapshots.
+    columns:
+      - name: loan_record_key
+        description: Stable staged loan record key derived from source lineage and row identity.
+      - name: loan_program
+        description: SBA loan program identifier.
+      - name: gross_approval_amount
+        description: Gross SBA approval amount from the FOIA source.
+
+  - name: stg_sba_loans
+    description: Combined canonical SBA loan staging model for 7(a) and 504 records.
+    columns:
+      - name: loan_record_key
+        description: Stable staged loan record key derived from source lineage and row identity.
+        data_tests:
+          - not_null: {}
+          - unique: {}
+      - name: loan_program
+        description: SBA loan program identifier.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["7a", "504"]
+      - name: gross_approval_amount
+        description: Gross SBA approval amount from the FOIA source.
+        data_tests:
+          - non_negative
+      - name: borrower_state_match_status
+        description: Whether borrower state abbreviation mapped to the state reference seed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unmapped", "missing"]
+      - name: project_state_match_status
+        description: Whether project state abbreviation mapped to the state reference seed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unmapped", "missing"]
+
+  - name: stg_census_bds_state_year
+    description: Canonical Census BDS state-year staging model from the latest successful snapshot.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_fips", "year"]
+    columns:
+      - name: state_fips
+        description: Census state FIPS code.
+      - name: year
+        description: BDS reference year.
+      - name: state_match_status
+        description: Whether the Census state value mapped to the state reference seed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unmapped", "missing"]
+
+  - name: stg_bls_laus_state_month
+    description: Canonical BLS LAUS state-month unemployment-rate staging model from the latest successful snapshot.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_fips", "observed_month", "measure_name"]
+    columns:
+      - name: unemployment_rate
+        description: Monthly state unemployment rate.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: state_match_status
+        description: Whether the BLS state FIPS value mapped to the state reference seed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unmapped", "missing"]
+
+  - name: stg_ingestion_manifest
+    description: Staged ingestion manifests with latest-successful snapshot flag.
+    columns:
+      - name: pipeline_run_id
+        description: Pipeline run identifier.
+      - name: is_latest_successful_snapshot
+        description: True when the manifest is the latest successful snapshot for its source resource.
+
+  - name: stg_validation_result
+    description: Staged raw validation results.
+    columns:
+      - name: validation_check_id
+        description: Stable validation check identifier.
+      - name: status
+        description: Validation status.
