@@ -1,0 +1,20 @@
+select
+    {{ generate_surrogate_key(["local_raw_path"]) }} as source_file_key,
+    pipeline_run_id,
+    source_system,
+    dataset_name as source_dataset,
+    resource_name as source_resource_name,
+    source_url,
+    extracted_at_utc,
+    ingestion_date,
+    local_raw_path as raw_file_path,
+    s3_raw_uri,
+    file_format,
+    row_count,
+    sha256_checksum,
+    schema_hash,
+    validation_status,
+    column_count,
+    file_size_bytes,
+    is_latest_successful_snapshot
+from {{ ref('stg_ingestion_manifest') }}

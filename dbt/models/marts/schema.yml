@@ -1,0 +1,186 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar date dimension covering dates present in staged source facts.
+    columns:
+      - name: date_key
+        description: Integer date key in YYYYMMDD format.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_state
+    description: State and District of Columbia geography dimension.
+    columns:
+      - name: state_key
+        description: Two-character state FIPS key.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_naics
+    description: NAICS sector dimension with an explicit unknown row.
+    columns:
+      - name: naics_key
+        description: NAICS sector key or UNKNOWN.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_lender
+    description: Cleaned lender dimension with an explicit unknown row.
+    columns:
+      - name: lender_key
+        description: Surrogate lender key or UNKNOWN.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_loan_program
+    description: SBA loan program dimension.
+    columns:
+      - name: loan_program_key
+        description: SBA program key.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_source_file
+    description: Source-file lineage dimension for raw files represented in modeled facts.
+    columns:
+      - name: source_file_key
+        description: Surrogate key for a raw file and checksum pair.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fact_sba_loans
+    description: Loan-level SBA fact table for aggregation by downstream marts.
+    meta:
+      expose_to_powerbi: false
+    columns:
+      - name: sba_loan_fact_key
+        description: Unique loan-level fact key.
+        data_tests:
+          - not_null
+          - unique
+      - name: source_file_key
+        description: Source-file lineage key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_source_file')
+                field: source_file_key
+      - name: lender_key
+        description: Lender dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_lender')
+                field: lender_key
+      - name: naics_key
+        description: NAICS sector dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_naics')
+                field: naics_key
+      - name: loan_program_key
+        description: Loan program dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_loan_program')
+                field: loan_program_key
+      - name: project_state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: borrower_state_key
+        description: Borrower state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: approval_date_key
+        description: Approval date dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: fact_laus_state_month
+    description: Monthly state LAUS unemployment-rate fact table.
+    columns:
+      - name: laus_state_month_fact_key
+        description: Unique state-month-measure fact key.
+        data_tests:
+          - not_null
+          - unique
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: date_key
+        description: Observed month date dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: source_file_key
+        description: Source-file lineage key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_source_file')
+                field: source_file_key
+
+  - name: fact_bds_state_year
+    description: Annual state Census BDS fact table.
+    columns:
+      - name: bds_state_year_fact_key
+        description: Unique state-year fact key.
+        data_tests:
+          - not_null
+          - unique
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: date_key
+        description: January 1 date dimension key for the BDS year.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: source_file_key
+        description: Source-file lineage key.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_source_file')
+                field: source_file_key
