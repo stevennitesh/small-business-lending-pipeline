@@ -1,6 +1,6 @@
 select
-    state_fips as state_key,
-    state_fips,
+    lpad(cast(state_fips as varchar), 2, '0') as state_key,
+    lpad(cast(state_fips as varchar), 2, '0') as state_fips,
     state_abbr,
     state_name,
     census_region,

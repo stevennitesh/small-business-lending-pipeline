@@ -41,7 +41,7 @@ standardized as (
         nullif(trim(cast(borrname as varchar)), '') as borrower_name,
         nullif(trim(cast(borrcity as varchar)), '') as borrower_city,
         upper(nullif(trim(cast(borrstate as varchar)), '')) as borrower_state_abbr,
-        borrower_state.state_fips as borrower_state_fips,
+        lpad(cast(borrower_state.state_fips as varchar), 2, '0') as borrower_state_fips,
         case
             when nullif(trim(cast(borrstate as varchar)), '') is null then 'missing'
             when borrower_state.state_fips is null then 'unmapped'
@@ -57,7 +57,7 @@ standardized as (
         cast(null as decimal(18, 2)) as third_party_dollars,
         nullif(trim(cast(projectcounty as varchar)), '') as project_county,
         upper(nullif(trim(cast(projectstate as varchar)), '')) as project_state_abbr,
-        project_state.state_fips as project_state_fips,
+        lpad(cast(project_state.state_fips as varchar), 2, '0') as project_state_fips,
         case
             when nullif(trim(cast(projectstate as varchar)), '') is null then 'missing'
             when project_state.state_fips is null then 'unmapped'

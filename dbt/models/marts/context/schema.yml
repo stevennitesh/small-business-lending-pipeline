@@ -1,0 +1,106 @@
+version: 2
+
+models:
+  - name: mart_laus_monthly_state
+    description: Monthly state LAUS unemployment context mart.
+    meta:
+      grain: one row per state and observed month
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "observed_month"]
+    columns:
+      - name: unemployment_rate
+        description: Monthly state unemployment rate.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: unemployment_rate_yoy_change_pp
+        description: Year-over-year change in monthly unemployment rate, in percentage points.
+
+  - name: mart_laus_annual_state
+    description: Annual state LAUS unemployment context mart.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: annual_average_unemployment_rate
+        description: Annual average state unemployment rate.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: unemployment_rate_yoy_change_pp
+        description: Year-over-year annual unemployment-rate change, in percentage points.
+
+  - name: mart_business_dynamics_annual_state
+    description: Annual state Census BDS business dynamics context mart.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: establishment_count
+        description: Number of establishments.
+        data_tests:
+          - non_negative
+      - name: establishment_entry_rate
+        description: Establishment entry rate.
+        data_tests:
+          - non_negative
+      - name: establishment_exit_rate
+        description: Establishment exit rate.
+        data_tests:
+          - non_negative
+
+  - name: mart_regional_business_health_annual_state
+    description: Annual state regional business-health mart combining compatible lending, LAUS, and BDS annual grains.
+    meta:
+      grain: one row per state and year
+      powerbi_ready: true
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: annual_average_unemployment_rate
+        description: Annual average state unemployment rate.
+      - name: establishment_count
+        description: Number of establishments.
+        data_tests:
+          - non_negative
+      - name: establishment_entry_rate
+        description: Establishment entry rate.
+        data_tests:
+          - non_negative
+      - name: establishment_exit_rate
+        description: Establishment exit rate.
+        data_tests:
+          - non_negative
+      - name: loans_per_1000_establishments
+        description: SBA loan count per 1,000 establishments.
+        data_tests:
+          - non_negative
+      - name: approved_loan_dollars_per_establishment
+        description: Approved SBA loan dollars per establishment.
+        data_tests:
+          - non_negative
+      - name: context_join_status
+        description: Flag indicating which annual context sources are present.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - complete_context
+                  - missing_laus
+                  - missing_business_dynamics
+                  - missing_context
+                  - missing_lending

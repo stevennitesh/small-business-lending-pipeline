@@ -13,7 +13,7 @@ with latest_successful_manifests as (
 
 select
     raw.series_id,
-    raw.state_fips,
+    lpad(cast(raw.state_fips as varchar), 2, '0') as state_fips,
     raw.state_abbr,
     raw.state_name as source_state_name,
     ref_state.state_name,
@@ -41,4 +41,4 @@ inner join latest_successful_manifests as manifest
    and raw.source_resource_name = manifest.resource_name
    and raw.raw_file_path = manifest.local_raw_path
 left join {{ ref('ref_state') }} as ref_state
-    on raw.state_fips = ref_state.state_fips
+    on lpad(cast(raw.state_fips as varchar), 2, '0') = lpad(cast(ref_state.state_fips as varchar), 2, '0')
