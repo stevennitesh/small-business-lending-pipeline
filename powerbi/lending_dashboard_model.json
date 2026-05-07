@@ -1,0 +1,219 @@
+{
+  "name": "lending_dashboard",
+  "target_artifact": "powerbi/lending_dashboard.pbix",
+  "artifact_status": "source_model_ready_pbix_requires_power_bi_desktop",
+  "source_modes": {
+    "local_csv": {
+      "base_path": "data/exports/powerbi",
+      "notes": "Use the CSV exports written by scripts/export_powerbi_tables.py."
+    },
+    "snowflake": {
+      "database": "${SNOWFLAKE_DATABASE}",
+      "schema": "${SNOWFLAKE_SCHEMA}",
+      "notes": "Use the dbt-built BI tables in the configured Snowflake database and schema."
+    }
+  },
+  "tables": [
+    {
+      "name": "bi_executive_overview",
+      "grain": "state-year",
+      "local_csv": "data/exports/powerbi/bi_executive_overview.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_EXECUTIVE_OVERVIEW",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "year",
+        "total_approved_loan_amount",
+        "loan_count",
+        "average_loan_size",
+        "annual_average_unemployment_rate",
+        "context_join_status"
+      ]
+    },
+    {
+      "name": "bi_state_lending_trends",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_state_lending_trends.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_STATE_LENDING_TRENDS",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "approval_year",
+        "total_approved_loan_amount",
+        "loan_count",
+        "approved_loan_amount_yoy_growth_pct"
+      ]
+    },
+    {
+      "name": "bi_lender_concentration",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_lender_concentration.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_LENDER_CONCENTRATION",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "approval_year",
+        "top_5_lender_share",
+        "lender_count"
+      ]
+    },
+    {
+      "name": "bi_industry_mix",
+      "grain": "state-approval_year-naics",
+      "local_csv": "data/exports/powerbi/bi_industry_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_INDUSTRY_MIX",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "approval_year",
+        "naics_key",
+        "naics_sector_name",
+        "industry_approved_amount_share"
+      ]
+    },
+    {
+      "name": "bi_program_mix",
+      "grain": "state-approval_year-program",
+      "local_csv": "data/exports/powerbi/bi_program_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_PROGRAM_MIX",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "approval_year",
+        "loan_program_key",
+        "loan_program_name",
+        "program_approved_amount_share"
+      ]
+    },
+    {
+      "name": "bi_regional_business_health",
+      "grain": "state-year",
+      "local_csv": "data/exports/powerbi/bi_regional_business_health.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_REGIONAL_BUSINESS_HEALTH",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "year",
+        "loans_per_1000_establishments",
+        "approved_loan_dollars_per_establishment",
+        "context_join_status"
+      ]
+    },
+    {
+      "name": "bi_pipeline_health",
+      "grain": "pipeline-run-summary",
+      "local_csv": "data/exports/powerbi/bi_pipeline_health.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_PIPELINE_HEALTH",
+      "required_columns": [
+        "latest_run_status",
+        "validation_status",
+        "freshness_status"
+      ]
+    },
+    {
+      "name": "bi_lender_mix",
+      "grain": "state-approval_year-lender",
+      "local_csv": "data/exports/powerbi/bi_lender_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_LENDER_MIX",
+      "required_columns": [
+        "state_key",
+        "state_name",
+        "approval_year",
+        "lender_key",
+        "lender_name",
+        "total_approved_loan_amount",
+        "loan_count",
+        "lender_approved_amount_share",
+        "lender_rank"
+      ]
+    },
+    {
+      "name": "bi_state_filter",
+      "grain": "state",
+      "local_csv": "data/exports/powerbi/bi_state_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.BI_STATE_FILTER",
+      "required_columns": [
+        "state_key",
+        "state_fips",
+        "state_abbr",
+        "state_name",
+        "census_region",
+        "census_division"
+      ]
+    }
+  ],
+  "dimensions": [
+    {
+      "name": "dim_state",
+      "source_table": "bi_state_filter",
+      "key": "state_key",
+      "display": "state_name",
+      "filter_fields": ["state_name", "state_abbr", "census_region", "census_division"]
+    },
+    {
+      "name": "dim_year",
+      "source": "distinct union of year and approval_year columns from BI tables",
+      "key": "year",
+      "display": "year",
+      "filter_fields": ["year"]
+    },
+    {
+      "name": "dim_program",
+      "source_table": "bi_program_mix",
+      "key": "loan_program_key",
+      "display": "loan_program_name",
+      "filter_fields": ["loan_program_name"]
+    },
+    {
+      "name": "dim_industry",
+      "source_table": "bi_industry_mix",
+      "key": "naics_key",
+      "display": "naics_sector_name",
+      "filter_fields": ["naics_sector_name"]
+    },
+    {
+      "name": "dim_lender",
+      "source_table": "bi_lender_mix",
+      "key": "lender_key",
+      "display": "lender_name",
+      "filter_fields": ["lender_name"]
+    }
+  ],
+  "relationships": [
+    {"from": "dim_state.state_key", "to": "bi_executive_overview.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_state_lending_trends.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_lender_concentration.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_industry_mix.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_program_mix.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_regional_business_health.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_state.state_key", "to": "bi_lender_mix.state_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_executive_overview.year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_state_lending_trends.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_lender_concentration.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_industry_mix.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_program_mix.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_regional_business_health.year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_year.year", "to": "bi_lender_mix.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_program.loan_program_key", "to": "bi_program_mix.loan_program_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_industry.naics_key", "to": "bi_industry_mix.naics_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_lender.lender_key", "to": "bi_lender_mix.lender_key", "cardinality": "one_to_many", "cross_filter": "single"}
+  ],
+  "measures": [
+    {
+      "name": "Selected Year Label",
+      "category": "display_logic",
+      "expression": "COALESCE(SELECTEDVALUE(dim_year[year]), \"All years\")"
+    },
+    {
+      "name": "Selected State Label",
+      "category": "display_logic",
+      "expression": "COALESCE(SELECTEDVALUE(dim_state[state_name]), \"All states\")"
+    }
+  ],
+  "filter_coverage": ["year", "state", "region", "program", "industry", "lender"],
+  "non_goals_enforced": [
+    "No raw source tables or files are model sources.",
+    "Core KPI values are imported from modeled BI tables.",
+    "Borrower-level identifiers are not exposed."
+  ]
+}

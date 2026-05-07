@@ -13,6 +13,8 @@ BI_MODELS = {
         "dbt/models/bi/bi_regional_business_health.sql"
     ),
     "bi_pipeline_health": Path("dbt/models/bi/bi_pipeline_health.sql"),
+    "bi_lender_mix": Path("dbt/models/bi/bi_lender_mix.sql"),
+    "bi_state_filter": Path("dbt/models/bi/bi_state_filter.sql"),
 }
 
 PIPELINE_MARTS = {
@@ -74,6 +76,18 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "latest_run_status",
             "validation_status",
             "freshness_status",
+        },
+        "bi_lender_mix": {
+            "lender_key",
+            "lender_name",
+            "lender_approved_amount_share",
+            "lender_rank",
+        },
+        "bi_state_filter": {
+            "state_key",
+            "state_name",
+            "census_region",
+            "census_division",
         },
     }
 

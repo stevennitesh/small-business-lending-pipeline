@@ -44,6 +44,7 @@ dbt/profiles.yml
 
 # Power BI local artifacts
 *.pbix
+!powerbi/lending_dashboard.pbix
 powerbi/screenshots/**
 !powerbi/screenshots/.gitkeep
 

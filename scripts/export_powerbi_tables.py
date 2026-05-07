@@ -16,6 +16,8 @@ BI_EXPORT_TABLES = (
     "bi_program_mix",
     "bi_regional_business_health",
     "bi_pipeline_health",
+    "bi_lender_mix",
+    "bi_state_filter",
 )
 
 REQUIRED_EXPORT_COLUMNS = {
@@ -70,6 +72,25 @@ REQUIRED_EXPORT_COLUMNS = {
         "latest_run_status",
         "validation_status",
         "freshness_status",
+    },
+    "bi_lender_mix": {
+        "state_key",
+        "state_name",
+        "approval_year",
+        "lender_key",
+        "lender_name",
+        "total_approved_loan_amount",
+        "loan_count",
+        "lender_approved_amount_share",
+        "lender_rank",
+    },
+    "bi_state_filter": {
+        "state_key",
+        "state_fips",
+        "state_abbr",
+        "state_name",
+        "census_region",
+        "census_division",
     },
 }
 

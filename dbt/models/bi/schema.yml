@@ -152,3 +152,56 @@ models:
         description: Overall validation status.
       - name: freshness_status
         description: Overall source freshness status.
+
+  - name: bi_lender_mix
+    description: Dashboard-ready annual state-lender lending mix for lender filtering and concentration detail.
+    meta:
+      grain: one row per state, approval year, and lender
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "lender_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: lender_key
+        description: Lender dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_lender')
+                field: lender_key
+      - name: lender_name
+        description: Lender display name.
+      - name: lender_approved_amount_share
+        description: Lender share of approved dollars in the state-year.
+      - name: lender_rank
+        description: Lender rank by approved dollars in the state-year.
+
+  - name: bi_state_filter
+    description: Dashboard-ready state and region filter helper.
+    meta:
+      grain: one row per state or DC
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - unique
+          - not_null
+      - name: state_name
+        description: State display name.
+      - name: census_region
+        description: Census region used for Power BI regional filters.
+      - name: census_division
+        description: Census division used for Power BI regional filters.

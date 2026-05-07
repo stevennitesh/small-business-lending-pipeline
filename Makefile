@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local run-final dbt-local dbt-seed-local
+.PHONY: install test runtime-smoke run-local run-final dbt-local dbt-seed-local powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -32,8 +32,11 @@ run-local: $(PREFECT_HOME)
 run-final: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_final_pipeline.sh
 
-dbt-local:
+dbt-local: $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_dbt_local.sh
 
 dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb
+
+powerbi-model-check:
+	$(VENV_PYTHON) scripts/validate_powerbi_model.py
