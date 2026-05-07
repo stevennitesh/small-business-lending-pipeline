@@ -4,7 +4,8 @@ PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
-export PREFECT_HOME ?= .tmp/prefect
+PREFECT_HOME ?= .tmp/prefect
+export PREFECT_HOME
 DBT_PROFILES_TMP ?= .tmp/dbt_profiles
 
 $(PREFECT_HOME):
