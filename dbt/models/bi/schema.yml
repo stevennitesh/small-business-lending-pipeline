@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: bi_executive_overview
+    description: Dashboard-ready executive overview by state-year.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Average approved loan size.
+      - name: annual_average_unemployment_rate
+        description: Annual average unemployment rate.
+      - name: context_join_status
+        description: Context source availability status.
+
+  - name: bi_state_lending_trends
+    description: Dashboard-ready annual state lending trends.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved dollar growth percentage.
+
+  - name: bi_lender_concentration
+    description: Dashboard-ready state-year lender concentration table.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: top_5_lender_share
+        description: Top-five lender share of approved dollars.
+      - name: lender_count
+        description: Lender count in the state-year.
+
+  - name: bi_industry_mix
+    description: Dashboard-ready annual state industry lending mix.
+    meta:
+      grain: one row per state, approval year, and NAICS sector
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "naics_key"]
+    columns:
+      - name: industry_approved_amount_share
+        description: Industry share of approved dollars in the state-year.
+
+  - name: bi_program_mix
+    description: Dashboard-ready annual state SBA program lending mix.
+    meta:
+      grain: one row per state, approval year, and loan program
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
+    columns:
+      - name: program_approved_amount_share
+        description: Program share of approved dollars in the state-year.
+
+  - name: bi_regional_business_health
+    description: Dashboard-ready regional business health table by state-year.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: loans_per_1000_establishments
+        description: SBA loan count per 1,000 establishments.
+      - name: approved_loan_dollars_per_establishment
+        description: Approved SBA loan dollars per establishment.
+      - name: context_join_status
+        description: Context source availability status.
+
+  - name: bi_pipeline_health
+    description: Dashboard-ready pipeline health summary.
+    meta:
+      grain: one row per pipeline run summary
+    data_tests:
+      - not_empty
+    columns:
+      - name: latest_run_status
+        description: Overall latest run status.
+      - name: validation_status
+        description: Overall validation status.
+      - name: freshness_status
+        description: Overall source freshness status.

@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_pipeline_source_freshness
+    description: Source-resource freshness and latest successful snapshot status.
+    meta:
+      grain: one row per source resource
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["source_system", "source_dataset", "source_resource_name"]
+    columns:
+      - name: freshness_status
+        description: Freshness health status for the source resource.
+      - name: is_latest_successful_snapshot
+        description: Whether the source resource has a latest successful manifest.
+
+  - name: mart_pipeline_validation_summary
+    description: Validation check summary by run and source resource.
+    meta:
+      grain: one row per pipeline run and validation source resource
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["pipeline_run_id", "source_system", "source_dataset", "source_resource_name"]
+    columns:
+      - name: validation_status
+        description: Passed, warning, or failed status for the validation group.
+      - name: failed_check_count
+        description: Number of failed validation checks.
+        data_tests:
+          - non_negative
+      - name: warning_check_count
+        description: Number of warning validation checks.
+        data_tests:
+          - non_negative
+
+  - name: mart_pipeline_run_summary
+    description: Pipeline run health summary for dashboard use.
+    meta:
+      grain: one row per loaded pipeline run summary
+    data_tests:
+      - not_empty
+    columns:
+      - name: latest_run_status
+        description: Overall latest run status derived from load, validation, and freshness checks.
+      - name: loaded_at_utc
+        description: UTC timestamp when raw loading completed.
+      - name: validation_status
+        description: Overall validation status from the raw load summary.

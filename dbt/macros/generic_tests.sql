@@ -27,3 +27,11 @@
     group by {{ combination_of_columns | join(", ") }}
     having count(*) > 1
 {% endtest %}
+
+{% test not_empty(model) %}
+    select 'model has no rows' as failure
+    where not exists (
+        select 1
+        from {{ model }}
+    )
+{% endtest %}
