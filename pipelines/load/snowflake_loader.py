@@ -57,7 +57,7 @@ class SnowflakeConfig:
 
     @classmethod
     def from_env(cls) -> "SnowflakeConfig":
-        load_dotenv()
+        load_dotenv(override=True)
         values = {
             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
             "user": os.getenv("SNOWFLAKE_USER"),
