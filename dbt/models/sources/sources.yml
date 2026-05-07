@@ -1,0 +1,82 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw local DuckDB tables loaded from validated source extracts and pipeline audit files.
+    schema: raw
+    tables:
+      - name: raw_sba_7a_foia
+        description: Source-native SBA 7(a) FOIA loan records with ingestion metadata.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier that produced the raw extract.
+          - name: source_resource_name
+            description: SBA FOIA resource represented by the raw row.
+          - name: raw_file_path
+            description: Local raw file path used for lineage.
+
+      - name: raw_sba_504_foia
+        description: Source-native SBA 504 FOIA loan records with ingestion metadata.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier that produced the raw extract.
+          - name: source_resource_name
+            description: SBA FOIA resource represented by the raw row.
+          - name: raw_file_path
+            description: Local raw file path used for lineage.
+
+      - name: raw_census_bds_state_year
+        description: Census BDS state-year business dynamics rows with ingestion metadata.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier that produced the raw extract.
+          - name: state
+            description: State FIPS code returned by the Census geography predicate.
+          - name: YEAR
+            description: BDS reference year.
+
+      - name: raw_bls_laus_state_month
+        description: BLS LAUS state-month unemployment-rate observations with ingestion metadata.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier that produced the raw extract.
+          - name: series_id
+            description: BLS LAUS series identifier.
+          - name: observed_month
+            description: Month-start date for the monthly LAUS observation.
+          - name: value
+            description: Numeric unemployment-rate value.
+
+      - name: raw_ingestion_manifest
+        description: Pipeline-generated ingestion manifests for raw extracts.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier.
+          - name: source_system
+            description: Source system name such as sba, census, or bls.
+          - name: row_count
+            description: Raw row count recorded by ingestion.
+          - name: sha256_checksum
+            description: SHA-256 checksum for the raw extract file.
+
+      - name: raw_validation_result
+        description: Structured Python validation results for source and raw-file checks.
+        columns:
+          - name: pipeline_run_id
+            description: Pipeline run identifier.
+          - name: validation_check_id
+            description: Stable validation check identifier.
+          - name: severity
+            description: Validation severity, usually fail, warning, or info.
+          - name: status
+            description: Validation status, usually passed, warning, or failed.
+
+      - name: raw_pipeline_run_summary
+        description: Pipeline-level raw loading summary for local DuckDB runs.
+        columns:
+          - name: pipeline_run_ids
+            description: Comma-separated run identifiers represented by the raw load.
+          - name: loaded_at_utc
+            description: UTC timestamp when the local raw load completed.
+          - name: validation_status
+            description: Overall validation status at raw load time.

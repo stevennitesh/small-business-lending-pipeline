@@ -1,0 +1,42 @@
+version: 2
+
+seeds:
+  - name: ref_state
+    description: Reference state and District of Columbia attributes for geography joins.
+    columns:
+      - name: state_fips
+        description: Two-character state FIPS code.
+        tests:
+          - not_null
+          - unique
+      - name: state_abbr
+        description: Two-letter postal abbreviation.
+        tests:
+          - not_null
+      - name: state_name
+        description: State or District of Columbia display name.
+
+  - name: ref_naics
+    description: NAICS sector reference rows used for industry grouping.
+    columns:
+      - name: naics_sector_code
+        description: NAICS sector code or range.
+        tests:
+          - not_null
+          - unique
+      - name: naics_sector_name
+        description: NAICS sector display name.
+
+  - name: ref_bls_laus_state_series
+    description: Mapping from state/DC geography to BLS LAUS state unemployment-rate series.
+    columns:
+      - name: state_fips
+        description: Two-character state FIPS code.
+        tests:
+          - not_null
+          - unique
+      - name: series_id
+        description: BLS LAUS series identifier for state unemployment rate.
+        tests:
+          - not_null
+          - unique
