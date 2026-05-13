@@ -72,3 +72,15 @@ def test_staging_schema_declares_issue_acceptance_tests():
     assert laus_columns["unemployment_rate"]["data_tests"] == [
         {"accepted_range": {"arguments": {"min_value": 0, "max_value": 100}}}
     ]
+
+
+def test_sba_staging_models_null_out_negative_approval_amounts():
+    for model_path in (
+        STAGING_MODELS["stg_sba_7a_loans"],
+        STAGING_MODELS["stg_sba_504_loans"],
+    ):
+        model_sql = model_path.read_text(encoding="utf-8")
+
+        assert "gross_approval_amount" in model_sql
+        assert "else null" in model_sql
+        assert ">= 0" in model_sql

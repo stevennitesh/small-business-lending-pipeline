@@ -6,7 +6,8 @@ with industry_period as (
         sum(fact.gross_approval_amount) as total_approved_loan_amount,
         count(*) as loan_count
     from {{ ref('fact_sba_loans') }} as fact
-    where coalesce(extract(year from fact.approval_date)::integer, fact.approval_fiscal_year) is not null
+    where fact.project_state_key is not null
+      and coalesce(extract(year from fact.approval_date)::integer, fact.approval_fiscal_year) is not null
     group by 1, 2, 3
 )
 

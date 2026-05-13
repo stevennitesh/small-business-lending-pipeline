@@ -68,6 +68,19 @@ def test_lending_schema_declares_grains_and_kpi_tests():
     } <= singular_tests
 
 
+def test_state_lending_marts_exclude_unmapped_project_states():
+    for model_name in (
+        "mart_lending_monthly_state",
+        "mart_lending_annual_state",
+        "mart_lending_lender_state_period",
+        "mart_lending_industry_state_period",
+        "mart_lending_program_state_period",
+    ):
+        model_sql = LENDING_MARTS[model_name].read_text(encoding="utf-8")
+
+        assert "project_state_key is not null" in model_sql
+
+
 def _test_names(data_tests: list) -> set[str]:
     names = set()
     for test in data_tests:

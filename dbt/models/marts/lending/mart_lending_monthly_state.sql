@@ -5,7 +5,8 @@ with monthly as (
         sum(gross_approval_amount) as total_approved_loan_amount,
         count(*) as loan_count
     from {{ ref('fact_sba_loans') }}
-    where approval_date is not null
+    where project_state_key is not null
+      and approval_date is not null
     group by 1, 2
 ),
 

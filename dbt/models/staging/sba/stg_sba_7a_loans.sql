@@ -63,7 +63,11 @@ standardized as (
             when project_state.state_fips is null then 'unmapped'
             else 'mapped'
         end as project_state_match_status,
-        try_cast(replace(replace(cast(grossapproval as varchar), ',', ''), '$', '') as decimal(18, 2)) as gross_approval_amount,
+        case
+            when try_cast(replace(replace(cast(grossapproval as varchar), ',', ''), '$', '') as decimal(18, 2)) >= 0
+                then try_cast(replace(replace(cast(grossapproval as varchar), ',', ''), '$', '') as decimal(18, 2))
+            else null
+        end as gross_approval_amount,
         try_cast(replace(replace(cast(sbaguaranteedapproval as varchar), ',', ''), '$', '') as decimal(18, 2)) as sba_guaranteed_approval_amount,
         {{ parse_mdy_date("nullif(trim(cast(approvaldate as varchar)), '')") }} as approval_date,
         try_cast(approvalfy as integer) as approval_fiscal_year,
