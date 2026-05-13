@@ -67,6 +67,7 @@ def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
 
     context = local_flow.initialize_run.fn(
         run_mode="final",
+        extract_mode="fixture",
         dbt_target="prod_snowflake",
         data_root=str(tmp_path / "data"),
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
@@ -83,6 +84,7 @@ def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
 def test_final_summary_records_cloud_outputs(tmp_path):
     context = local_flow.initialize_run.fn(
         run_mode="final",
+        extract_mode="fixture",
         dbt_target="prod_snowflake",
         data_root=str(tmp_path / "data"),
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
@@ -118,6 +120,7 @@ def test_final_summary_records_cloud_outputs(tmp_path):
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     context = local_flow.initialize_run.fn(
         run_mode="local",
+        extract_mode="fixture",
         dbt_target="dev_duckdb",
         data_root=str(tmp_path / "data"),
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
@@ -137,9 +140,110 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     assert {record["status"] for record in validation_payload} == {"passed"}
 
 
+def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="live",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="live-test-run",
+        source_start_year=2020,
+        source_end_year=2024,
+    )
+    calls = []
+
+    def fake_sba_extract(**kwargs):
+        calls.append(("sba", kwargs))
+        return local_flow.SBAExtractionSummary(
+            results={},
+            manifest_paths={
+                "sba_7a_fy2020_present": _write_manifest_stub(
+                    tmp_path, "sba_7a_fy2020_present"
+                ),
+                "sba_504_fy2010_present": _write_manifest_stub(
+                    tmp_path, "sba_504_fy2010_present"
+                ),
+            },
+            warnings=[],
+        )
+
+    def fake_census_extract(**kwargs):
+        calls.append(("census", kwargs))
+        return local_flow.CensusBDSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
+            latest_available_year=2024,
+        )
+
+    def fake_bls_extract(**kwargs):
+        calls.append(("bls", kwargs))
+        return local_flow.BLSLAUSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
+            latest_observed_month="2024-12-01",
+            series_count=51,
+        )
+
+    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+
+    extraction_paths = local_flow.extract_sources.fn(context)
+
+    assert [name for name, _ in calls] == ["sba", "census", "bls"]
+    assert calls[1][1]["start_year"] == 2020
+    assert calls[1][1]["end_year"] == 2024
+    assert calls[2][1]["start_year"] == 2020
+    assert calls[2][1]["end_year"] == 2024
+    assert len(extraction_paths.sba_7a_manifest_paths) == 1
+    assert len(extraction_paths.sba_504_manifest_paths) == 1
+    assert len(extraction_paths.manifest_paths) == 4
+
+
+def test_validation_expectations_follow_extract_mode(tmp_path):
+    fixture_context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "fixture-data"),
+        duckdb_path=str(tmp_path / "fixture.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "fixture-profiles"),
+        pipeline_run_id="fixture-run",
+    )
+    live_context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="live",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "live-data"),
+        duckdb_path=str(tmp_path / "live.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "live-profiles"),
+        pipeline_run_id="live-run",
+    )
+
+    fixture_expectations = local_flow._raw_validation_expectations(fixture_context)
+    live_expectations = local_flow._raw_validation_expectations(live_context)
+
+    assert fixture_expectations.census_expected_state_count == 2
+    assert fixture_expectations.bls_expected_series_ids == (
+        "LASST010000000000003",
+        "LASST170000000000003",
+    )
+    assert live_expectations.census_expected_state_count == 51
+    assert len(live_expectations.bls_expected_series_ids) == 51
+    assert "sba_7a_fy2020_present" in live_expectations.sba_required_resource_names
+    assert "sba_504_fy2010_present" in live_expectations.sba_required_resource_names
+
+
 def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
     context = local_flow.initialize_run.fn(
         run_mode="local",
+        extract_mode="fixture",
         dbt_target="dev_duckdb",
         data_root=str(tmp_path / "data"),
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
@@ -177,3 +281,18 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
     assert summary["failed_stage"] == "validate_raw_outputs"
     assert "write_run_summary" in summary["completed_stages"]
     assert summary["validation_result_path"].endswith("validation_results.json")
+
+
+def _write_manifest_stub(tmp_path: Path, resource_name: str) -> Path:
+    path = tmp_path / f"{resource_name}.manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "resource_name": resource_name,
+                "local_raw_path": str(tmp_path / f"{resource_name}.raw"),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path

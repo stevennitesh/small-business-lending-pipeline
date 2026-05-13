@@ -17,7 +17,21 @@ import duckdb
 from dotenv import load_dotenv
 from prefect import flow, get_run_logger, task
 
-from pipelines.extract.bls_laus_extract import parse_monthly_period
+from pipelines.extract.bls_laus_extract import (
+    BLSLAUSExtractionSummary,
+    extract_bls_laus,
+    load_bls_laus_config,
+    parse_monthly_period,
+)
+from pipelines.extract.census_bds_extract import (
+    CensusBDSExtractionSummary,
+    extract_census_bds,
+)
+from pipelines.extract.sba_extract import (
+    SBAExtractionSummary,
+    extract_sba_foia,
+    load_sba_resource_specs,
+)
 from pipelines.load.duckdb_loader import RawLoadSummary, load_raw_extracts
 from pipelines.load.s3_loader import (
     S3UploadSummary,
@@ -90,6 +104,8 @@ BI_TABLES = (
     "bi_program_mix",
     "bi_regional_business_health",
     "bi_pipeline_health",
+    "bi_lender_mix",
+    "bi_state_filter",
 )
 
 
@@ -97,6 +113,7 @@ BI_TABLES = (
 class LocalRunContext:
     pipeline_run_id: str
     run_mode: str
+    extract_mode: str
     data_root: Path
     duckdb_path: Path
     dbt_project_dir: Path
@@ -104,6 +121,8 @@ class LocalRunContext:
     dbt_target: str
     run_started_at_utc: str
     s3_bucket: str | None = None
+    source_start_year: int | None = None
+    source_end_year: int | None = None
 
     @property
     def run_validation_dir(self) -> Path:
@@ -128,6 +147,13 @@ class ExtractionPaths:
 
 
 @dataclass(frozen=True)
+class RawValidationExpectations:
+    sba_required_resource_names: list[str]
+    census_expected_state_count: int
+    bls_expected_series_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class DbtBuildResult:
     command: tuple[str, ...]
     returncode: int
@@ -139,6 +165,7 @@ class DbtBuildResult:
 class PipelineRunSummary:
     pipeline_run_id: str
     run_mode: str
+    extract_mode: str
     status: str
     completed_stages: list[str]
     failed_stage: str | None
@@ -159,6 +186,7 @@ class PipelineRunSummary:
 def initialize_run(
     *,
     run_mode: str,
+    extract_mode: str,
     dbt_target: str,
     data_root: str,
     duckdb_path: str,
@@ -166,11 +194,19 @@ def initialize_run(
     dbt_profiles_dir: str,
     s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
+    source_start_year: int | None = None,
+    source_end_year: int | None = None,
 ) -> LocalRunContext:
+    if extract_mode not in {"fixture", "live"}:
+        raise ValueError("extract_mode must be 'fixture' or 'live'.")
+    if source_start_year and source_end_year and source_start_year > source_end_year:
+        raise ValueError("source_start_year cannot be greater than source_end_year.")
+
     run_id = pipeline_run_id or f"{run_mode}-{uuid.uuid4()}"
     context = LocalRunContext(
         pipeline_run_id=run_id,
         run_mode=run_mode,
+        extract_mode=extract_mode,
         data_root=Path(data_root),
         duckdb_path=Path(duckdb_path),
         dbt_project_dir=Path(dbt_project_dir),
@@ -178,6 +214,8 @@ def initialize_run(
         dbt_target=dbt_target,
         run_started_at_utc=utc_now_iso(),
         s3_bucket=s3_bucket,
+        source_start_year=source_start_year,
+        source_end_year=source_end_year,
     )
     context.data_root.mkdir(parents=True, exist_ok=True)
     context.run_validation_dir.mkdir(parents=True, exist_ok=True)
@@ -216,6 +254,8 @@ def require_final_mode_config(context: LocalRunContext) -> str:
 def extract_sources(context: LocalRunContext) -> ExtractionPaths:
     if context.run_mode not in {"local", "final"}:
         raise ValueError("run_mode must be 'local' or 'final'.")
+    if context.extract_mode == "live":
+        return _extract_live_sources(context)
     return _write_local_fixture_extracts(context)
 
 
@@ -233,13 +273,12 @@ def validate_raw_outputs(
     for manifest_path in extraction_paths.manifest_paths:
         validation_results.extend(check_raw_manifest(manifest_path))
 
+    expectations = _raw_validation_expectations(context)
+
     validation_results.extend(
         check_sba_required_resources(
             manifests,
-            required_resource_names=[
-                "sba_7a_fy2020_present",
-                "sba_504_fy2010_present",
-            ],
+            required_resource_names=expectations.sba_required_resource_names,
         )
     )
     validation_results.extend(
@@ -250,7 +289,7 @@ def validate_raw_outputs(
                 ).read_text(encoding="utf-8")
             ),
             required_variables=("YEAR", "NAME", "state", "ESTAB"),
-            expected_state_count=2,
+            expected_state_count=expectations.census_expected_state_count,
             pipeline_run_id=context.pipeline_run_id,
         )
     )
@@ -261,10 +300,7 @@ def validate_raw_outputs(
                     manifests_by_resource(manifests)["laus_state_month"]["local_raw_path"]
                 ).read_text(encoding="utf-8")
             ),
-            expected_series_ids=(
-                "LASST010000000000003",
-                "LASST170000000000003",
-            ),
+            expected_series_ids=expectations.bls_expected_series_ids,
             pipeline_run_id=context.pipeline_run_id,
         )
     )
@@ -455,6 +491,7 @@ def write_run_summary(
     summary = PipelineRunSummary(
         pipeline_run_id=context.pipeline_run_id,
         run_mode=context.run_mode,
+        extract_mode=context.extract_mode,
         status=status,
         completed_stages=completed_stages,
         failed_stage=failed_stage,
@@ -488,6 +525,7 @@ def write_run_summary(
 def lending_pipeline_flow(
     *,
     run_mode: str = "local",
+    extract_mode: str = "fixture",
     dbt_target: str = "dev_duckdb",
     data_root: str = "data",
     duckdb_path: str = "data/warehouse/small_business_lending.duckdb",
@@ -495,11 +533,14 @@ def lending_pipeline_flow(
     dbt_profiles_dir: str = ".tmp/dbt_profiles",
     s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
+    source_start_year: int | None = None,
+    source_end_year: int | None = None,
 ) -> str:
     logger = get_run_logger()
     completed_stages: list[str] = []
     context = initialize_run(
         run_mode=run_mode,
+        extract_mode=extract_mode,
         dbt_target=dbt_target,
         data_root=data_root,
         duckdb_path=duckdb_path,
@@ -507,6 +548,8 @@ def lending_pipeline_flow(
         dbt_profiles_dir=dbt_profiles_dir,
         s3_bucket=s3_bucket,
         pipeline_run_id=pipeline_run_id,
+        source_start_year=source_start_year,
+        source_end_year=source_end_year,
     )
     completed_stages.append("initialize_run")
 
@@ -618,6 +661,93 @@ def lending_pipeline_flow(
 
 def manifests_by_resource(manifests: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {str(manifest["resource_name"]): manifest for manifest in manifests}
+
+
+def _extract_live_sources(context: LocalRunContext) -> ExtractionPaths:
+    load_dotenv(override=True)
+    bucket = _s3_bucket(context) or "local-live"
+    sba_summary = extract_sba_foia(
+        data_root=context.data_root,
+        s3_bucket=bucket,
+        pipeline_run_id=context.pipeline_run_id,
+    )
+    census_summary = extract_census_bds(
+        data_root=context.data_root,
+        s3_bucket=bucket,
+        pipeline_run_id=context.pipeline_run_id,
+        start_year=context.source_start_year,
+        end_year=context.source_end_year,
+    )
+    bls_summary = extract_bls_laus(
+        data_root=context.data_root,
+        s3_bucket=bucket,
+        pipeline_run_id=context.pipeline_run_id,
+        start_year=context.source_start_year,
+        end_year=context.source_end_year,
+    )
+
+    sba_7a_manifest_paths = _sba_manifest_paths_by_program(
+        sba_summary.manifest_paths,
+        "sba_7a_",
+    )
+    sba_504_manifest_paths = _sba_manifest_paths_by_program(
+        sba_summary.manifest_paths,
+        "sba_504_",
+    )
+    if not sba_7a_manifest_paths or not sba_504_manifest_paths:
+        raise RuntimeError("Live SBA extraction did not produce both 7(a) and 504 manifests.")
+
+    return ExtractionPaths(
+        sba_7a_manifest_paths=sba_7a_manifest_paths,
+        sba_504_manifest_paths=sba_504_manifest_paths,
+        census_bds_manifest_paths=(census_summary.manifest_path,),
+        bls_laus_manifest_paths=(bls_summary.manifest_path,),
+        manifest_paths=tuple(
+            [
+                *sba_summary.manifest_paths.values(),
+                census_summary.manifest_path,
+                bls_summary.manifest_path,
+            ]
+        ),
+    )
+
+
+def _sba_manifest_paths_by_program(
+    manifest_paths: dict[str, Path],
+    logical_name_prefix: str,
+) -> tuple[Path, ...]:
+    return tuple(
+        manifest_path
+        for logical_name, manifest_path in sorted(manifest_paths.items())
+        if logical_name.startswith(logical_name_prefix)
+    )
+
+
+def _raw_validation_expectations(context: LocalRunContext) -> RawValidationExpectations:
+    if context.extract_mode == "fixture":
+        return RawValidationExpectations(
+            sba_required_resource_names=[
+                "sba_7a_fy2020_present",
+                "sba_504_fy2010_present",
+            ],
+            census_expected_state_count=2,
+            bls_expected_series_ids=(
+                "LASST010000000000003",
+                "LASST170000000000003",
+            ),
+        )
+
+    bls_config = load_bls_laus_config()
+    required_sba_resources = [
+        spec.logical_name
+        for spec in load_sba_resource_specs()
+        if spec.required and spec.program in {"7a", "504"}
+    ]
+    return RawValidationExpectations(
+        sba_required_resource_names=required_sba_resources,
+        census_expected_state_count=len(bls_config.series),
+        bls_expected_series_ids=tuple(series.series_id for series in bls_config.series),
+    )
 
 
 def _write_local_fixture_extracts(context: LocalRunContext) -> ExtractionPaths:
@@ -1050,6 +1180,11 @@ def _failed_stage(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the local lending pipeline flow.")
     parser.add_argument("--run-mode", default="local")
+    parser.add_argument(
+        "--extract-mode",
+        choices=("fixture", "live"),
+        default=os.getenv("SOURCE_EXTRACT_MODE", "fixture"),
+    )
     parser.add_argument("--dbt-target", default="dev_duckdb")
     parser.add_argument("--data-root", default="data")
     parser.add_argument(
@@ -1060,10 +1195,13 @@ def main() -> None:
     parser.add_argument("--dbt-profiles-dir", default=".tmp/dbt_profiles")
     parser.add_argument("--s3-bucket")
     parser.add_argument("--pipeline-run-id")
+    parser.add_argument("--source-start-year", type=int)
+    parser.add_argument("--source-end-year", type=int)
     args = parser.parse_args()
 
     summary_path = lending_pipeline_flow(
         run_mode=args.run_mode,
+        extract_mode=args.extract_mode,
         dbt_target=args.dbt_target,
         data_root=args.data_root,
         duckdb_path=args.duckdb_path,
@@ -1071,6 +1209,8 @@ def main() -> None:
         dbt_profiles_dir=args.dbt_profiles_dir,
         s3_bucket=args.s3_bucket,
         pipeline_run_id=args.pipeline_run_id,
+        source_start_year=args.source_start_year,
+        source_end_year=args.source_end_year,
     )
     print(summary_path)
 
