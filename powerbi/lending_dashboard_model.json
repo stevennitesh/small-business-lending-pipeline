@@ -140,6 +140,42 @@
         "census_region",
         "census_division"
       ]
+    },
+    {
+      "name": "dim_loan_program",
+      "grain": "loan-program",
+      "local_csv": "data/exports/powerbi/dim_loan_program.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.DIM_LOAN_PROGRAM",
+      "required_columns": [
+        "loan_program_key",
+        "loan_program",
+        "loan_program_name"
+      ]
+    },
+    {
+      "name": "dim_naics",
+      "grain": "naics-sector",
+      "local_csv": "data/exports/powerbi/dim_naics.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.DIM_NAICS",
+      "required_columns": [
+        "naics_key",
+        "naics_sector_code",
+        "naics_sector_name",
+        "naics_description",
+        "is_valid_current_code",
+        "is_unknown"
+      ]
+    },
+    {
+      "name": "dim_lender",
+      "grain": "lender",
+      "local_csv": "data/exports/powerbi/dim_lender.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.DIM_LENDER",
+      "required_columns": [
+        "lender_key",
+        "lender_name",
+        "is_unknown"
+      ]
     }
   ],
   "dimensions": [
@@ -158,15 +194,15 @@
       "filter_fields": ["year"]
     },
     {
-      "name": "dim_program",
-      "source_table": "bi_program_mix",
+      "name": "dim_loan_program",
+      "source_table": "dim_loan_program",
       "key": "loan_program_key",
       "display": "loan_program_name",
       "filter_fields": ["loan_program_name"]
     },
     {
-      "name": "dim_industry",
-      "source_table": "bi_industry_mix",
+      "name": "dim_naics",
+      "source_table": "dim_naics",
       "key": "naics_key",
       "display": "naics_sector_name",
       "filter_fields": ["naics_sector_name"]
@@ -194,8 +230,8 @@
     {"from": "dim_year.year", "to": "bi_program_mix.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
     {"from": "dim_year.year", "to": "bi_regional_business_health.year", "cardinality": "one_to_many", "cross_filter": "single"},
     {"from": "dim_year.year", "to": "bi_lender_mix.approval_year", "cardinality": "one_to_many", "cross_filter": "single"},
-    {"from": "dim_program.loan_program_key", "to": "bi_program_mix.loan_program_key", "cardinality": "one_to_many", "cross_filter": "single"},
-    {"from": "dim_industry.naics_key", "to": "bi_industry_mix.naics_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_loan_program.loan_program_key", "to": "bi_program_mix.loan_program_key", "cardinality": "one_to_many", "cross_filter": "single"},
+    {"from": "dim_naics.naics_key", "to": "bi_industry_mix.naics_key", "cardinality": "one_to_many", "cross_filter": "single"},
     {"from": "dim_lender.lender_key", "to": "bi_lender_mix.lender_key", "cardinality": "one_to_many", "cross_filter": "single"}
   ],
   "measures": [

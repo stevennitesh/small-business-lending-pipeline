@@ -18,6 +18,9 @@ BI_EXPORT_TABLES = (
     "bi_pipeline_health",
     "bi_lender_mix",
     "bi_state_filter",
+    "dim_loan_program",
+    "dim_naics",
+    "dim_lender",
 )
 
 REQUIRED_EXPORT_COLUMNS = {
@@ -91,6 +94,24 @@ REQUIRED_EXPORT_COLUMNS = {
         "state_name",
         "census_region",
         "census_division",
+    },
+    "dim_loan_program": {
+        "loan_program_key",
+        "loan_program",
+        "loan_program_name",
+    },
+    "dim_naics": {
+        "naics_key",
+        "naics_sector_code",
+        "naics_sector_name",
+        "naics_description",
+        "is_valid_current_code",
+        "is_unknown",
+    },
+    "dim_lender": {
+        "lender_key",
+        "lender_name",
+        "is_unknown",
     },
 }
 
