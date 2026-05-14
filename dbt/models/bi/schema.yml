@@ -24,6 +24,16 @@ models:
         description: SBA approved loan count.
       - name: average_loan_size
         description: Average approved loan size.
+      - name: annual_average_unemployment_rate
+        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+      - name: establishment_count
+        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+      - name: loans_per_1000_establishments
+        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+      - name: approved_loan_dollars_per_establishment
+        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+      - name: context_join_status
+        description: Context source availability status retained for existing Power BI queries.
 
   - name: bi_state_lending_trends
     description: Dashboard-ready annual state lending trends.

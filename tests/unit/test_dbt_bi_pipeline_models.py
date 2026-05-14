@@ -56,6 +56,8 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "total_approved_loan_amount",
             "loan_count",
             "average_loan_size",
+            "annual_average_unemployment_rate",
+            "context_join_status",
         },
         "bi_state_lending_trends": {
             "total_approved_loan_amount",

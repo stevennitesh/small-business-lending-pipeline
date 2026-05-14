@@ -31,6 +31,11 @@ REQUIRED_EXPORT_COLUMNS = {
         "total_approved_loan_amount",
         "loan_count",
         "average_loan_size",
+        "annual_average_unemployment_rate",
+        "establishment_count",
+        "loans_per_1000_establishments",
+        "approved_loan_dollars_per_establishment",
+        "context_join_status",
     },
     "bi_state_lending_trends": {
         "state_key",
