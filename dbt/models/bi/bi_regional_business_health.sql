@@ -5,7 +5,6 @@ select
     total_approved_loan_amount,
     loan_count,
     annual_average_unemployment_rate,
-    unemployment_rate_yoy_change_pp,
     unemployment_rate_yoy_change_pp as unemployment_rate_yoy_change_pct,
     establishment_count,
     establishment_entry_rate,
