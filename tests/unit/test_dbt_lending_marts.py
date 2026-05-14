@@ -65,6 +65,7 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         "assert_mart_lending_lender_state_period_reconciles.sql",
         "assert_mart_lending_industry_state_period_reconciles.sql",
         "assert_mart_lending_program_state_period_reconciles.sql",
+        "assert_bi_lender_mix_excludes_unknown.sql",
     } <= singular_tests
 
 

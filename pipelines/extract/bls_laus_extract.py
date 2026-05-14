@@ -24,6 +24,8 @@ from pipelines.utils.paths import build_local_raw_path, build_raw_s3_key, build_
 
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
 DEFAULT_CHUNK_SIZE = 25
+REGISTERED_YEAR_WINDOW_SIZE = 20
+PUBLIC_YEAR_WINDOW_SIZE = 10
 RESOURCE_NAME = "laus_state_month"
 RESOURCE_GRAIN = "grain=state_month"
 RAW_FILENAME_PREFIX = "bls_laus_state_month"
@@ -85,6 +87,21 @@ def chunk_series(
         yield tuple(series[index : index + chunk_size])
 
 
+def chunk_year_range(
+    start_year: int,
+    end_year: int,
+    *,
+    window_size: int,
+) -> Iterable[tuple[int, int]]:
+    if start_year > end_year:
+        raise ValueError("start_year cannot be greater than end_year")
+    if window_size < 1:
+        raise ValueError("window_size must be at least 1")
+
+    for year in range(start_year, end_year + 1, window_size):
+        yield year, min(year + window_size - 1, end_year)
+
+
 def build_bls_payload(
     series_ids: Sequence[str],
     *,
@@ -128,27 +145,36 @@ def fetch_bls_laus_responses(
     end_year: int,
     api_key: str | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    year_window_size: int | None = None,
     timeout: int = 120,
 ) -> list[dict[str, Any]]:
     active_session = session or requests.Session()
     responses: list[dict[str, Any]] = []
     series_ids = tuple(series.series_id for series in config.series)
+    resolved_year_window_size = year_window_size or (
+        REGISTERED_YEAR_WINDOW_SIZE if api_key else PUBLIC_YEAR_WINDOW_SIZE
+    )
 
-    for series_id_chunk in chunk_series(series_ids, chunk_size=chunk_size):
-        response = active_session.post(
-            config.endpoint,
-            json=build_bls_payload(
-                series_id_chunk,
-                start_year=start_year,
-                end_year=end_year,
-                api_key=api_key,
-            ),
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        _validate_bls_response_status(payload)
-        responses.append(payload)
+    for year_start, year_end in chunk_year_range(
+        start_year,
+        end_year,
+        window_size=resolved_year_window_size,
+    ):
+        for series_id_chunk in chunk_series(series_ids, chunk_size=chunk_size):
+            response = active_session.post(
+                config.endpoint,
+                json=build_bls_payload(
+                    series_id_chunk,
+                    start_year=year_start,
+                    end_year=year_end,
+                    api_key=api_key,
+                ),
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            _validate_bls_response_status(payload)
+            responses.append(payload)
 
     return responses
 
@@ -214,6 +240,7 @@ def extract_bls_laus(
     end_year: int | None = None,
     api_key: str | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    year_window_size: int | None = None,
     timeout: int = 120,
 ) -> BLSLAUSExtractionSummary:
     active_config = config or load_bls_laus_config()
@@ -231,6 +258,7 @@ def extract_bls_laus(
         end_year=resolved_end_year,
         api_key=active_api_key,
         chunk_size=chunk_size,
+        year_window_size=year_window_size,
         timeout=timeout,
     )
     series_by_id = {series.series_id: series for series in active_config.series}
@@ -254,6 +282,12 @@ def extract_bls_laus(
             "start_year": resolved_start_year,
             "end_year": resolved_end_year,
             "chunk_size": chunk_size,
+            "year_window_size": year_window_size
+            or (
+                REGISTERED_YEAR_WINDOW_SIZE
+                if active_api_key
+                else PUBLIC_YEAR_WINDOW_SIZE
+            ),
             "series_count": len(active_config.series),
             "measure_name": active_config.measure_name,
             "seasonal_adjustment": active_config.seasonal_adjustment,
@@ -293,6 +327,12 @@ def extract_bls_laus(
             "start_year": resolved_start_year,
             "end_year": resolved_end_year,
             "chunk_size": chunk_size,
+            "year_window_size": year_window_size
+            or (
+                REGISTERED_YEAR_WINDOW_SIZE
+                if active_api_key
+                else PUBLIC_YEAR_WINDOW_SIZE
+            ),
             "series_count": len(active_config.series),
         },
         column_count=len(normalized_rows[0]),

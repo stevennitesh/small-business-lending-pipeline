@@ -24,10 +24,6 @@ models:
         description: SBA approved loan count.
       - name: average_loan_size
         description: Average approved loan size.
-      - name: annual_average_unemployment_rate
-        description: Annual average unemployment rate.
-      - name: context_join_status
-        description: Context source availability status.
 
   - name: bi_state_lending_trends
     description: Dashboard-ready annual state lending trends.
@@ -136,6 +132,16 @@ models:
         description: SBA loan count per 1,000 establishments.
       - name: approved_loan_dollars_per_establishment
         description: Approved SBA loan dollars per establishment.
+      - name: annual_average_unemployment_rate
+        description: Annual average unemployment rate as a decimal ratio.
+      - name: unemployment_rate_yoy_change_pct
+        description: Year-over-year annual unemployment-rate change as a decimal-point change.
+      - name: establishment_count
+        description: Number of establishments.
+      - name: establishment_entry_rate
+        description: Establishment entry rate as a decimal ratio.
+      - name: establishment_exit_rate
+        description: Establishment exit rate as a decimal ratio.
       - name: context_join_status
         description: Context source availability status.
 

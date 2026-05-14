@@ -1,7 +1,7 @@
 census_bds:
   endpoint: https://api.census.gov/data/timeseries/bds
   geography: state
-  start_year: 2010
+  start_year: 1990
   variables:
     - name: YEAR
       business_meaning: Reference year

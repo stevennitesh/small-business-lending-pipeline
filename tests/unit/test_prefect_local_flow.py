@@ -197,7 +197,7 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     assert [name for name, _ in calls] == ["sba", "census", "bls"]
     assert calls[1][1]["start_year"] == 2020
     assert calls[1][1]["end_year"] == 2024
-    assert calls[2][1]["start_year"] == 2020
+    assert calls[2][1]["start_year"] == 2019
     assert calls[2][1]["end_year"] == 2024
     assert len(extraction_paths.sba_7a_manifest_paths) == 1
     assert len(extraction_paths.sba_504_manifest_paths) == 1

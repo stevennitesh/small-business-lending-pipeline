@@ -24,7 +24,7 @@ select
     end as state_match_status,
     try_cast(raw.observed_month as date) as observed_month,
     'unemployment_rate' as measure_name,
-    try_cast(cast(raw.value as varchar) as decimal(9, 4)) as unemployment_rate,
+    try_cast(cast(raw.value as varchar) as decimal(9, 4)) / 100.0 as unemployment_rate,
     try_cast(raw.year as integer) as year,
     raw.period,
     raw.footnotes,

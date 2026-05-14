@@ -70,7 +70,7 @@ def test_staging_schema_declares_issue_acceptance_tests():
     ]
     laus_columns = {column["name"]: column for column in laus["columns"]}
     assert laus_columns["unemployment_rate"]["data_tests"] == [
-        {"accepted_range": {"arguments": {"min_value": 0, "max_value": 100}}}
+        {"accepted_range": {"arguments": {"min_value": 0, "max_value": 1}}}
     ]
 
 

@@ -10,3 +10,4 @@ select
     lender_approved_amount_share,
     lender_rank
 from {{ ref('mart_lending_lender_state_period') }}
+where lender_key != 'UNKNOWN'

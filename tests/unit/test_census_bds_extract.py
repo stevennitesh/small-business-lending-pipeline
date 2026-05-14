@@ -104,7 +104,7 @@ def test_load_census_bds_config_from_yaml():
 
     assert config.endpoint == "https://api.census.gov/data/timeseries/bds"
     assert config.geography == "state"
-    assert config.start_year == 2010
+    assert config.start_year == 1990
     assert "YEAR" in config.required_variables
     assert "JOB_DESTRUCTION" in config.required_variables
 

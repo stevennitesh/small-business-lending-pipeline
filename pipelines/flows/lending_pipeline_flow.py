@@ -678,11 +678,16 @@ def _extract_live_sources(context: LocalRunContext) -> ExtractionPaths:
         start_year=context.source_start_year,
         end_year=context.source_end_year,
     )
+    bls_start_year = (
+        max(context.source_start_year - 1, 1976)
+        if context.source_start_year is not None
+        else None
+    )
     bls_summary = extract_bls_laus(
         data_root=context.data_root,
         s3_bucket=bucket,
         pipeline_run_id=context.pipeline_run_id,
-        start_year=context.source_start_year,
+        start_year=bls_start_year,
         end_year=context.source_end_year,
     )
 

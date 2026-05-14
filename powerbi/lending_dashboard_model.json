@@ -25,9 +25,7 @@
         "year",
         "total_approved_loan_amount",
         "loan_count",
-        "average_loan_size",
-        "annual_average_unemployment_rate",
-        "context_join_status"
+        "average_loan_size"
       ]
     },
     {
@@ -94,6 +92,11 @@
         "state_key",
         "state_name",
         "year",
+        "annual_average_unemployment_rate",
+        "unemployment_rate_yoy_change_pct",
+        "establishment_count",
+        "establishment_entry_rate",
+        "establishment_exit_rate",
         "loans_per_1000_establishments",
         "approved_loan_dollars_per_establishment",
         "context_join_status"
@@ -209,7 +212,7 @@
     },
     {
       "name": "dim_lender",
-      "source_table": "bi_lender_mix",
+      "source_table": "dim_lender",
       "key": "lender_key",
       "display": "lender_name",
       "filter_fields": ["lender_name"]

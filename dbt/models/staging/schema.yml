@@ -100,12 +100,12 @@ models:
                 to: ref('dim_state')
                 field: state_key
       - name: unemployment_rate
-        description: Monthly state unemployment rate.
+        description: Monthly state unemployment rate as a decimal ratio.
         data_tests:
           - accepted_range:
               arguments:
                 min_value: 0
-                max_value: 100
+                max_value: 1
       - name: state_match_status
         description: Whether the BLS state FIPS value mapped to the state reference seed.
         data_tests:

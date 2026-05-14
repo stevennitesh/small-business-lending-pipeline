@@ -62,4 +62,6 @@ def test_context_schema_declares_grains_kpis_and_context_tests():
     assert {
         "assert_safe_divide_null_denominator.sql",
         "assert_regional_business_health_context_flags.sql",
+        "assert_bi_context_rates_decimal.sql",
+        "assert_bi_regional_business_health_complete_context.sql",
     } <= singular_tests

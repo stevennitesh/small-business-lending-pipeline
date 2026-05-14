@@ -12,7 +12,9 @@ from pipelines.extract.bls_laus_extract import (
     BLSSeriesConfig,
     build_bls_payload,
     chunk_series,
+    chunk_year_range,
     extract_bls_laus,
+    fetch_bls_laus_responses,
     load_bls_laus_config,
     normalize_bls_response,
     parse_monthly_period,
@@ -129,6 +131,13 @@ def test_chunk_series_splits_large_requests():
     assert [len(chunk) for chunk in chunks] == [25, 25, 1]
 
 
+def test_chunk_year_range_splits_long_bls_windows():
+    assert list(chunk_year_range(1990, 2026, window_size=20)) == [
+        (1990, 2009),
+        (2010, 2026),
+    ]
+
+
 def test_build_bls_payload_uses_year_range_and_optional_key():
     payload = build_bls_payload(
         ("LASST010000000000003", "LASST020000000000003"),
@@ -149,6 +158,46 @@ def test_parse_monthly_period_excludes_annual_periods():
     assert parse_monthly_period("2023", "M01") == date(2023, 1, 1)
     assert parse_monthly_period("2023", "M12") == date(2023, 12, 1)
     assert parse_monthly_period("2023", "M13") is None
+
+
+def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
+    config = BLSLAUSConfig(
+        endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
+        measure_name="unemployment_rate",
+        seasonal_adjustment="seasonally_adjusted",
+        series=_series_configs(),
+    )
+    session = FakeSession(
+        [
+            {"status": "REQUEST_SUCCEEDED", "Results": {"series": []}},
+            {"status": "REQUEST_SUCCEEDED", "Results": {"series": []}},
+            {"status": "REQUEST_SUCCEEDED", "Results": {"series": []}},
+            {"status": "REQUEST_SUCCEEDED", "Results": {"series": []}},
+        ]
+    )
+
+    fetch_bls_laus_responses(
+        config,
+        session=session,
+        start_year=1990,
+        end_year=2026,
+        api_key="secret-key",
+        chunk_size=1,
+    )
+
+    assert [
+        (
+            call["json"]["seriesid"],
+            call["json"]["startyear"],
+            call["json"]["endyear"],
+        )
+        for call in session.calls
+    ] == [
+        (["LASST010000000000003"], "1990", "2009"),
+        (["LASST020000000000003"], "1990", "2009"),
+        (["LASST010000000000003"], "2010", "2026"),
+        (["LASST020000000000003"], "2010", "2026"),
+    ]
 
 
 def test_normalize_bls_response_excludes_annual_and_parses_values():

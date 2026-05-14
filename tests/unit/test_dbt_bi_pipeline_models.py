@@ -56,8 +56,6 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "total_approved_loan_amount",
             "loan_count",
             "average_loan_size",
-            "annual_average_unemployment_rate",
-            "context_join_status",
         },
         "bi_state_lending_trends": {
             "total_approved_loan_amount",
@@ -68,6 +66,11 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
         "bi_industry_mix": {"industry_approved_amount_share"},
         "bi_program_mix": {"program_approved_amount_share"},
         "bi_regional_business_health": {
+            "annual_average_unemployment_rate",
+            "unemployment_rate_yoy_change_pct",
+            "establishment_count",
+            "establishment_entry_rate",
+            "establishment_exit_rate",
             "loans_per_1000_establishments",
             "approved_loan_dollars_per_establishment",
             "context_join_status",
