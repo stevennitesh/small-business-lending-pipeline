@@ -43,7 +43,11 @@ from pipelines.load.snowflake_loader import (
     connect_to_snowflake,
     load_raw_extracts_to_snowflake,
 )
-from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.storage.raw_artifacts import (
+    LocalRawArtifactStore,
+    RawArtifactReader,
+    S3RawArtifactStore,
+)
 from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import calculate_sha256, hash_schema
@@ -291,9 +295,12 @@ def validate_raw_outputs(
         json.loads(path.read_text(encoding="utf-8"))
         for path in extraction_paths.manifest_paths
     ]
+    artifact_reader = _raw_artifact_reader(context)
 
     for manifest_path in extraction_paths.manifest_paths:
-        validation_results.extend(check_raw_manifest(manifest_path))
+        validation_results.extend(
+            check_raw_manifest(manifest_path, artifact_reader=artifact_reader)
+        )
 
     for manifest in manifests:
         validation_results.append(
@@ -330,9 +337,7 @@ def validate_raw_outputs(
             validation_results.extend(
                 check_census_bds_payload(
                     json.loads(
-                        Path(
-                            manifests_by_name["bds_state_year"]["local_raw_path"]
-                        ).read_text(encoding="utf-8")
+                        artifact_reader.read_text(manifests_by_name["bds_state_year"])
                     ),
                     required_variables=tuple(
                         project_config.validation_thresholds["census_bds"][
@@ -357,9 +362,7 @@ def validate_raw_outputs(
             validation_results.extend(
                 check_bls_laus_payload(
                     json.loads(
-                        Path(
-                            manifests_by_name["laus_state_month"]["local_raw_path"]
-                        ).read_text(encoding="utf-8")
+                        artifact_reader.read_text(manifests_by_name["laus_state_month"])
                     ),
                     expected_series_ids=expectations.bls_expected_series_ids,
                     pipeline_run_id=context.pipeline_run_id,
@@ -851,6 +854,13 @@ def _raw_artifact_store(
     if context.is_cloud_route:
         return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
     return LocalRawArtifactStore(data_root=context.data_root, s3_bucket=bucket)
+
+
+def _raw_artifact_reader(
+    context: LocalRunContext,
+    s3_client=None,
+) -> RawArtifactReader:
+    return RawArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
 
 
 def _raw_validation_expectations(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Any, Literal, Protocol
 
 from pipelines.utils.paths import build_local_raw_path, build_raw_s3_key, build_s3_uri
@@ -33,6 +34,54 @@ class RawArtifactLocation:
             "local_raw_path": str(self.local_path) if self.local_path else None,
             "s3_raw_uri": self.s3_uri,
         }
+
+
+@dataclass(frozen=True)
+class S3RawArtifactReference:
+    bucket: str
+    key: str
+
+
+class RawArtifactReader:
+    def __init__(self, *, s3_client: S3ObjectClientProtocol | None = None):
+        self.s3_client = s3_client
+
+    def exists(self, manifest: dict[str, Any]) -> bool:
+        try:
+            self.read_bytes(manifest)
+        except Exception:
+            return False
+        return True
+
+    def size_bytes(self, manifest: dict[str, Any]) -> int:
+        try:
+            return len(self.read_bytes(manifest))
+        except Exception:
+            return 0
+
+    def sha256(self, manifest: dict[str, Any]) -> str | None:
+        try:
+            from pipelines.utils.hashing import hash_bytes
+
+            return hash_bytes(self.read_bytes(manifest))
+        except Exception:
+            return None
+
+    def read_text(self, manifest: dict[str, Any], encoding: str = "utf-8") -> str:
+        return self.read_bytes(manifest).decode(encoding)
+
+    def read_bytes(self, manifest: dict[str, Any]) -> bytes:
+        storage_backend = str(manifest.get("storage_backend", "local")).lower()
+        if storage_backend == "s3":
+            reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
+            client = self.s3_client or _default_s3_client()
+            response = client.get_object(Bucket=reference.bucket, Key=reference.key)
+            return response["Body"].read()
+
+        local_raw_path = manifest.get("local_raw_path")
+        if not local_raw_path:
+            raise FileNotFoundError("Manifest does not include local_raw_path.")
+        return Path(str(local_raw_path)).read_bytes()
 
 
 class LocalRawArtifactStore:
@@ -153,3 +202,10 @@ def _default_s3_client():
     import boto3
 
     return boto3.client("s3")
+
+
+def parse_s3_uri(uri: str) -> S3RawArtifactReference:
+    parsed = urlparse(uri)
+    if parsed.scheme != "s3" or not parsed.netloc or not parsed.path.strip("/"):
+        raise ValueError(f"Invalid S3 URI: {uri}")
+    return S3RawArtifactReference(bucket=parsed.netloc, key=parsed.path.strip("/"))

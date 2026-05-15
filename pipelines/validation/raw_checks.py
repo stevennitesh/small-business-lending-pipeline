@@ -5,19 +5,24 @@ from pathlib import Path
 from typing import Any
 
 from pipelines.utils.config import SourceIdentity
-from pipelines.utils.hashing import calculate_sha256
 from pipelines.utils.manifest import (
     REQUIRED_MANIFEST_FIELDS,
     normalize_manifest_storage_fields,
 )
+from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.validation.validation_result import (
     ValidationResult,
     make_validation_result,
 )
 
 
-def check_raw_manifest(manifest_path: Path | str) -> list[ValidationResult]:
+def check_raw_manifest(
+    manifest_path: Path | str,
+    *,
+    artifact_reader: RawArtifactReader | None = None,
+) -> list[ValidationResult]:
     resolved_manifest_path = Path(manifest_path)
+    reader = artifact_reader or RawArtifactReader()
     if not resolved_manifest_path.is_file():
         return [
             _result(
@@ -35,9 +40,9 @@ def check_raw_manifest(manifest_path: Path | str) -> list[ValidationResult]:
 
     manifest = json.loads(resolved_manifest_path.read_text(encoding="utf-8"))
     results = [
-        _check_raw_file_exists(manifest),
-        _check_raw_file_size(manifest),
-        _check_checksum(manifest),
+        _check_raw_file_exists(manifest, reader),
+        _check_raw_file_size(manifest, reader),
+        _check_checksum(manifest, reader),
         _check_manifest_created(manifest, resolved_manifest_path),
         _check_required_metadata(manifest),
         _check_row_count(manifest),
@@ -126,24 +131,29 @@ def check_manifest_source_identity(
     )
 
 
-def _check_raw_file_exists(manifest: dict[str, Any]) -> ValidationResult:
-    raw_path = Path(str(manifest.get("local_raw_path", "")))
+def _check_raw_file_exists(
+    manifest: dict[str, Any],
+    artifact_reader: RawArtifactReader,
+) -> ValidationResult:
+    raw_uri = _raw_artifact_uri(manifest)
     return _result(
         manifest=manifest,
         validation_check_id="RAW_001",
         check_name="Raw file exists",
         check_type="completeness",
         severity="fail",
-        passed=raw_path.is_file(),
+        passed=artifact_reader.exists(manifest),
         expected_value="file exists",
-        observed_value=str(raw_path),
+        observed_value=raw_uri,
         failed_message="Raw file is missing.",
     )
 
 
-def _check_raw_file_size(manifest: dict[str, Any]) -> ValidationResult:
-    raw_path = Path(str(manifest.get("local_raw_path", "")))
-    observed_size = raw_path.stat().st_size if raw_path.is_file() else 0
+def _check_raw_file_size(
+    manifest: dict[str, Any],
+    artifact_reader: RawArtifactReader,
+) -> ValidationResult:
+    observed_size = artifact_reader.size_bytes(manifest)
     return _result(
         manifest=manifest,
         validation_check_id="RAW_002",
@@ -157,10 +167,12 @@ def _check_raw_file_size(manifest: dict[str, Any]) -> ValidationResult:
     )
 
 
-def _check_checksum(manifest: dict[str, Any]) -> ValidationResult:
-    raw_path = Path(str(manifest.get("local_raw_path", "")))
+def _check_checksum(
+    manifest: dict[str, Any],
+    artifact_reader: RawArtifactReader,
+) -> ValidationResult:
     expected_checksum = str(manifest.get("sha256_checksum", ""))
-    observed_checksum = calculate_sha256(raw_path) if raw_path.is_file() else None
+    observed_checksum = artifact_reader.sha256(manifest)
     return _result(
         manifest=manifest,
         validation_check_id="RAW_003",
@@ -249,6 +261,16 @@ def _check_column_count(manifest: dict[str, Any]) -> ValidationResult:
         expected_value="column_count omitted or non-negative integer",
         observed_value=column_count,
         failed_message="Manifest column count is invalid.",
+    )
+
+
+def _raw_artifact_uri(manifest: dict[str, Any]) -> str:
+    normalized_manifest = normalize_manifest_storage_fields(manifest)
+    return str(
+        normalized_manifest.get("raw_uri")
+        or normalized_manifest.get("local_raw_path")
+        or normalized_manifest.get("s3_raw_uri")
+        or ""
     )
 
 

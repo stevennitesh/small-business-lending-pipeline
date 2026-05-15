@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.config import SourceIdentity
-from pipelines.utils.hashing import calculate_sha256, hash_schema
+from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_checks import (
     check_manifest_source_identity,
     check_raw_manifest,
@@ -48,6 +49,22 @@ def _manifest_for(raw_file: Path) -> dict:
         "column_count": 2,
         "file_size_bytes": raw_file.stat().st_size,
     }
+
+
+class FakeBody:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+
+    def read(self) -> bytes:
+        return self.payload
+
+
+class FakeS3ObjectClient:
+    def __init__(self, objects: dict[tuple[str, str], bytes]) -> None:
+        self.objects = objects
+
+    def get_object(self, *, Bucket: str, Key: str):
+        return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 
 def test_validation_result_serializes_and_writes_json(tmp_path):
@@ -132,6 +149,70 @@ def test_raw_manifest_checks_fail_for_missing_file(tmp_path):
 
     assert file_exists.status == "failed"
     assert file_exists.severity == "fail"
+
+
+def test_raw_manifest_checks_pass_for_s3_backed_file(tmp_path):
+    raw_payload = b'[["YEAR","state"],["2023","01"],["2023","02"]]\n'
+    manifest = {
+        "pipeline_run_id": "run-123",
+        "source_system": "census",
+        "dataset_name": "bds",
+        "resource_name": "bds_state_year",
+        "source_url": "https://example.test/source",
+        "extracted_at_utc": "2026-05-07T12:00:00Z",
+        "ingestion_date": "2026-05-07",
+        "storage_backend": "s3",
+        "raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "local_raw_path": None,
+        "s3_raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "file_format": "json",
+        "row_count": 2,
+        "sha256_checksum": hash_bytes(raw_payload),
+        "schema_hash": hash_schema(["YEAR", "state"]),
+        "validation_status": "passed",
+        "column_count": 2,
+        "file_size_bytes": len(raw_payload),
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    results = check_raw_manifest(
+        manifest_path,
+        artifact_reader=RawArtifactReader(
+            s3_client=FakeS3ObjectClient(
+                {("bucket", "raw/census/bds/file.json"): raw_payload}
+            )
+        ),
+    )
+
+    assert all(result.status == "passed" for result in results)
+
+
+def test_raw_manifest_checks_fail_cleanly_for_missing_s3_object(tmp_path):
+    placeholder_file = tmp_path / "placeholder.json"
+    placeholder_file.write_text("[]\n", encoding="utf-8")
+    manifest = _manifest_for(placeholder_file)
+    manifest.update(
+        {
+            "storage_backend": "s3",
+            "raw_uri": "s3://bucket/raw/census/bds/missing.json",
+            "local_raw_path": None,
+            "s3_raw_uri": "s3://bucket/raw/census/bds/missing.json",
+            "sha256_checksum": hash_bytes(b"[]\n"),
+        }
+    )
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    results = check_raw_manifest(
+        manifest_path,
+        artifact_reader=RawArtifactReader(s3_client=FakeS3ObjectClient({})),
+    )
+    file_exists = next(result for result in results if result.validation_check_id == "RAW_001")
+
+    assert file_exists.status == "failed"
+    assert file_exists.severity == "fail"
+    assert file_exists.observed_value == "s3://bucket/raw/census/bds/missing.json"
 
 
 def test_raw_manifest_checks_return_failure_for_missing_metadata(tmp_path):
