@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from pipelines.utils.config import load_yaml_file
+from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
     ingestion_date_from_timestamp,
@@ -27,6 +27,10 @@ DEFAULT_SBA_PACKAGE_URL = (
     "https://data.sba.gov/api/3/action/package_show?id=7-a-504-foia"
 )
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
+DEFAULT_SOURCE_IDENTITY = SourceIdentity(
+    source_system="sba",
+    dataset_name="7a_504_foia",
+)
 
 
 @dataclass(frozen=True)
@@ -199,6 +203,7 @@ def resolve_sba_resources(
 def extract_sba_foia(
     *,
     config: SBAResourcesConfig | None = None,
+    source_identity: SourceIdentity | None = None,
     specs: list[SBAResourceSpec] | None = None,
     package_metadata: dict[str, Any] | None = None,
     package_url: str | None = None,
@@ -212,6 +217,14 @@ def extract_sba_foia(
     active_session = session or requests.Session()
     active_config = config or (
         None if specs is not None else load_sba_resources_config()
+    )
+    active_identity = source_identity or (
+        SourceIdentity(
+            source_system=DEFAULT_SOURCE_IDENTITY.source_system,
+            dataset_name=active_config.dataset_name,
+        )
+        if active_config
+        else DEFAULT_SOURCE_IDENTITY
     )
     active_specs = tuple(specs) if specs is not None else active_config.resources
     active_package_url = package_url or (
@@ -236,6 +249,7 @@ def extract_sba_foia(
         try:
             result, manifest_path = _download_resource(
                 resource=resource,
+                source_identity=active_identity,
                 session=active_session,
                 data_root=Path(data_root),
                 s3_bucket=s3_bucket,
@@ -319,6 +333,7 @@ def _fetch_or_reject_dynamic_sba_metadata(
 def _download_resource(
     *,
     resource: ResolvedSBAResource,
+    source_identity: SourceIdentity,
     session: requests.Session,
     data_root: Path,
     s3_bucket: str,
@@ -330,7 +345,7 @@ def _download_resource(
 ) -> tuple[ExtractionResult, Path]:
     local_raw_path = build_local_raw_path(
         data_root=data_root,
-        source_system="sba",
+        source_system=source_identity.source_system,
         dataset_name=resource.dataset_path_name,
         resource_name=resource.resource_path_name,
         ingestion_date=ingestion_date,
@@ -352,7 +367,7 @@ def _download_resource(
         resource.file_format,
     )
     raw_key = build_raw_s3_key(
-        source_system="sba",
+        source_system=source_identity.source_system,
         dataset_name=resource.dataset_path_name,
         resource_name=resource.resource_path_name,
         ingestion_date=ingestion_date,
@@ -361,8 +376,8 @@ def _download_resource(
     )
     manifest = ExtractionManifest(
         pipeline_run_id=pipeline_run_id,
-        source_system="sba",
-        dataset_name="7a_504_foia",
+        source_system=source_identity.source_system,
+        dataset_name=source_identity.dataset_name,
         resource_name=resource.spec.logical_name,
         source_url=resource.url,
         extracted_at_utc=extracted_at_utc,

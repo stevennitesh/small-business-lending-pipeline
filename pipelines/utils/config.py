@@ -24,6 +24,12 @@ CONFIG_FILENAMES = (
 
 
 @dataclass(frozen=True)
+class SourceIdentity:
+    source_system: str
+    dataset_name: str
+
+
+@dataclass(frozen=True)
 class SourceConfig:
     enabled: bool
     source_system: str
@@ -31,6 +37,13 @@ class SourceConfig:
     dataset_name: str
     refresh_cadence: str
     grain: str
+
+    @property
+    def identity(self) -> SourceIdentity:
+        return SourceIdentity(
+            source_system=self.source_system,
+            dataset_name=self.dataset_name,
+        )
 
 
 @dataclass(frozen=True)
@@ -49,6 +62,9 @@ class ProjectConfig:
 
     def is_source_enabled(self, source_name: str) -> bool:
         return self.sources[source_name].enabled
+
+    def source_identity(self, source_name: str) -> SourceIdentity:
+        return self.sources[source_name].identity
 
 
 def load_yaml_file(path: Path) -> dict[str, Any]:

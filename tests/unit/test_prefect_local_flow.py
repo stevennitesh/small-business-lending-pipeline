@@ -203,10 +203,15 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
 
     assert [name for name, _ in calls] == ["sba", "census", "bls"]
     assert calls[0][1]["config"] == project_config.sba
+    assert calls[0][1]["source_identity"] == project_config.source_identity("sba_foia")
     assert calls[1][1]["config"] == project_config.census_bds
+    assert calls[1][1]["source_identity"] == project_config.source_identity(
+        "census_bds"
+    )
     assert calls[1][1]["start_year"] == 2020
     assert calls[1][1]["end_year"] == 2024
     assert calls[2][1]["config"] == project_config.bls_laus
+    assert calls[2][1]["source_identity"] == project_config.source_identity("bls_laus")
     assert calls[2][1]["start_year"] == 2019
     assert calls[2][1]["end_year"] == 2024
     assert len(extraction_paths.sba_7a_manifest_paths) == 1

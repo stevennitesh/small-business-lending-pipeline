@@ -11,7 +11,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import requests
 
-from pipelines.utils.config import load_yaml_file
+from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
     ingestion_date_from_timestamp,
@@ -29,6 +29,10 @@ PUBLIC_YEAR_WINDOW_SIZE = 10
 RESOURCE_NAME = "laus_state_month"
 RESOURCE_GRAIN = "grain=state_month"
 RAW_FILENAME_PREFIX = "bls_laus_state_month"
+DEFAULT_SOURCE_IDENTITY = SourceIdentity(
+    source_system="bls",
+    dataset_name="laus",
+)
 
 
 @dataclass(frozen=True)
@@ -236,6 +240,7 @@ def normalize_bls_response(
 def extract_bls_laus(
     *,
     config: BLSLAUSConfig | None = None,
+    source_identity: SourceIdentity | None = None,
     session: requests.Session | None = None,
     data_root: Path | str = "data",
     s3_bucket: str = DEFAULT_S3_BUCKET,
@@ -249,6 +254,7 @@ def extract_bls_laus(
     timeout: int = 120,
 ) -> BLSLAUSExtractionSummary:
     active_config = config or load_bls_laus_config()
+    active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
     resolved_end_year = end_year or datetime.now().year
     resolved_start_year = start_year or active_config.start_year
     run_id = pipeline_run_id or str(uuid.uuid4())
@@ -274,8 +280,8 @@ def extract_bls_laus(
     latest_observed_month = max(row["observed_month"] for row in normalized_rows)
     local_raw_path = build_local_raw_path(
         data_root=Path(data_root),
-        source_system="bls",
-        dataset_name="laus",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_GRAIN,
         ingestion_date=ingestion_date,
         pipeline_run_id=run_id,
@@ -306,8 +312,8 @@ def extract_bls_laus(
     )
 
     raw_key = build_raw_s3_key(
-        source_system="bls",
-        dataset_name="laus",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_GRAIN,
         ingestion_date=ingestion_date,
         pipeline_run_id=run_id,
@@ -315,8 +321,8 @@ def extract_bls_laus(
     )
     manifest = ExtractionManifest(
         pipeline_run_id=run_id,
-        source_system="bls",
-        dataset_name="laus",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_NAME,
         source_url=active_config.endpoint,
         extracted_at_utc=extracted_timestamp,

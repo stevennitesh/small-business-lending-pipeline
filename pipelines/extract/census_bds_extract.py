@@ -11,7 +11,7 @@ from typing import Any, Mapping
 
 import requests
 
-from pipelines.utils.config import load_yaml_file
+from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
     ingestion_date_from_timestamp,
@@ -25,6 +25,10 @@ from pipelines.utils.paths import build_local_raw_path, build_raw_s3_key, build_
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
 RESOURCE_NAME = "bds_state_year"
 RESOURCE_GRAIN = "grain=state_year"
+DEFAULT_SOURCE_IDENTITY = SourceIdentity(
+    source_system="census",
+    dataset_name="bds",
+)
 
 
 @dataclass(frozen=True)
@@ -166,6 +170,7 @@ def validate_bds_response(
 def extract_census_bds(
     *,
     config: CensusBDSConfig | None = None,
+    source_identity: SourceIdentity | None = None,
     session: requests.Session | None = None,
     data_root: Path | str = "data",
     s3_bucket: str = DEFAULT_S3_BUCKET,
@@ -177,6 +182,7 @@ def extract_census_bds(
     timeout: int = 120,
 ) -> CensusBDSExtractionSummary:
     active_config = config or load_census_bds_config()
+    active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
     resolved_start_year = start_year or active_config.start_year
     resolved_end_year = end_year or datetime.now().year
     run_id = pipeline_run_id or str(uuid.uuid4())
@@ -198,8 +204,8 @@ def extract_census_bds(
 
     local_raw_path = build_local_raw_path(
         data_root=Path(data_root),
-        source_system="census",
-        dataset_name="bds",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_GRAIN,
         ingestion_date=ingestion_date,
         pipeline_run_id=run_id,
@@ -212,8 +218,8 @@ def extract_census_bds(
     )
 
     raw_key = build_raw_s3_key(
-        source_system="census",
-        dataset_name="bds",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_GRAIN,
         ingestion_date=ingestion_date,
         pipeline_run_id=run_id,
@@ -221,8 +227,8 @@ def extract_census_bds(
     )
     manifest = ExtractionManifest(
         pipeline_run_id=run_id,
-        source_system="census",
-        dataset_name="bds",
+        source_system=active_identity.source_system,
+        dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_NAME,
         source_url=active_config.endpoint,
         extracted_at_utc=extracted_timestamp,

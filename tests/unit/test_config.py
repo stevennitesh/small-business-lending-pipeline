@@ -30,6 +30,8 @@ def test_project_config_loader_returns_named_configs():
     assert project_config.bls_laus.measure_name == "unemployment_rate"
     assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
     assert project_config.validation_thresholds["bls_laus"]["min_state_count"] == 51
+    assert project_config.source_identity("bls_laus").source_system == "bls"
+    assert project_config.source_identity("bls_laus").dataset_name == "laus"
 
 
 def test_config_files_have_required_top_level_keys():

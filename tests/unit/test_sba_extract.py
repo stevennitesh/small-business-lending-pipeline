@@ -16,6 +16,7 @@ from pipelines.extract.sba_extract import (
     load_sba_resource_specs,
     resolve_sba_resources,
 )
+from pipelines.utils.config import SourceIdentity
 
 
 def _sample_package_metadata() -> dict:
@@ -263,6 +264,50 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     assert manifest["resource_name"] == "sba_7a_fy2020_present"
     assert manifest["s3_raw_uri"].startswith("s3://unit-test-bucket/raw/sba/")
     assert manifest["validation_status"] == "passed"
+
+
+def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
+    spec = SBAResourceSpec(
+        logical_name="sba_7a_fy2020_present",
+        program="7a",
+        source_period="fy2020_present",
+        expected_format="csv",
+        required=True,
+        title_pattern="FOIA - 7(a) (FY2020-Present)",
+    )
+    metadata = _sample_package_metadata()
+    session = FakeSession(
+        {"https://example.test/7a_2020_present.csv": b"col_a,col_b\n1,2\n"}
+    )
+
+    summary = extract_sba_foia(
+        specs=[spec],
+        source_identity=SourceIdentity(
+            source_system="custom_sba",
+            dataset_name="custom_7a_504",
+        ),
+        package_metadata=metadata,
+        session=session,
+        data_root=tmp_path,
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="run-123",
+        extracted_at_utc="2026-05-06T12:00:00Z",
+    )
+
+    result = summary.results["sba_7a_fy2020_present"]
+    assert result.local_raw_path == tmp_path / (
+        "raw/custom_sba/7a_foia/source_period=fy2020_present/"
+        "ingestion_date=2026-05-06/pipeline_run_id=run-123/"
+        "7a_2020_present.csv"
+    )
+    manifest = json.loads(
+        summary.manifest_paths["sba_7a_fy2020_present"].read_text(encoding="utf-8")
+    )
+    assert manifest["source_system"] == "custom_sba"
+    assert manifest["dataset_name"] == "custom_7a_504"
+    assert manifest["s3_raw_uri"].startswith(
+        "s3://unit-test-bucket/raw/custom_sba/7a_foia/"
+    )
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):

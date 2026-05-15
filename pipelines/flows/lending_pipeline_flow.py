@@ -698,6 +698,7 @@ def _extract_live_sources(
     if project_config.is_source_enabled("sba_foia"):
         sba_summary = extract_sba_foia(
             config=project_config.sba,
+            source_identity=project_config.source_identity("sba_foia"),
             data_root=context.data_root,
             s3_bucket=bucket,
             pipeline_run_id=context.pipeline_run_id,
@@ -707,6 +708,7 @@ def _extract_live_sources(
     if project_config.is_source_enabled("census_bds"):
         census_summary = extract_census_bds(
             config=project_config.census_bds,
+            source_identity=project_config.source_identity("census_bds"),
             data_root=context.data_root,
             s3_bucket=bucket,
             pipeline_run_id=context.pipeline_run_id,
@@ -722,6 +724,7 @@ def _extract_live_sources(
         bls_start_year = max(requested_bls_start_year - 1, 1976)
         bls_summary = extract_bls_laus(
             config=project_config.bls_laus,
+            source_identity=project_config.source_identity("bls_laus"),
             data_root=context.data_root,
             s3_bucket=bucket,
             pipeline_run_id=context.pipeline_run_id,

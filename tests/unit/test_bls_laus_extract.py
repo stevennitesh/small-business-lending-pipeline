@@ -19,6 +19,7 @@ from pipelines.extract.bls_laus_extract import (
     normalize_bls_response,
     parse_monthly_period,
 )
+from pipelines.utils.config import SourceIdentity
 
 
 def _series_configs() -> tuple[BLSSeriesConfig, ...]:
@@ -295,3 +296,41 @@ def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
     assert manifest["series_count"] == 2
     assert manifest["latest_observed_month"] == "2023-02-01"
     assert manifest["s3_raw_uri"].startswith("s3://unit-test-bucket/raw/bls/laus/")
+
+
+def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
+    config = BLSLAUSConfig(
+        endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
+        measure_name="unemployment_rate",
+        seasonal_adjustment="seasonally_adjusted",
+        series=_series_configs(),
+    )
+    session = FakeSession([_fixture_response()])
+
+    summary = extract_bls_laus(
+        config=config,
+        source_identity=SourceIdentity(
+            source_system="custom_bls",
+            dataset_name="custom_laus",
+        ),
+        session=session,
+        data_root=tmp_path,
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="run-123",
+        extracted_at_utc="2026-05-07T12:00:00Z",
+        start_year=2023,
+        end_year=2023,
+    )
+
+    assert summary.result.local_raw_path == tmp_path / (
+        "raw/custom_bls/custom_laus/grain=state_month/"
+        "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
+        "bls_laus_state_month_2023_2023.json"
+    )
+    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["source_system"] == "custom_bls"
+    assert manifest["dataset_name"] == "custom_laus"
+    assert manifest["s3_raw_uri"].startswith(
+        "s3://unit-test-bucket/raw/custom_bls/custom_laus/"
+    )
