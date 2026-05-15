@@ -136,6 +136,41 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
     }
 
 
+def test_raw_artifact_store_matches_route(tmp_path):
+    local_context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "local-data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="local-route",
+    )
+    cloud_context = local_flow.initialize_run.fn(
+        run_mode="cloud",
+        extract_mode="fixture",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "cloud-data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket="cloud-bucket",
+        pipeline_run_id="cloud-route",
+    )
+
+    assert local_flow._raw_artifact_store(
+        local_context,
+        "local-live",
+    ).storage_backend == "local"
+    assert local_flow._raw_artifact_store(
+        cloud_context,
+        "cloud-bucket",
+        s3_client=object(),
+    ).storage_backend == "s3"
+
+
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(

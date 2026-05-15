@@ -177,6 +177,58 @@ def test_upload_run_artifacts_applies_local_and_cloud_mode_policy(tmp_path):
         )
 
 
+def test_upload_run_artifacts_skips_raw_upload_for_s3_backed_manifest(tmp_path):
+    validation_path = tmp_path / "validation_results.json"
+    validation_path.write_text("[]", encoding="utf-8")
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "pipeline_run_id": "cloud-run",
+                "source_system": "census",
+                "dataset_name": "bds",
+                "resource_name": "bds_state_year",
+                "ingestion_date": "2026-05-07",
+                "storage_backend": "s3",
+                "raw_uri": (
+                    "s3://unit-test-bucket/raw/census/bds/bds_state_year/"
+                    "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/raw.json"
+                ),
+                "local_raw_path": None,
+                "s3_raw_uri": (
+                    "s3://unit-test-bucket/raw/census/bds/bds_state_year/"
+                    "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/raw.json"
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+    s3_client = FlakyS3Client(failures_before_success=0)
+
+    summary = upload_run_artifacts_to_s3(
+        manifest_paths=[manifest_path],
+        validation_result_path=validation_path,
+        bucket="unit-test-bucket",
+        run_mode="cloud",
+        s3_client=s3_client,
+        max_attempts=1,
+        base_delay_seconds=0,
+    )
+
+    assert summary.uploaded_count == 2
+    assert [key for _, key in s3_client.calls] == [
+        (
+            "manifests/census/bds/bds_state_year/"
+            "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/manifest.json"
+        ),
+        (
+            "validation/census/bds/bds_state_year/"
+            "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/"
+            "validation_results.json"
+        ),
+    ]
+
+
 class FlakyS3Client:
     def __init__(self, *, failures_before_success: int) -> None:
         self.failures_before_success = failures_before_success

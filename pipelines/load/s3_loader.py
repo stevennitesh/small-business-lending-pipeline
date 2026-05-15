@@ -58,7 +58,9 @@ class S3UploadRequiredError(RuntimeError):
     pass
 
 
-def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem:
+def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem | None:
+    if str(manifest.get("storage_backend", "local")).lower() == "s3":
+        return None
     local_path = Path(str(manifest["local_raw_path"]))
     return S3UploadItem(
         local_path=local_path,
@@ -134,7 +136,9 @@ def build_run_upload_items(
     for manifest_path in manifest_paths:
         manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
         manifests.append(manifest)
-        items.append(build_raw_upload_item(manifest))
+        raw_upload_item = build_raw_upload_item(manifest)
+        if raw_upload_item is not None:
+            items.append(raw_upload_item)
         items.append(build_manifest_upload_item(manifest_path, manifest))
         items.append(build_validation_upload_item(validation_result_path, manifest))
 

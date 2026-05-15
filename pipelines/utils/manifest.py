@@ -40,7 +40,7 @@ class ExtractionManifest:
     source_url: str
     extracted_at_utc: str
     ingestion_date: str
-    local_raw_path: str
+    local_raw_path: str | None
     s3_raw_uri: str
     file_format: str
     row_count: int
@@ -61,13 +61,13 @@ class ExtractionManifest:
 @dataclass(frozen=True)
 class ExtractionResult:
     manifest: ExtractionManifest
-    local_raw_path: Path
+    local_raw_path: Path | None
     row_count: int
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "manifest": self.manifest.to_dict(),
-            "local_raw_path": str(self.local_raw_path),
+            "local_raw_path": str(self.local_raw_path) if self.local_raw_path else None,
             "row_count": self.row_count,
         }
 

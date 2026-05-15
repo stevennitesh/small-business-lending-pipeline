@@ -17,9 +17,9 @@ from pipelines.utils.dates import (
     ingestion_date_from_timestamp,
     utc_now,
 )
-from pipelines.utils.hashing import calculate_sha256, hash_schema
+from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.utils.hashing import hash_bytes, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, ExtractionResult, write_manifest
-from pipelines.utils.paths import build_local_raw_path, build_raw_s3_key, build_s3_uri
 
 
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
@@ -252,6 +252,7 @@ def extract_bls_laus(
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     year_window_size: int | None = None,
     timeout: int = 120,
+    raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
 ) -> BLSLAUSExtractionSummary:
     active_config = config or load_bls_laus_config()
     active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
@@ -278,8 +279,11 @@ def extract_bls_laus(
         raise ValueError("BLS LAUS response did not include monthly observations")
 
     latest_observed_month = max(row["observed_month"] for row in normalized_rows)
-    local_raw_path = build_local_raw_path(
+    store = raw_artifact_store or LocalRawArtifactStore(
         data_root=Path(data_root),
+        s3_bucket=s3_bucket,
+    )
+    location = store.location(
         source_system=active_identity.source_system,
         dataset_name=active_identity.dataset_name,
         resource_name=RESOURCE_GRAIN,
@@ -287,7 +291,6 @@ def extract_bls_laus(
         pipeline_run_id=run_id,
         filename=f"{RAW_FILENAME_PREFIX}_{resolved_start_year}_{resolved_end_year}.json",
     )
-    local_raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_payload = {
         "request": {
             "start_year": resolved_start_year,
@@ -306,19 +309,9 @@ def extract_bls_laus(
         "responses": responses,
         "normalized_rows": normalized_rows,
     }
-    local_raw_path.write_text(
-        json.dumps(raw_payload, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    raw_key = build_raw_s3_key(
-        source_system=active_identity.source_system,
-        dataset_name=active_identity.dataset_name,
-        resource_name=RESOURCE_GRAIN,
-        ingestion_date=ingestion_date,
-        pipeline_run_id=run_id,
-        filename=local_raw_path.name,
-    )
+    raw_payload_bytes = (json.dumps(raw_payload, indent=2) + "\n").encode("utf-8")
+    store.write_bytes(location, raw_payload_bytes)
+    manifest_fields = location.manifest_fields()
     manifest = ExtractionManifest(
         pipeline_run_id=run_id,
         source_system=active_identity.source_system,
@@ -327,13 +320,15 @@ def extract_bls_laus(
         source_url=active_config.endpoint,
         extracted_at_utc=extracted_timestamp,
         ingestion_date=ingestion_date,
-        local_raw_path=str(local_raw_path),
-        s3_raw_uri=build_s3_uri(s3_bucket, raw_key),
+        local_raw_path=manifest_fields["local_raw_path"],
+        s3_raw_uri=str(manifest_fields["s3_raw_uri"]),
         file_format="json",
         row_count=len(normalized_rows),
-        sha256_checksum=calculate_sha256(local_raw_path),
+        sha256_checksum=hash_bytes(raw_payload_bytes),
         schema_hash=hash_schema(list(normalized_rows[0])),
         validation_status="passed",
+        raw_uri=str(manifest_fields["raw_uri"]),
+        storage_backend=str(manifest_fields["storage_backend"]),
         request_parameters={
             "start_year": resolved_start_year,
             "end_year": resolved_end_year,
@@ -347,7 +342,7 @@ def extract_bls_laus(
             "series_count": len(active_config.series),
         },
         column_count=len(normalized_rows[0]),
-        file_size_bytes=local_raw_path.stat().st_size,
+        file_size_bytes=len(raw_payload_bytes),
         validation_messages=[],
     )
     manifest_path = _build_local_manifest_path(
@@ -365,7 +360,7 @@ def extract_bls_laus(
     return BLSLAUSExtractionSummary(
         result=ExtractionResult(
             manifest=manifest,
-            local_raw_path=local_raw_path,
+            local_raw_path=location.local_path,
             row_count=len(normalized_rows),
         ),
         manifest_path=manifest_path,

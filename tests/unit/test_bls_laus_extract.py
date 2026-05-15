@@ -19,6 +19,7 @@ from pipelines.extract.bls_laus_extract import (
     normalize_bls_response,
     parse_monthly_period,
 )
+from pipelines.storage.raw_artifacts import S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity
 
 
@@ -115,6 +116,17 @@ class FakeSession:
     def post(self, url: str, json: dict[str, object], timeout: int):
         self.calls.append({"url": url, "json": json, "timeout": timeout})
         return FakeResponse(self.payloads.pop(0))
+
+
+class FakeS3ObjectClient:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
+        self.objects[(Bucket, Key)] = Body
+
+    def get_object(self, *, Bucket: str, Key: str):
+        raise NotImplementedError
 
 
 def test_load_bls_laus_config_from_yaml():
@@ -334,3 +346,39 @@ def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
     assert manifest["s3_raw_uri"].startswith(
         "s3://unit-test-bucket/raw/custom_bls/custom_laus/"
     )
+
+
+def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
+    config = BLSLAUSConfig(
+        endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
+        measure_name="unemployment_rate",
+        seasonal_adjustment="seasonally_adjusted",
+        series=_series_configs(),
+    )
+    session = FakeSession([_fixture_response()])
+    s3_client = FakeS3ObjectClient()
+
+    summary = extract_bls_laus(
+        config=config,
+        session=session,
+        data_root=tmp_path,
+        s3_bucket="cloud-bucket",
+        pipeline_run_id="cloud-run",
+        extracted_at_utc="2026-05-07T12:00:00Z",
+        start_year=2023,
+        end_year=2023,
+        raw_artifact_store=S3RawArtifactStore(
+            bucket="cloud-bucket",
+            s3_client=s3_client,
+        ),
+    )
+
+    assert summary.result.local_raw_path is None
+    assert summary.result.manifest.storage_backend == "s3"
+    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["storage_backend"] == "s3"
+    assert manifest["raw_uri"] == manifest["s3_raw_uri"]
+    key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
+    raw_payload = json.loads(s3_client.objects[("cloud-bucket", key)])
+    assert raw_payload["normalized_rows"][0]["observed_month"] == "2023-02-01"

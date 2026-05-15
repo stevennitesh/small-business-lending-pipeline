@@ -43,6 +43,7 @@ from pipelines.load.snowflake_loader import (
     connect_to_snowflake,
     load_raw_extracts_to_snowflake,
 )
+from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
 from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import calculate_sha256, hash_schema
@@ -755,6 +756,7 @@ def _extract_live_sources(
 ) -> ExtractionPaths:
     load_dotenv(override=True)
     bucket = _s3_bucket(context) or "local-live"
+    raw_artifact_store = _raw_artifact_store(context, bucket)
     sba_manifest_paths: dict[str, Path] = {}
     census_bds_manifest_paths: tuple[Path, ...] = ()
     bls_laus_manifest_paths: tuple[Path, ...] = ()
@@ -766,6 +768,7 @@ def _extract_live_sources(
             data_root=context.data_root,
             s3_bucket=bucket,
             pipeline_run_id=context.pipeline_run_id,
+            raw_artifact_store=raw_artifact_store,
         )
         sba_manifest_paths = sba_summary.manifest_paths
 
@@ -778,6 +781,7 @@ def _extract_live_sources(
             pipeline_run_id=context.pipeline_run_id,
             start_year=context.source_start_year,
             end_year=context.source_end_year,
+            raw_artifact_store=raw_artifact_store,
         )
         census_bds_manifest_paths = (census_summary.manifest_path,)
 
@@ -794,6 +798,7 @@ def _extract_live_sources(
             pipeline_run_id=context.pipeline_run_id,
             start_year=bls_start_year,
             end_year=context.source_end_year,
+            raw_artifact_store=raw_artifact_store,
         )
         bls_laus_manifest_paths = (bls_summary.manifest_path,)
 
@@ -836,6 +841,16 @@ def _sba_manifest_paths_by_program(
         for logical_name, manifest_path in sorted(manifest_paths.items())
         if logical_name.startswith(logical_name_prefix)
     )
+
+
+def _raw_artifact_store(
+    context: LocalRunContext,
+    bucket: str,
+    s3_client=None,
+) -> LocalRawArtifactStore | S3RawArtifactStore:
+    if context.is_cloud_route:
+        return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
+    return LocalRawArtifactStore(data_root=context.data_root, s3_bucket=bucket)
 
 
 def _raw_validation_expectations(

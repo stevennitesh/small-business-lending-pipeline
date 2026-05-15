@@ -16,6 +16,7 @@ from pipelines.extract.sba_extract import (
     load_sba_resource_specs,
     resolve_sba_resources,
 )
+from pipelines.storage.raw_artifacts import S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity
 
 
@@ -102,6 +103,17 @@ class FakeSession:
         if isinstance(payload, Exception):
             raise payload
         return FakeResponse(payload)
+
+
+class FakeS3ObjectClient:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
+        self.objects[(Bucket, Key)] = Body
+
+    def get_object(self, *, Bucket: str, Key: str):
+        raise NotImplementedError
 
 
 def test_load_sba_resources_config_includes_discovery_settings():
@@ -308,6 +320,47 @@ def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
     assert manifest["s3_raw_uri"].startswith(
         "s3://unit-test-bucket/raw/custom_sba/7a_foia/"
     )
+
+
+def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
+    spec = SBAResourceSpec(
+        logical_name="sba_7a_fy2020_present",
+        program="7a",
+        source_period="fy2020_present",
+        expected_format="csv",
+        required=True,
+        title_pattern="FOIA - 7(a) (FY2020-Present)",
+    )
+    metadata = _sample_package_metadata()
+    payload = b"col_a,col_b\n1,2\n"
+    session = FakeSession({"https://example.test/7a_2020_present.csv": payload})
+    s3_client = FakeS3ObjectClient()
+
+    summary = extract_sba_foia(
+        specs=[spec],
+        package_metadata=metadata,
+        session=session,
+        data_root=tmp_path,
+        s3_bucket="cloud-bucket",
+        pipeline_run_id="cloud-run",
+        extracted_at_utc="2026-05-06T12:00:00Z",
+        raw_artifact_store=S3RawArtifactStore(
+            bucket="cloud-bucket",
+            s3_client=s3_client,
+        ),
+    )
+
+    result = summary.results["sba_7a_fy2020_present"]
+    assert result.local_raw_path is None
+    assert result.manifest.storage_backend == "s3"
+    assert result.manifest.raw_uri == result.manifest.s3_raw_uri
+    manifest = json.loads(
+        summary.manifest_paths["sba_7a_fy2020_present"].read_text(encoding="utf-8")
+    )
+    assert manifest["storage_backend"] == "s3"
+    assert manifest["raw_uri"].startswith("s3://cloud-bucket/raw/sba/7a_foia/")
+    key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
+    assert s3_client.objects[("cloud-bucket", key)] == payload
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import re
 import uuid
@@ -12,15 +13,15 @@ from urllib.parse import urlparse
 
 import requests
 
+from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
     ingestion_date_from_timestamp,
     utc_now,
 )
-from pipelines.utils.hashing import calculate_sha256, hash_schema
+from pipelines.utils.hashing import hash_bytes, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, ExtractionResult, write_manifest
-from pipelines.utils.paths import build_local_raw_path, build_raw_s3_key, build_s3_uri
 
 
 DEFAULT_SBA_PACKAGE_URL = (
@@ -213,6 +214,7 @@ def extract_sba_foia(
     pipeline_run_id: str | None = None,
     extracted_at_utc: str | None = None,
     timeout: int = 120,
+    raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
 ) -> SBAExtractionSummary:
     active_session = session or requests.Session()
     active_config = config or (
@@ -240,6 +242,10 @@ def extract_sba_foia(
     run_id = pipeline_run_id or str(uuid.uuid4())
     extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
     ingestion_date = _ingestion_date_from_iso(extracted_timestamp)
+    store = raw_artifact_store or LocalRawArtifactStore(
+        data_root=Path(data_root),
+        s3_bucket=s3_bucket,
+    )
 
     results: dict[str, ExtractionResult] = {}
     manifest_paths: dict[str, Path] = {}
@@ -252,7 +258,7 @@ def extract_sba_foia(
                 source_identity=active_identity,
                 session=active_session,
                 data_root=Path(data_root),
-                s3_bucket=s3_bucket,
+                raw_artifact_store=store,
                 package_url=active_package_url,
                 pipeline_run_id=run_id,
                 extracted_at_utc=extracted_timestamp,
@@ -336,15 +342,14 @@ def _download_resource(
     source_identity: SourceIdentity,
     session: requests.Session,
     data_root: Path,
-    s3_bucket: str,
+    raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore,
     package_url: str,
     pipeline_run_id: str,
     extracted_at_utc: str,
     ingestion_date: str,
     timeout: int,
 ) -> tuple[ExtractionResult, Path]:
-    local_raw_path = build_local_raw_path(
-        data_root=data_root,
+    location = raw_artifact_store.location(
         source_system=source_identity.source_system,
         dataset_name=resource.dataset_path_name,
         resource_name=resource.resource_path_name,
@@ -352,28 +357,23 @@ def _download_resource(
         pipeline_run_id=pipeline_run_id,
         filename=resource.filename,
     )
-    local_raw_path.parent.mkdir(parents=True, exist_ok=True)
 
     response = session.get(resource.url, timeout=timeout, stream=True)
     response.raise_for_status()
 
-    with local_raw_path.open("wb") as output_file:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            if chunk:
-                output_file.write(chunk)
+    raw_payload = b"".join(
+        chunk
+        for chunk in response.iter_content(chunk_size=1024 * 1024)
+        if chunk
+    )
+    raw_artifact_store.write_bytes(location, raw_payload)
 
-    row_count, column_count, schema_hash = _profile_downloaded_file(
-        local_raw_path,
+    row_count, column_count, schema_hash = _profile_downloaded_payload(
+        raw_payload,
         resource.file_format,
+        resource.filename,
     )
-    raw_key = build_raw_s3_key(
-        source_system=source_identity.source_system,
-        dataset_name=resource.dataset_path_name,
-        resource_name=resource.resource_path_name,
-        ingestion_date=ingestion_date,
-        pipeline_run_id=pipeline_run_id,
-        filename=resource.filename,
-    )
+    manifest_fields = location.manifest_fields()
     manifest = ExtractionManifest(
         pipeline_run_id=pipeline_run_id,
         source_system=source_identity.source_system,
@@ -382,13 +382,15 @@ def _download_resource(
         source_url=resource.url,
         extracted_at_utc=extracted_at_utc,
         ingestion_date=ingestion_date,
-        local_raw_path=str(local_raw_path),
-        s3_raw_uri=build_s3_uri(s3_bucket, raw_key),
+        local_raw_path=manifest_fields["local_raw_path"],
+        s3_raw_uri=str(manifest_fields["s3_raw_uri"]),
         file_format=resource.file_format,
         row_count=row_count,
-        sha256_checksum=calculate_sha256(local_raw_path),
+        sha256_checksum=hash_bytes(raw_payload),
         schema_hash=schema_hash,
         validation_status="passed",
+        raw_uri=str(manifest_fields["raw_uri"]),
+        storage_backend=str(manifest_fields["storage_backend"]),
         request_parameters={
             "package_url": package_url,
             "source_title": resource.title,
@@ -396,7 +398,7 @@ def _download_resource(
             "source_period": resource.spec.source_period,
         },
         column_count=column_count,
-        file_size_bytes=local_raw_path.stat().st_size,
+        file_size_bytes=len(raw_payload),
         validation_messages=[],
     )
     manifest_path = _build_local_manifest_path(
@@ -410,26 +412,30 @@ def _download_resource(
     return (
         ExtractionResult(
             manifest=manifest,
-            local_raw_path=local_raw_path,
+            local_raw_path=location.local_path,
             row_count=row_count,
         ),
         manifest_path,
     )
 
 
-def _profile_downloaded_file(path: Path, file_format: str) -> tuple[int, int | None, str]:
+def _profile_downloaded_payload(
+    payload: bytes,
+    file_format: str,
+    filename: str,
+) -> tuple[int, int | None, str]:
     if file_format == "csv":
-        with path.open("r", encoding="utf-8-sig", newline="") as file:
-            reader = csv.reader(file)
-            header = next(reader, [])
-            row_count = sum(1 for _ in reader)
+        text = payload.decode("utf-8-sig")
+        reader = csv.reader(io.StringIO(text))
+        header = next(reader, [])
+        row_count = sum(1 for _ in reader)
         schema = [
             {"name": column_name, "ordinal": index}
             for index, column_name in enumerate(header)
         ]
         return row_count, len(header), hash_schema(schema)
 
-    schema = [{"file_format": file_format, "filename": path.name}]
+    schema = [{"file_format": file_format, "filename": filename}]
     return 0, None, hash_schema(schema)
 
 
