@@ -214,6 +214,66 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     assert len(extraction_paths.manifest_paths) == 4
 
 
+def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monkeypatch):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="live",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="live-config-start-run",
+        source_end_year=2024,
+    )
+    calls = []
+
+    def fake_sba_extract(**kwargs):
+        calls.append(("sba", kwargs))
+        return local_flow.SBAExtractionSummary(
+            results={},
+            manifest_paths={
+                "sba_7a_fy2020_present": _write_manifest_stub(
+                    tmp_path, "sba_7a_fy2020_present"
+                ),
+                "sba_504_fy2010_present": _write_manifest_stub(
+                    tmp_path, "sba_504_fy2010_present"
+                ),
+            },
+            warnings=[],
+        )
+
+    def fake_census_extract(**kwargs):
+        calls.append(("census", kwargs))
+        return local_flow.CensusBDSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
+            latest_available_year=2024,
+        )
+
+    def fake_bls_extract(**kwargs):
+        calls.append(("bls", kwargs))
+        return local_flow.BLSLAUSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
+            latest_observed_month="2024-12-01",
+            series_count=51,
+        )
+
+    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+
+    local_flow.extract_sources.fn(context, project_config)
+
+    bls_call = [kwargs for name, kwargs in calls if name == "bls"][0]
+    assert project_config.bls_laus.start_year == 1990
+    assert bls_call["start_year"] == 1989
+    assert bls_call["end_year"] == 2024
+
+
 def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
     project_config = local_flow.load_config.fn()
     sources = {

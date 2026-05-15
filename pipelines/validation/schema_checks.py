@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable
@@ -105,20 +106,30 @@ def check_bls_laus_payload(
     *,
     expected_series_ids: tuple[str, ...],
     pipeline_run_id: str,
+    required_period_pattern: str = r"^M(0[1-9]|1[0-2])$",
+    unemployment_rate_min: float = 0,
+    unemployment_rate_max: float = 100,
 ) -> list[ValidationResult]:
     rows = payload.get("normalized_rows", [])
     observed_series_ids = {str(row.get("series_id")) for row in rows}
     missing_series_ids = sorted(set(expected_series_ids) - observed_series_ids)
+    period_regex = re.compile(required_period_pattern)
     invalid_period_rows = [
         row
         for row in rows
         if not _is_month_start(str(row.get("observed_month", "")))
-        or not str(row.get("period", "")).startswith("M")
+        or not period_regex.fullmatch(str(row.get("period", "")))
     ]
     non_numeric_rows = [
         row
         for row in rows
         if not isinstance(row.get("value"), int | float)
+    ]
+    out_of_range_rows = [
+        row
+        for row in rows
+        if isinstance(row.get("value"), int | float)
+        and not unemployment_rate_min <= float(row["value"]) <= unemployment_rate_max
     ]
     return [
         _source_result(
@@ -162,6 +173,23 @@ def check_bls_laus_payload(
             expected_value="numeric values",
             observed_value={"non_numeric_rows": len(non_numeric_rows)},
             failed_message="BLS LAUS response contains non-numeric values.",
+        ),
+        _source_result(
+            pipeline_run_id=pipeline_run_id,
+            validation_check_id="BLS_RAW_004",
+            source_system="bls",
+            source_dataset="laus",
+            source_resource_name="laus_state_month",
+            check_name="BLS unemployment rates in configured range",
+            check_type="validity",
+            severity="fail",
+            passed=out_of_range_rows == [],
+            expected_value={
+                "min": unemployment_rate_min,
+                "max": unemployment_rate_max,
+            },
+            observed_value={"out_of_range_rows": len(out_of_range_rows)},
+            failed_message="BLS LAUS response contains unemployment rates outside configured bounds.",
         ),
     ]
 

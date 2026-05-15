@@ -1,15 +1,9 @@
 freshness_rules:
   sba_foia:
     expected_cadence: quarterly
-    warning_after_days: 120
-    fail_after_days: 210
 
   census_bds:
     expected_cadence: annual
-    warning_after_days: 450
-    fail_after_days: 730
 
   bls_laus:
     expected_cadence: monthly
-    warning_after_days: 75
-    fail_after_days: 120

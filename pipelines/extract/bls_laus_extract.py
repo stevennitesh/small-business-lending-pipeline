@@ -45,6 +45,7 @@ class BLSLAUSConfig:
     measure_name: str
     seasonal_adjustment: str
     series: tuple[BLSSeriesConfig, ...]
+    start_year: int = 1990
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,7 @@ def parse_bls_laus_config(config: Mapping[str, Any]) -> BLSLAUSConfig:
             )
             for row in config["series"]
         ),
+        start_year=int(config["start_year"]),
     )
 
 
@@ -248,7 +250,7 @@ def extract_bls_laus(
 ) -> BLSLAUSExtractionSummary:
     active_config = config or load_bls_laus_config()
     resolved_end_year = end_year or datetime.now().year
-    resolved_start_year = start_year or max(resolved_end_year - 10, 1976)
+    resolved_start_year = start_year or active_config.start_year
     run_id = pipeline_run_id or str(uuid.uuid4())
     extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
     ingestion_date = _ingestion_date_from_iso(extracted_timestamp)

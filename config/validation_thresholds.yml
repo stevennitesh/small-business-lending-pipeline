@@ -1,12 +1,8 @@
 validation_thresholds:
   sba_foia:
-    min_total_rows: 100000
-    required_column_groups:
-      - approval_date
-      - borrower_state
-      - gross_approval_amount
-      - lender_name
-    max_required_field_null_rate: 0.05
+    required_programs:
+      - 7a
+      - 504
 
   census_bds:
     min_rows: 51

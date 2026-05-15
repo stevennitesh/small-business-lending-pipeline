@@ -149,6 +149,9 @@ class RawValidationExpectations:
     sba_required_resource_names: list[str]
     census_expected_state_count: int
     bls_expected_series_ids: tuple[str, ...]
+    bls_required_period_pattern: str
+    bls_unemployment_rate_min: float
+    bls_unemployment_rate_max: float
 
 
 @dataclass(frozen=True)
@@ -314,6 +317,9 @@ def validate_raw_outputs(
                 ),
                 expected_series_ids=expectations.bls_expected_series_ids,
                 pipeline_run_id=context.pipeline_run_id,
+                required_period_pattern=expectations.bls_required_period_pattern,
+                unemployment_rate_min=expectations.bls_unemployment_rate_min,
+                unemployment_rate_max=expectations.bls_unemployment_rate_max,
             )
         )
 
@@ -710,11 +716,10 @@ def _extract_live_sources(
         census_bds_manifest_paths = (census_summary.manifest_path,)
 
     if project_config.is_source_enabled("bls_laus"):
-        bls_start_year = (
-            max(context.source_start_year - 1, 1976)
-            if context.source_start_year is not None
-            else None
+        requested_bls_start_year = (
+            context.source_start_year or project_config.bls_laus.start_year
         )
+        bls_start_year = max(requested_bls_start_year - 1, 1976)
         bls_summary = extract_bls_laus(
             config=project_config.bls_laus,
             data_root=context.data_root,
@@ -781,15 +786,30 @@ def _raw_validation_expectations(
                 "LASST010000000000003",
                 "LASST170000000000003",
             ),
+            bls_required_period_pattern=r"^M(0[1-9]|1[0-2])$",
+            bls_unemployment_rate_min=0,
+            bls_unemployment_rate_max=100,
         )
 
+    required_sba_programs = (
+        {
+            str(program)
+            for program in project_config.validation_thresholds["sba_foia"].get(
+                "required_programs",
+                (),
+            )
+        }
+        if project_config.is_source_enabled("sba_foia")
+        else set()
+    )
     required_sba_resources = [
         spec.logical_name
         for spec in project_config.sba.resources
         if project_config.is_source_enabled("sba_foia")
         and spec.required
-        and spec.program in {"7a", "504"}
+        and spec.program in required_sba_programs
     ]
+    bls_thresholds = project_config.validation_thresholds.get("bls_laus", {})
     return RawValidationExpectations(
         sba_required_resource_names=required_sba_resources,
         census_expected_state_count=(
@@ -802,6 +822,15 @@ def _raw_validation_expectations(
         )
         if project_config.is_source_enabled("bls_laus")
         else (),
+        bls_required_period_pattern=str(
+            bls_thresholds.get("required_period_pattern", r"^M(0[1-9]|1[0-2])$")
+        ),
+        bls_unemployment_rate_min=float(
+            bls_thresholds.get("unemployment_rate_min", 0)
+        ),
+        bls_unemployment_rate_max=float(
+            bls_thresholds.get("unemployment_rate_max", 100)
+        ),
     )
 
 

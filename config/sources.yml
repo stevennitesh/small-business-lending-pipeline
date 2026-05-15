@@ -6,9 +6,6 @@ sources:
     dataset_name: 7a_504_foia
     refresh_cadence: quarterly
     grain: loan_record
-    raw_storage_subdir: data/raw/sba
-    manifest_subdir: data/manifests/sba
-    validation_subdir: data/validation/sba
 
   census_bds:
     enabled: true
@@ -17,9 +14,6 @@ sources:
     dataset_name: bds
     refresh_cadence: annual
     grain: state_year
-    raw_storage_subdir: data/raw/census
-    manifest_subdir: data/manifests/census
-    validation_subdir: data/validation/census
 
   bls_laus:
     enabled: true
@@ -27,7 +21,4 @@ sources:
     publisher: U.S. Bureau of Labor Statistics
     dataset_name: laus
     refresh_cadence: monthly
-    grain: state_month_series
-    raw_storage_subdir: data/raw/bls
-    manifest_subdir: data/manifests/bls
-    validation_subdir: data/validation/bls
+    grain: state_month

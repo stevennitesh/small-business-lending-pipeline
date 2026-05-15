@@ -2,6 +2,7 @@ bls_laus:
   endpoint: https://api.bls.gov/publicAPI/v2/timeseries/data/
   measure_name: unemployment_rate
   seasonal_adjustment: seasonally_adjusted
+  start_year: 1990
   series:
     - {state_fips: "01", state_abbr: AL, state_name: Alabama, series_id: LASST010000000000003}
     - {state_fips: "02", state_abbr: AK, state_name: Alaska, series_id: LASST020000000000003}

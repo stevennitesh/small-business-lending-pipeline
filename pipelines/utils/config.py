@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,9 +31,6 @@ class SourceConfig:
     dataset_name: str
     refresh_cadence: str
     grain: str
-    raw_storage_subdir: str
-    manifest_subdir: str
-    validation_subdir: str
 
 
 @dataclass(frozen=True)
@@ -115,9 +113,6 @@ def _parse_source_configs(raw_sources: dict[str, Any]) -> dict[str, SourceConfig
             dataset_name=str(source_config["dataset_name"]),
             refresh_cadence=str(source_config["refresh_cadence"]),
             grain=str(source_config["grain"]),
-            raw_storage_subdir=str(source_config["raw_storage_subdir"]),
-            manifest_subdir=str(source_config["manifest_subdir"]),
-            validation_subdir=str(source_config["validation_subdir"]),
         )
         for source_name, source_config in raw_sources.items()
     }
@@ -194,10 +189,31 @@ def _validate_project_config_contract(
                 + ", ".join(missing_requested_columns)
             )
 
+    if "sba_foia" in validation_thresholds:
+        required_programs = {
+            str(program)
+            for program in validation_thresholds["sba_foia"]["required_programs"]
+        }
+        configured_programs = {resource.program for resource in sba.resources}
+        unknown_programs = sorted(required_programs - configured_programs)
+        if unknown_programs:
+            raise ValueError(
+                "SBA validation required_programs are not configured resources: "
+                + ", ".join(unknown_programs)
+            )
+
     if "bls_laus" in validation_thresholds:
-        min_state_count = int(validation_thresholds["bls_laus"]["min_state_count"])
+        bls_thresholds = validation_thresholds["bls_laus"]
+        min_state_count = int(bls_thresholds["min_state_count"])
         if min_state_count > len(bls_laus.series):
             raise ValueError(
                 "BLS LAUS min_state_count exceeds configured series count: "
                 f"{min_state_count} > {len(bls_laus.series)}"
+            )
+        re.compile(str(bls_thresholds["required_period_pattern"]))
+        unemployment_rate_min = float(bls_thresholds["unemployment_rate_min"])
+        unemployment_rate_max = float(bls_thresholds["unemployment_rate_max"])
+        if unemployment_rate_min > unemployment_rate_max:
+            raise ValueError(
+                "BLS LAUS unemployment_rate_min cannot exceed unemployment_rate_max."
             )

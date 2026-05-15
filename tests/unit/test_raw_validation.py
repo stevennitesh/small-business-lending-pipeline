@@ -265,3 +265,32 @@ def test_bls_payload_check_requires_expected_series_and_valid_months():
     )
 
     assert all(result.status == "passed" for result in results)
+
+
+def test_bls_payload_check_honors_configured_period_and_value_bounds():
+    payload = {
+        "normalized_rows": [
+            {
+                "series_id": "LASST010000000000003",
+                "observed_month": "2023-01-01",
+                "period": "M13",
+                "value": 101.0,
+            },
+        ]
+    }
+
+    results = check_bls_laus_payload(
+        payload,
+        expected_series_ids=("LASST010000000000003",),
+        pipeline_run_id="run-123",
+        required_period_pattern=r"^M(0[1-9]|1[0-2])$",
+        unemployment_rate_min=0,
+        unemployment_rate_max=100,
+    )
+
+    failed_ids = {
+        result.validation_check_id
+        for result in results
+        if result.status == "failed"
+    }
+    assert {"BLS_RAW_002", "BLS_RAW_004"} <= failed_ids

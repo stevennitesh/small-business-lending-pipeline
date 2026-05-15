@@ -26,6 +26,7 @@ def test_project_config_loader_returns_named_configs():
     assert project_config.sources["sba_foia"].dataset_name == "7a_504_foia"
     assert project_config.sba.dataset_name == "7a_504_foia"
     assert project_config.census_bds.start_year == 1990
+    assert project_config.bls_laus.start_year == 1990
     assert project_config.bls_laus.measure_name == "unemployment_rate"
     assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
     assert project_config.validation_thresholds["bls_laus"]["min_state_count"] == 51
@@ -45,6 +46,31 @@ def test_config_files_have_required_top_level_keys():
 
     for filename, key in required_top_level_keys.items():
         assert key in project_config.get(filename)
+
+
+def test_mvp_source_registry_does_not_declare_unused_path_overrides():
+    project_config = load_project_config(CONFIG_DIR)
+    raw_sources = project_config.get("sources.yml")["sources"]
+
+    for source_config in raw_sources.values():
+        assert "raw_storage_subdir" not in source_config
+        assert "manifest_subdir" not in source_config
+        assert "validation_subdir" not in source_config
+
+
+def test_mvp_freshness_rules_only_declare_active_cadence_contracts():
+    project_config = load_project_config(CONFIG_DIR)
+
+    for rule in project_config.freshness_rules.values():
+        assert set(rule) == {"expected_cadence"}
+
+
+def test_sba_validation_thresholds_only_declare_active_raw_validation_controls():
+    project_config = load_project_config(CONFIG_DIR)
+
+    assert set(project_config.validation_thresholds["sba_foia"]) == {
+        "required_programs",
+    }
 
 
 def test_enabled_sources_have_freshness_and_validation_config():
