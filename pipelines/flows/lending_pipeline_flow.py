@@ -43,12 +43,15 @@ from pipelines.load.snowflake_loader import (
     connect_to_snowflake,
     load_raw_extracts_to_snowflake,
 )
-from pipelines.utils.config import ProjectConfig, load_project_config
+from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, write_manifest
 from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
-from pipelines.validation.raw_checks import check_raw_manifest
+from pipelines.validation.raw_checks import (
+    check_manifest_source_identity,
+    check_raw_manifest,
+)
 from pipelines.validation.schema_checks import (
     check_bls_laus_payload,
     check_census_bds_payload,
@@ -259,7 +262,7 @@ def extract_sources(
         raise ValueError("run_mode must be 'local' or 'final'.")
     if context.extract_mode == "live":
         return _extract_live_sources(context, project_config)
-    return _write_local_fixture_extracts(context)
+    return _write_local_fixture_extracts(context, project_config)
 
 
 @task
@@ -277,6 +280,16 @@ def validate_raw_outputs(
     for manifest_path in extraction_paths.manifest_paths:
         validation_results.extend(check_raw_manifest(manifest_path))
 
+    for manifest in manifests:
+        validation_results.append(
+            check_manifest_source_identity(
+                manifest,
+                expected_identity=project_config.source_identity(
+                    _source_name_for_resource(str(manifest["resource_name"]))
+                ),
+            )
+        )
+
     expectations = _raw_validation_expectations(context, project_config)
 
     manifests_by_name = manifests_by_resource(manifests)
@@ -286,6 +299,7 @@ def validate_raw_outputs(
             check_sba_required_resources(
                 manifests,
                 required_resource_names=expectations.sba_required_resource_names,
+                source_identity=project_config.source_identity("sba_foia"),
             )
         )
 
@@ -304,6 +318,7 @@ def validate_raw_outputs(
                 ),
                 expected_state_count=expectations.census_expected_state_count,
                 pipeline_run_id=context.pipeline_run_id,
+                source_identity=project_config.source_identity("census_bds"),
             )
         )
 
@@ -320,6 +335,7 @@ def validate_raw_outputs(
                 required_period_pattern=expectations.bls_required_period_pattern,
                 unemployment_rate_min=expectations.bls_unemployment_rate_min,
                 unemployment_rate_max=expectations.bls_unemployment_rate_max,
+                source_identity=project_config.source_identity("bls_laus"),
             )
         )
 
@@ -837,7 +853,10 @@ def _raw_validation_expectations(
     )
 
 
-def _write_local_fixture_extracts(context: LocalRunContext) -> ExtractionPaths:
+def _write_local_fixture_extracts(
+    context: LocalRunContext,
+    project_config: ProjectConfig,
+) -> ExtractionPaths:
     raw_paths = _write_fixture_raw_files(context)
     manifest_paths = {
         resource_name: _write_fixture_manifest(
@@ -847,6 +866,9 @@ def _write_local_fixture_extracts(context: LocalRunContext) -> ExtractionPaths:
             row_count=row_count,
             file_format=file_format,
             schema_fields=schema_fields,
+            source_identity=project_config.source_identity(
+                _source_name_for_resource(resource_name)
+            ),
         )
         for resource_name, (
             raw_file_path,
@@ -1007,8 +1029,10 @@ def _write_fixture_manifest(
     row_count: int,
     file_format: str,
     schema_fields: list[str],
+    source_identity: SourceIdentity,
 ) -> Path:
-    source_system, dataset_name = _manifest_source(resource_name)
+    source_system = source_identity.source_system
+    dataset_name = source_identity.dataset_name
     ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
     s3_raw_key = build_raw_s3_key(
         source_system=source_system,
@@ -1195,13 +1219,13 @@ def _bls_row(
     }
 
 
-def _manifest_source(resource_name: str) -> tuple[str, str]:
+def _source_name_for_resource(resource_name: str) -> str:
     if resource_name.startswith("sba_"):
-        return "sba", "7a_504_foia"
+        return "sba_foia"
     if resource_name == "bds_state_year":
-        return "census", "bds"
+        return "census_bds"
     if resource_name == "laus_state_month":
-        return "bls", "laus"
+        return "bls_laus"
     raise ValueError(f"Unsupported fixture resource: {resource_name}")
 
 

@@ -146,6 +146,153 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     assert {record["status"] for record in validation_payload} == {"passed"}
 
 
+def test_fixture_manifests_use_source_config_identity(tmp_path):
+    project_config = local_flow.load_config.fn()
+    sources = {
+        **project_config.sources,
+        "census_bds": replace(
+            project_config.sources["census_bds"],
+            source_system="custom_census",
+            dataset_name="custom_bds",
+        ),
+        "bls_laus": replace(
+            project_config.sources["bls_laus"],
+            source_system="custom_bls",
+            dataset_name="custom_laus",
+        ),
+    }
+    project_config = replace(project_config, sources=sources)
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="fixture-identity-run",
+    )
+
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    census_manifest = json.loads(
+        extraction_paths.census_bds_manifest_paths[0].read_text(encoding="utf-8")
+    )
+    bls_manifest = json.loads(
+        extraction_paths.bls_laus_manifest_paths[0].read_text(encoding="utf-8")
+    )
+
+    assert census_manifest["source_system"] == "custom_census"
+    assert census_manifest["dataset_name"] == "custom_bds"
+    assert bls_manifest["source_system"] == "custom_bls"
+    assert bls_manifest["dataset_name"] == "custom_laus"
+
+
+def test_raw_validation_passes_source_config_identity_to_payload_checks(
+    tmp_path,
+    monkeypatch,
+):
+    project_config = local_flow.load_config.fn()
+    sources = {
+        **project_config.sources,
+        "sba_foia": replace(
+            project_config.sources["sba_foia"],
+            source_system="custom_sba",
+            dataset_name="custom_sba_dataset",
+        ),
+        "census_bds": replace(
+            project_config.sources["census_bds"],
+            source_system="custom_census",
+            dataset_name="custom_bds",
+        ),
+        "bls_laus": replace(
+            project_config.sources["bls_laus"],
+            source_system="custom_bls",
+            dataset_name="custom_laus",
+        ),
+    }
+    project_config = replace(project_config, sources=sources)
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="validation-identity-run",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    captured_identities = {}
+
+    def fake_sba_check(manifests, *, required_resource_names, source_identity):
+        captured_identities["sba_foia"] = source_identity
+        return []
+
+    def fake_census_check(
+        payload,
+        *,
+        required_variables,
+        expected_state_count,
+        pipeline_run_id,
+        source_identity,
+    ):
+        captured_identities["census_bds"] = source_identity
+        return []
+
+    def fake_bls_check(
+        payload,
+        *,
+        expected_series_ids,
+        pipeline_run_id,
+        required_period_pattern,
+        unemployment_rate_min,
+        unemployment_rate_max,
+        source_identity,
+    ):
+        captured_identities["bls_laus"] = source_identity
+        return []
+
+    monkeypatch.setattr(local_flow, "check_sba_required_resources", fake_sba_check)
+    monkeypatch.setattr(local_flow, "check_census_bds_payload", fake_census_check)
+    monkeypatch.setattr(local_flow, "check_bls_laus_payload", fake_bls_check)
+
+    local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+    assert captured_identities == {
+        "sba_foia": project_config.source_identity("sba_foia"),
+        "census_bds": project_config.source_identity("census_bds"),
+        "bls_laus": project_config.source_identity("bls_laus"),
+    }
+
+
+def test_raw_validation_blocks_manifest_identity_mismatch(tmp_path):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="identity-mismatch-run",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    broken_manifest = extraction_paths.census_bds_manifest_paths[0]
+    manifest_payload = json.loads(broken_manifest.read_text(encoding="utf-8"))
+    manifest_payload["dataset_name"] = "wrong_dataset"
+    broken_manifest.write_text(
+        json.dumps(manifest_payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValidationFailedError, match="RAW_010"):
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+
 def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(

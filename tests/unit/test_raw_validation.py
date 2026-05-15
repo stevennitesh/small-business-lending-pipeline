@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from pipelines.utils.config import SourceIdentity
 from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.validation.raw_checks import (
+    check_manifest_source_identity,
     check_raw_manifest,
     check_validation_output_created,
 )
@@ -218,6 +220,87 @@ def test_sba_required_resources_check_reports_missing_resource(tmp_path):
     ]
     assert results[0].status == "failed"
     assert "sba_504_fy2010_present" in str(results[0].observed_value)
+
+
+def test_source_validation_checks_use_configured_identity(tmp_path):
+    source_identity = SourceIdentity(
+        source_system="custom_source",
+        dataset_name="custom_dataset",
+    )
+    raw_file = tmp_path / "sba.csv"
+    raw_file.write_text("a,b\n1,2\n", encoding="utf-8")
+    sba_manifest = _manifest_for(raw_file)
+    sba_manifest.update(
+        {
+            "source_system": "custom_source",
+            "dataset_name": "custom_dataset",
+            "resource_name": "sba_7a_fy2020_present",
+        }
+    )
+    census_payload = [
+        ["YEAR", "NAME", "state", "ESTAB"],
+        ["2023", "Alabama", "01", "98246"],
+    ]
+    bls_payload = {
+        "normalized_rows": [
+            {
+                "series_id": "LASST010000000000003",
+                "observed_month": "2023-01-01",
+                "period": "M01",
+                "value": 2.6,
+            },
+        ]
+    }
+
+    results = [
+        *check_sba_required_resources(
+            [sba_manifest],
+            required_resource_names=["sba_7a_fy2020_present"],
+            source_identity=source_identity,
+        ),
+        *check_census_bds_payload(
+            census_payload,
+            required_variables=("YEAR", "NAME", "state", "ESTAB"),
+            expected_state_count=1,
+            pipeline_run_id="run-123",
+            source_identity=source_identity,
+        ),
+        *check_bls_laus_payload(
+            bls_payload,
+            expected_series_ids=("LASST010000000000003",),
+            pipeline_run_id="run-123",
+            source_identity=source_identity,
+        ),
+    ]
+
+    assert {result.source_system for result in results} == {"custom_source"}
+    assert {result.source_dataset for result in results} == {"custom_dataset"}
+
+
+def test_manifest_source_identity_check_fails_on_config_mismatch(tmp_path):
+    raw_file = tmp_path / "bds_state_year.json"
+    raw_file.write_text('[["YEAR","state"],["2023","01"]]\n', encoding="utf-8")
+    manifest = _manifest_for(raw_file)
+
+    result = check_manifest_source_identity(
+        manifest,
+        expected_identity=SourceIdentity(
+            source_system="census",
+            dataset_name="custom_bds",
+        ),
+    )
+
+    assert result.validation_check_id == "RAW_010"
+    assert result.severity == "fail"
+    assert result.status == "failed"
+    assert result.expected_value == {
+        "source_system": "census",
+        "dataset_name": "custom_bds",
+    }
+    assert result.observed_value == {
+        "source_system": "census",
+        "dataset_name": "bds",
+    }
 
 
 def test_census_payload_check_requires_variables_and_state_coverage():

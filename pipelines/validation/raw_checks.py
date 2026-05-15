@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pipelines.utils.config import SourceIdentity
 from pipelines.utils.hashing import calculate_sha256
 from pipelines.utils.manifest import REQUIRED_MANIFEST_FIELDS
 from pipelines.validation.validation_result import (
@@ -67,6 +68,32 @@ def check_validation_output_created(
         observed_value=str(resolved_output_path),
         passed_message="Validation output file exists.",
         failed_message="Validation output file is missing.",
+    )
+
+
+def check_manifest_source_identity(
+    manifest: dict[str, Any],
+    *,
+    expected_identity: SourceIdentity,
+) -> ValidationResult:
+    observed_identity = {
+        "source_system": str(manifest.get("source_system", "unknown")),
+        "dataset_name": str(manifest.get("dataset_name", "unknown")),
+    }
+    expected_value = {
+        "source_system": expected_identity.source_system,
+        "dataset_name": expected_identity.dataset_name,
+    }
+    return _result(
+        manifest=manifest,
+        validation_check_id="RAW_010",
+        check_name="Manifest source identity matches config",
+        check_type="lineage",
+        severity="fail",
+        passed=observed_identity == expected_value,
+        expected_value=expected_value,
+        observed_value=observed_identity,
+        failed_message="Manifest source identity does not match source config.",
     )
 
 

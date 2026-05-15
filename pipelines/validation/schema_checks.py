@@ -5,13 +5,19 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable
 
+from pipelines.utils.config import SourceIdentity
 from pipelines.validation.validation_result import ValidationResult, make_validation_result
+
+DEFAULT_SBA_IDENTITY = SourceIdentity(source_system="sba", dataset_name="7a_504_foia")
+DEFAULT_CENSUS_BDS_IDENTITY = SourceIdentity(source_system="census", dataset_name="bds")
+DEFAULT_BLS_LAUS_IDENTITY = SourceIdentity(source_system="bls", dataset_name="laus")
 
 
 def check_sba_required_resources(
     manifests: Iterable[dict[str, Any]],
     *,
     required_resource_names: list[str],
+    source_identity: SourceIdentity = DEFAULT_SBA_IDENTITY,
 ) -> list[ValidationResult]:
     manifest_list = list(manifests)
     resources_by_name = {
@@ -30,8 +36,8 @@ def check_sba_required_resources(
         _source_result(
             manifest=base_manifest,
             validation_check_id="SBA_RAW_001",
-            source_system="sba",
-            source_dataset="7a_504_foia",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="sba_required_resources",
             check_name="SBA required resources found",
             check_type="completeness",
@@ -44,8 +50,8 @@ def check_sba_required_resources(
         _source_result(
             manifest=base_manifest,
             validation_check_id="SBA_RAW_002",
-            source_system="sba",
-            source_dataset="7a_504_foia",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="sba_required_resources",
             check_name="SBA required resources readable",
             check_type="validity",
@@ -64,6 +70,7 @@ def check_census_bds_payload(
     required_variables: tuple[str, ...],
     expected_state_count: int,
     pipeline_run_id: str,
+    source_identity: SourceIdentity = DEFAULT_CENSUS_BDS_IDENTITY,
 ) -> list[ValidationResult]:
     header = payload[0] if payload else []
     rows = payload[1:] if len(payload) > 1 else []
@@ -73,8 +80,8 @@ def check_census_bds_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BDS_RAW_001",
-            source_system="census",
-            source_dataset="bds",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="bds_state_year",
             check_name="Census BDS required variables returned",
             check_type="validity",
@@ -87,8 +94,8 @@ def check_census_bds_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BDS_RAW_002",
-            source_system="census",
-            source_dataset="bds",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="bds_state_year",
             check_name="Census BDS state coverage",
             check_type="completeness",
@@ -109,6 +116,7 @@ def check_bls_laus_payload(
     required_period_pattern: str = r"^M(0[1-9]|1[0-2])$",
     unemployment_rate_min: float = 0,
     unemployment_rate_max: float = 100,
+    source_identity: SourceIdentity = DEFAULT_BLS_LAUS_IDENTITY,
 ) -> list[ValidationResult]:
     rows = payload.get("normalized_rows", [])
     observed_series_ids = {str(row.get("series_id")) for row in rows}
@@ -135,8 +143,8 @@ def check_bls_laus_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BLS_RAW_001",
-            source_system="bls",
-            source_dataset="laus",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="laus_state_month",
             check_name="BLS expected series returned",
             check_type="completeness",
@@ -149,8 +157,8 @@ def check_bls_laus_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BLS_RAW_002",
-            source_system="bls",
-            source_dataset="laus",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="laus_state_month",
             check_name="BLS monthly periods valid",
             check_type="validity",
@@ -163,8 +171,8 @@ def check_bls_laus_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BLS_RAW_003",
-            source_system="bls",
-            source_dataset="laus",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="laus_state_month",
             check_name="BLS values numeric",
             check_type="validity",
@@ -177,8 +185,8 @@ def check_bls_laus_payload(
         _source_result(
             pipeline_run_id=pipeline_run_id,
             validation_check_id="BLS_RAW_004",
-            source_system="bls",
-            source_dataset="laus",
+            source_system=source_identity.source_system,
+            source_dataset=source_identity.dataset_name,
             source_resource_name="laus_state_month",
             check_name="BLS unemployment rates in configured range",
             check_type="validity",
