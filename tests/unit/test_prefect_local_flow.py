@@ -144,6 +144,10 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     assert len(extraction_paths.manifest_paths) == 4
     assert all(Path(path).is_file() for path in extraction_paths.manifest_paths)
     assert {record["status"] for record in validation_payload} == {"passed"}
+    assert "RAW_009" in {
+        record["validation_check_id"]
+        for record in validation_payload
+    }
 
 
 def test_fixture_manifests_use_source_config_identity(tmp_path):
@@ -290,6 +294,34 @@ def test_raw_validation_blocks_manifest_identity_mismatch(tmp_path):
     )
 
     with pytest.raises(ValidationFailedError, match="RAW_010"):
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+
+def test_raw_validation_blocks_missing_expected_manifest_resource(tmp_path):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="missing-manifest-run",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    extraction_paths = replace(
+        extraction_paths,
+        census_bds_manifest_paths=(),
+        manifest_paths=tuple(
+            path
+            for path in extraction_paths.manifest_paths
+            if path not in extraction_paths.census_bds_manifest_paths
+        ),
+    )
+
+    with pytest.raises(ValidationFailedError, match="RAW_011"):
         local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
 
 

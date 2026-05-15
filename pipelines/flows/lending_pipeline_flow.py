@@ -51,6 +51,8 @@ from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
 from pipelines.validation.raw_checks import (
     check_manifest_source_identity,
     check_raw_manifest,
+    check_required_manifest_resource,
+    check_validation_output_created,
 )
 from pipelines.validation.schema_checks import (
     check_bls_laus_payload,
@@ -304,42 +306,68 @@ def validate_raw_outputs(
         )
 
     if project_config.is_source_enabled("census_bds"):
-        validation_results.extend(
-            check_census_bds_payload(
-                json.loads(
-                    Path(
-                        manifests_by_name["bds_state_year"]["local_raw_path"]
-                    ).read_text(encoding="utf-8")
-                ),
-                required_variables=tuple(
-                    project_config.validation_thresholds["census_bds"][
-                        "required_columns"
-                    ]
-                ),
-                expected_state_count=expectations.census_expected_state_count,
-                pipeline_run_id=context.pipeline_run_id,
-                source_identity=project_config.source_identity("census_bds"),
-            )
+        census_manifest_result = check_required_manifest_resource(
+            manifests,
+            resource_name="bds_state_year",
+            pipeline_run_id=context.pipeline_run_id,
+            source_identity=project_config.source_identity("census_bds"),
         )
+        validation_results.append(census_manifest_result)
+        if census_manifest_result.status == "passed":
+            validation_results.extend(
+                check_census_bds_payload(
+                    json.loads(
+                        Path(
+                            manifests_by_name["bds_state_year"]["local_raw_path"]
+                        ).read_text(encoding="utf-8")
+                    ),
+                    required_variables=tuple(
+                        project_config.validation_thresholds["census_bds"][
+                            "required_columns"
+                        ]
+                    ),
+                    expected_state_count=expectations.census_expected_state_count,
+                    pipeline_run_id=context.pipeline_run_id,
+                    source_identity=project_config.source_identity("census_bds"),
+                )
+            )
 
     if project_config.is_source_enabled("bls_laus"):
-        validation_results.extend(
-            check_bls_laus_payload(
-                json.loads(
-                    Path(
-                        manifests_by_name["laus_state_month"]["local_raw_path"]
-                    ).read_text(encoding="utf-8")
-                ),
-                expected_series_ids=expectations.bls_expected_series_ids,
-                pipeline_run_id=context.pipeline_run_id,
-                required_period_pattern=expectations.bls_required_period_pattern,
-                unemployment_rate_min=expectations.bls_unemployment_rate_min,
-                unemployment_rate_max=expectations.bls_unemployment_rate_max,
-                source_identity=project_config.source_identity("bls_laus"),
-            )
+        bls_manifest_result = check_required_manifest_resource(
+            manifests,
+            resource_name="laus_state_month",
+            pipeline_run_id=context.pipeline_run_id,
+            source_identity=project_config.source_identity("bls_laus"),
         )
+        validation_results.append(bls_manifest_result)
+        if bls_manifest_result.status == "passed":
+            validation_results.extend(
+                check_bls_laus_payload(
+                    json.loads(
+                        Path(
+                            manifests_by_name["laus_state_month"]["local_raw_path"]
+                        ).read_text(encoding="utf-8")
+                    ),
+                    expected_series_ids=expectations.bls_expected_series_ids,
+                    pipeline_run_id=context.pipeline_run_id,
+                    required_period_pattern=expectations.bls_required_period_pattern,
+                    unemployment_rate_min=expectations.bls_unemployment_rate_min,
+                    unemployment_rate_max=expectations.bls_unemployment_rate_max,
+                    source_identity=project_config.source_identity("bls_laus"),
+                )
+            )
 
     validation_path = context.run_validation_dir / "validation_results.json"
+    write_validation_results(validation_results, validation_path)
+    validation_results.append(
+        check_validation_output_created(
+            validation_path,
+            pipeline_run_id=context.pipeline_run_id,
+            source_system="pipeline",
+            source_dataset="raw_validation",
+            source_resource_name="validation_results",
+        )
+    )
     write_validation_results(validation_results, validation_path)
     assert_no_blocking_failures(validation_results)
     return validation_path

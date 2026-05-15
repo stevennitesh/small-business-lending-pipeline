@@ -11,6 +11,7 @@ from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.validation.raw_checks import (
     check_manifest_source_identity,
     check_raw_manifest,
+    check_required_manifest_resource,
     check_validation_output_created,
 )
 from pipelines.validation.freshness_checks import check_latest_observation_not_future
@@ -170,6 +171,25 @@ def test_validation_output_created_check(tmp_path):
 
     assert missing_result.status == "failed"
     assert existing_result.status == "passed"
+
+
+def test_required_manifest_resource_check_fails_when_resource_missing(tmp_path):
+    raw_file = tmp_path / "bds_state_year.json"
+    raw_file.write_text('[["YEAR","state"],["2023","01"]]\n', encoding="utf-8")
+    manifest = _manifest_for(raw_file)
+
+    result = check_required_manifest_resource(
+        [manifest],
+        resource_name="laus_state_month",
+        pipeline_run_id="run-123",
+        source_identity=SourceIdentity(source_system="bls", dataset_name="laus"),
+    )
+
+    assert result.validation_check_id == "RAW_011"
+    assert result.severity == "fail"
+    assert result.status == "failed"
+    assert result.expected_value == "laus_state_month"
+    assert result.observed_value == {"resource_names": ["bds_state_year"]}
 
 
 def test_row_count_and_freshness_helpers_support_warnings():

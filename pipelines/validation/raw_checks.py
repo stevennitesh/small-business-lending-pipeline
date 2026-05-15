@@ -71,6 +71,32 @@ def check_validation_output_created(
     )
 
 
+def check_required_manifest_resource(
+    manifests: list[dict[str, Any]],
+    *,
+    resource_name: str,
+    pipeline_run_id: str,
+    source_identity: SourceIdentity,
+) -> ValidationResult:
+    resource_names = sorted(str(manifest.get("resource_name")) for manifest in manifests)
+    return make_validation_result(
+        pipeline_run_id=pipeline_run_id,
+        validation_check_id="RAW_011",
+        validation_scope="raw",
+        source_system=source_identity.source_system,
+        source_dataset=source_identity.dataset_name,
+        source_resource_name=resource_name,
+        check_name="Required raw manifest resource present",
+        check_type="lineage",
+        severity="fail",
+        passed=resource_name in resource_names,
+        expected_value=resource_name,
+        observed_value={"resource_names": resource_names},
+        passed_message="Required raw manifest resource is present.",
+        failed_message="Required raw manifest resource is missing.",
+    )
+
+
 def check_manifest_source_identity(
     manifest: dict[str, Any],
     *,
