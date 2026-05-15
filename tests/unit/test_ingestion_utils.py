@@ -106,7 +106,32 @@ def test_manifest_contains_required_fields_and_validates():
     manifest_dict = manifest.to_dict()
 
     assert REQUIRED_MANIFEST_FIELDS <= set(manifest_dict)
+    assert manifest_dict["storage_backend"] == "local"
+    assert manifest_dict["raw_uri"] == manifest_dict["local_raw_path"]
     assert validate_manifest(manifest_dict) == manifest_dict
+
+
+def test_manifest_validation_accepts_s3_backed_raw_uri():
+    manifest = {
+        "pipeline_run_id": "run-123",
+        "source_system": "census",
+        "dataset_name": "bds",
+        "resource_name": "bds_state_year",
+        "source_url": "https://example.com/bds",
+        "extracted_at_utc": "2026-05-06T12:00:00Z",
+        "ingestion_date": "2026-05-06",
+        "storage_backend": "s3",
+        "raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "local_raw_path": None,
+        "s3_raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "file_format": "json",
+        "row_count": 2,
+        "sha256_checksum": "0" * 64,
+        "schema_hash": "1" * 64,
+        "validation_status": "passed",
+    }
+
+    assert validate_manifest(manifest) == manifest
 
 
 def test_manifest_validation_rejects_missing_required_fields():

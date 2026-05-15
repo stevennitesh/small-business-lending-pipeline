@@ -17,6 +17,8 @@ select
     source_url,
     extracted_at_utc,
     ingestion_date,
+    storage_backend,
+    raw_uri,
     local_raw_path,
     s3_raw_uri,
     file_format,

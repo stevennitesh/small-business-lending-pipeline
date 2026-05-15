@@ -6,7 +6,10 @@ from typing import Any
 
 from pipelines.utils.config import SourceIdentity
 from pipelines.utils.hashing import calculate_sha256
-from pipelines.utils.manifest import REQUIRED_MANIFEST_FIELDS
+from pipelines.utils.manifest import (
+    REQUIRED_MANIFEST_FIELDS,
+    normalize_manifest_storage_fields,
+)
 from pipelines.validation.validation_result import (
     ValidationResult,
     make_validation_result,
@@ -189,9 +192,10 @@ def _check_manifest_created(
 
 
 def _check_required_metadata(manifest: dict[str, Any]) -> ValidationResult:
-    missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(manifest))
+    normalized_manifest = normalize_manifest_storage_fields(manifest)
+    missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(normalized_manifest))
     return _result(
-        manifest=manifest,
+        manifest=normalized_manifest,
         validation_check_id="RAW_005",
         check_name="Required metadata populated",
         check_type="lineage",

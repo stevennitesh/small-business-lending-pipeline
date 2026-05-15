@@ -17,7 +17,9 @@ REQUIRED_MANIFEST_FIELDS = frozenset(
         "extracted_at_utc",
         "ingestion_date",
         "local_raw_path",
+        "raw_uri",
         "s3_raw_uri",
+        "storage_backend",
         "file_format",
         "row_count",
         "sha256_checksum",
@@ -45,6 +47,8 @@ class ExtractionManifest:
     sha256_checksum: str
     schema_hash: str
     validation_status: str
+    raw_uri: str | None = None
+    storage_backend: str = "local"
     request_parameters: dict[str, Any] = field(default_factory=dict)
     column_count: int | None = None
     file_size_bytes: int | None = None
@@ -69,6 +73,7 @@ class ExtractionResult:
 
 
 def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    manifest = normalize_manifest_storage_fields(manifest)
     missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(manifest))
     if missing_fields:
         raise ValueError(
@@ -78,7 +83,7 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     blank_fields = sorted(
         field_name
         for field_name in REQUIRED_MANIFEST_FIELDS
-        if manifest[field_name] in ("", None)
+        if _is_blank_required_field(manifest, field_name)
     )
     if blank_fields:
         raise ValueError("Blank required manifest fields: " + ", ".join(blank_fields))
@@ -92,7 +97,15 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
         allowed = ", ".join(sorted(VALIDATION_STATUSES))
         raise ValueError(f"validation_status must be one of: {allowed}")
 
-    return {**manifest, "validation_status": validation_status}
+    storage_backend = str(manifest["storage_backend"]).lower()
+    if storage_backend not in {"local", "s3"}:
+        raise ValueError("storage_backend must be one of: local, s3")
+
+    return {
+        **manifest,
+        "storage_backend": storage_backend,
+        "validation_status": validation_status,
+    }
 
 
 def write_manifest(manifest: ExtractionManifest | dict[str, Any], path: Path | str) -> Path:
@@ -123,3 +136,24 @@ def _validate_ingestion_date(value: str) -> None:
 def _validate_non_negative_int(field_name: str, value: Any) -> None:
     if not isinstance(value, int) or value < 0:
         raise ValueError(f"{field_name} must be a non-negative integer")
+
+
+def normalize_manifest_storage_fields(manifest: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(manifest)
+    storage_backend = str(normalized.get("storage_backend") or "").lower()
+    if not storage_backend:
+        storage_backend = "s3" if not normalized.get("local_raw_path") else "local"
+    normalized["storage_backend"] = storage_backend
+
+    if not normalized.get("raw_uri"):
+        if storage_backend == "s3":
+            normalized["raw_uri"] = normalized.get("s3_raw_uri")
+        else:
+            normalized["raw_uri"] = normalized.get("local_raw_path")
+    return normalized
+
+
+def _is_blank_required_field(manifest: dict[str, Any], field_name: str) -> bool:
+    if field_name == "local_raw_path" and manifest.get("storage_backend") == "s3":
+        return False
+    return manifest[field_name] in ("", None)
