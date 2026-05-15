@@ -8,8 +8,11 @@ import requests
 
 from pipelines.extract.sba_extract import (
     DEFAULT_SBA_PACKAGE_URL,
+    SBADiscoveryConfig,
+    SBAResourcesConfig,
     SBAResourceSpec,
     extract_sba_foia,
+    load_sba_resources_config,
     load_sba_resource_specs,
     resolve_sba_resources,
 )
@@ -67,7 +70,7 @@ def _sample_package_metadata() -> dict:
 
 
 class FakeResponse:
-    def __init__(self, content: bytes, status_code: int = 200):
+    def __init__(self, content: bytes | dict, status_code: int = 200):
         self.content = content
         self.status_code = status_code
 
@@ -76,12 +79,19 @@ class FakeResponse:
             raise requests.HTTPError(f"HTTP {self.status_code}")
 
     def iter_content(self, chunk_size: int):
+        if not isinstance(self.content, bytes):
+            raise TypeError("FakeResponse content is not bytes")
         for index in range(0, len(self.content), chunk_size):
             yield self.content[index : index + chunk_size]
 
+    def json(self) -> dict:
+        if not isinstance(self.content, dict):
+            raise TypeError("FakeResponse content is not JSON")
+        return self.content
+
 
 class FakeSession:
-    def __init__(self, downloads: dict[str, bytes | Exception]):
+    def __init__(self, downloads: dict[str, bytes | dict | Exception]):
         self.downloads = downloads
         self.requested_urls: list[str] = []
 
@@ -91,6 +101,17 @@ class FakeSession:
         if isinstance(payload, Exception):
             raise payload
         return FakeResponse(payload)
+
+
+def test_load_sba_resources_config_includes_discovery_settings():
+    config = load_sba_resources_config(Path("config/sba_resources.yml"))
+
+    assert config.dataset_name == "7a_504_foia"
+    assert config.discovery.package_url == DEFAULT_SBA_PACKAGE_URL
+    assert config.discovery.strategy == "sba_open_data_metadata"
+    assert config.discovery.allow_dynamic_url_resolution is True
+    assert config.discovery.cache_subdir == ".tmp/sba_resources"
+    assert len(config.resources) == 7
 
 
 def test_load_sba_resource_specs_from_config():
@@ -106,6 +127,86 @@ def test_load_sba_resource_specs_from_config():
         "sba_504_fy1991_fy2009",
         "sba_504_fy2010_present",
     }
+
+
+def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
+    config = SBAResourcesConfig(
+        dataset_name="7a_504_foia",
+        discovery=SBADiscoveryConfig(
+            strategy="sba_open_data_metadata",
+            package_url="https://example.test/custom-package",
+            allow_dynamic_url_resolution=True,
+            cache_subdir=str(tmp_path / "metadata-cache"),
+        ),
+        resources=(
+            SBAResourceSpec(
+                logical_name="sba_7a_fy2020_present",
+                program="7a",
+                source_period="fy2020_present",
+                expected_format="csv",
+                required=True,
+                title_pattern="FOIA - 7(a) (FY2020-Present)",
+            ),
+        ),
+    )
+    session = FakeSession(
+        {
+            "https://example.test/custom-package": {
+                "result": _sample_package_metadata()
+            },
+            "https://example.test/7a_2020_present.csv": b"col\n1\n",
+        }
+    )
+
+    summary = extract_sba_foia(
+        config=config,
+        session=session,
+        data_root=tmp_path / "data",
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="run-123",
+        extracted_at_utc="2026-05-06T12:00:00Z",
+    )
+
+    assert session.requested_urls[:2] == [
+        "https://example.test/custom-package",
+        "https://example.test/7a_2020_present.csv",
+    ]
+    cached_metadata = tmp_path / "metadata-cache" / "sba_package_metadata.json"
+    assert cached_metadata.is_file()
+    assert json.loads(cached_metadata.read_text(encoding="utf-8")) == (
+        _sample_package_metadata()
+    )
+    assert list(summary.results) == ["sba_7a_fy2020_present"]
+
+
+def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp_path):
+    config = SBAResourcesConfig(
+        dataset_name="7a_504_foia",
+        discovery=SBADiscoveryConfig(
+            strategy="sba_open_data_metadata",
+            package_url="https://example.test/custom-package",
+            allow_dynamic_url_resolution=False,
+            cache_subdir=str(tmp_path / "metadata-cache"),
+        ),
+        resources=(
+            SBAResourceSpec(
+                logical_name="sba_7a_fy2020_present",
+                program="7a",
+                source_period="fy2020_present",
+                expected_format="csv",
+                required=True,
+                title_pattern="FOIA - 7(a) (FY2020-Present)",
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Dynamic SBA resource resolution is disabled"):
+        extract_sba_foia(
+            config=config,
+            session=FakeSession({}),
+            data_root=tmp_path,
+            pipeline_run_id="run-123",
+        )
 
 
 def test_resolve_sba_resources_matches_expected_metadata():

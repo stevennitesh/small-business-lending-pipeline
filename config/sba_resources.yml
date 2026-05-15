@@ -2,6 +2,7 @@ sba_resources:
   dataset_name: 7a_504_foia
   discovery:
     strategy: sba_open_data_metadata
+    package_url: https://data.sba.gov/api/3/action/package_show?id=7-a-504-foia
     allow_dynamic_url_resolution: true
     cache_subdir: .tmp/sba_resources
   resources:

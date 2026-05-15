@@ -40,6 +40,21 @@ class SBAResourceSpec:
 
 
 @dataclass(frozen=True)
+class SBADiscoveryConfig:
+    strategy: str
+    package_url: str
+    allow_dynamic_url_resolution: bool
+    cache_subdir: str | None = None
+
+
+@dataclass(frozen=True)
+class SBAResourcesConfig:
+    dataset_name: str
+    discovery: SBADiscoveryConfig
+    resources: tuple[SBAResourceSpec, ...]
+
+
+@dataclass(frozen=True)
 class ResolvedSBAResource:
     spec: SBAResourceSpec
     title: str
@@ -81,23 +96,50 @@ class SBAExtractionSummary:
 def load_sba_resource_specs(
     config_path: Path | str = "config/sba_resources.yml",
 ) -> list[SBAResourceSpec]:
+    return list(load_sba_resources_config(config_path).resources)
+
+
+def load_sba_resources_config(
+    config_path: Path | str = "config/sba_resources.yml",
+) -> SBAResourcesConfig:
     config = load_yaml_file(Path(config_path))["sba_resources"]
-    return [
-        SBAResourceSpec(
-            logical_name=str(resource["logical_name"]),
-            program=str(resource["program"]),
-            source_period=str(resource["source_period"]),
-            expected_format=str(resource["expected_format"]).lower(),
-            required=bool(resource["required"]),
-            title_pattern=str(resource["title_pattern"]),
-        )
-        for resource in config["resources"]
-    ]
+    discovery = config.get("discovery", {})
+    strategy = str(discovery.get("strategy", "sba_open_data_metadata"))
+    if strategy != "sba_open_data_metadata":
+        raise ValueError(f"Unsupported SBA discovery strategy: {strategy}")
+
+    return SBAResourcesConfig(
+        dataset_name=str(config["dataset_name"]),
+        discovery=SBADiscoveryConfig(
+            strategy=strategy,
+            package_url=str(discovery.get("package_url", DEFAULT_SBA_PACKAGE_URL)),
+            allow_dynamic_url_resolution=bool(
+                discovery.get("allow_dynamic_url_resolution", True)
+            ),
+            cache_subdir=(
+                str(discovery["cache_subdir"])
+                if discovery.get("cache_subdir") is not None
+                else None
+            ),
+        ),
+        resources=tuple(
+            SBAResourceSpec(
+                logical_name=str(resource["logical_name"]),
+                program=str(resource["program"]),
+                source_period=str(resource["source_period"]),
+                expected_format=str(resource["expected_format"]).lower(),
+                required=bool(resource["required"]),
+                title_pattern=str(resource["title_pattern"]),
+            )
+            for resource in config["resources"]
+        ),
+    )
 
 
 def fetch_sba_package_metadata(
     package_url: str = DEFAULT_SBA_PACKAGE_URL,
     session: requests.Session | None = None,
+    cache_path: Path | str | None = None,
     timeout: int = 60,
 ) -> dict[str, Any]:
     active_session = session or requests.Session()
@@ -108,7 +150,16 @@ def fetch_sba_package_metadata(
     if payload.get("success") is False:
         raise ValueError(f"SBA metadata request failed: {payload}")
 
-    return payload.get("result", payload)
+    metadata = payload.get("result", payload)
+    if cache_path is not None:
+        resolved_cache_path = Path(cache_path)
+        resolved_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved_cache_path.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    return metadata
 
 
 def resolve_sba_resources(
@@ -142,9 +193,10 @@ def resolve_sba_resources(
 
 def extract_sba_foia(
     *,
+    config: SBAResourcesConfig | None = None,
     specs: list[SBAResourceSpec] | None = None,
     package_metadata: dict[str, Any] | None = None,
-    package_url: str = DEFAULT_SBA_PACKAGE_URL,
+    package_url: str | None = None,
     session: requests.Session | None = None,
     data_root: Path | str = "data",
     s3_bucket: str = DEFAULT_S3_BUCKET,
@@ -153,9 +205,16 @@ def extract_sba_foia(
     timeout: int = 120,
 ) -> SBAExtractionSummary:
     active_session = session or requests.Session()
-    active_specs = specs or load_sba_resource_specs()
-    metadata = package_metadata or fetch_sba_package_metadata(
-        package_url=package_url,
+    active_config = config or (
+        None if specs is not None else load_sba_resources_config()
+    )
+    active_specs = tuple(specs) if specs is not None else active_config.resources
+    active_package_url = package_url or (
+        active_config.discovery.package_url if active_config else DEFAULT_SBA_PACKAGE_URL
+    )
+    metadata = package_metadata or _fetch_or_reject_dynamic_sba_metadata(
+        config=active_config,
+        package_url=active_package_url,
         session=active_session,
         timeout=timeout,
     )
@@ -175,7 +234,7 @@ def extract_sba_foia(
                 session=active_session,
                 data_root=Path(data_root),
                 s3_bucket=s3_bucket,
-                package_url=package_url,
+                package_url=active_package_url,
                 pipeline_run_id=run_id,
                 extracted_at_utc=extracted_timestamp,
                 ingestion_date=ingestion_date,
@@ -202,7 +261,7 @@ def extract_sba_foia(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extract SBA 7(a) and 504 FOIA files.")
     parser.add_argument("--config", default="config/sba_resources.yml")
-    parser.add_argument("--package-url", default=DEFAULT_SBA_PACKAGE_URL)
+    parser.add_argument("--package-url")
     parser.add_argument("--metadata-file")
     parser.add_argument("--data-root", default="data")
     parser.add_argument("--s3-bucket", default=DEFAULT_S3_BUCKET)
@@ -214,7 +273,7 @@ def main() -> None:
         metadata = json.loads(Path(args.metadata_file).read_text(encoding="utf-8"))
 
     summary = extract_sba_foia(
-        specs=load_sba_resource_specs(args.config),
+        config=load_sba_resources_config(args.config),
         package_metadata=metadata,
         package_url=args.package_url,
         data_root=args.data_root,
@@ -225,6 +284,31 @@ def main() -> None:
     for warning in summary.warnings:
         print(f"WARNING: {warning}")
     print(f"Downloaded {len(summary.results)} SBA resources")
+
+
+def _fetch_or_reject_dynamic_sba_metadata(
+    *,
+    config: SBAResourcesConfig | None,
+    package_url: str,
+    session: requests.Session,
+    timeout: int,
+) -> dict[str, Any]:
+    if config is not None and not config.discovery.allow_dynamic_url_resolution:
+        raise ValueError(
+            "Dynamic SBA resource resolution is disabled; provide package_metadata "
+            "or enable discovery.allow_dynamic_url_resolution."
+        )
+
+    cache_path = None
+    if config is not None and config.discovery.cache_subdir:
+        cache_path = Path(config.discovery.cache_subdir) / "sba_package_metadata.json"
+
+    return fetch_sba_package_metadata(
+        package_url=package_url,
+        session=session,
+        cache_path=cache_path,
+        timeout=timeout,
+    )
 
 
 def _download_resource(
