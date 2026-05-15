@@ -66,6 +66,10 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
         "SHA256_CHECKSUM",
     } <= set(loaded_sba.columns)
     assert loaded_sba["PIPELINE_RUN_ID"].tolist() == ["run-123", "run-123"]
+    assert loaded_sba["S3_RAW_URI"].tolist() == [
+        "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
+        "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
+    ]
     validation_frame = writer.written_frames["RAW_VALIDATION_RESULT"]
     assert validation_frame["EXPECTED_VALUE"].tolist() == ["1"]
     assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
@@ -89,6 +93,28 @@ def test_snowflake_loader_blocks_failed_validation(tmp_path):
             sba_7a_manifest_paths=manifests["sba_7a"],
             sba_504_manifest_paths=manifests["sba_504"],
             census_bds_manifest_paths=manifests["census"],
+            bls_laus_manifest_paths=manifests["bls"],
+            validation_result_paths=[validation_path],
+            write_pandas_func=FakeSnowflakeWriter(),
+        )
+
+
+def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
+    manifests = _build_fixture_manifests(tmp_path)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+
+    with pytest.raises(SnowflakeRawLoadError, match="Required manifest group is empty"):
+        load_raw_extracts_to_snowflake(
+            connection=FakeSnowflakeConnection(),
+            database="SMALL_BUSINESS_LENDING",
+            raw_schema="RAW",
+            audit_schema="AUDIT",
+            sba_7a_manifest_paths=manifests["sba_7a"],
+            sba_504_manifest_paths=manifests["sba_504"],
+            census_bds_manifest_paths=[],
             bls_laus_manifest_paths=manifests["bls"],
             validation_result_paths=[validation_path],
             write_pandas_func=FakeSnowflakeWriter(),

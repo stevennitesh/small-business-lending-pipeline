@@ -12,12 +12,17 @@ import snowflake.connector
 from dotenv import load_dotenv
 from snowflake.connector.pandas_tools import write_pandas
 
-from pipelines.utils.dates import utc_now_iso
-from pipelines.validation.validation_result import (
-    ValidationFailedError,
-    ValidationResult,
-    assert_no_blocking_failures,
+from pipelines.load.raw_load_common import (
+    assert_validation_passed,
+    flatten_manifest_groups,
+    load_manifests,
+    load_source_frame,
+    load_validation_results,
+    normalize_records,
+    pipeline_run_ids_from_manifest_groups,
+    require_manifest_groups,
 )
+from pipelines.utils.dates import utc_now_iso
 
 
 REQUIRED_SCHEMAS = ("RAW", "STAGING", "INTERMEDIATE", "MARTS", "BI", "AUDIT")
@@ -125,32 +130,32 @@ def load_raw_extracts_to_snowflake(
     validation_result_paths: Iterable[Path | str],
     write_pandas_func: WritePandasFunc = write_pandas,
 ) -> SnowflakeRawLoadSummary:
-    validation_results = _load_validation_results(validation_result_paths)
-    try:
-        assert_no_blocking_failures(validation_results)
-    except ValidationFailedError as exc:
-        raise SnowflakeRawLoadError(str(exc)) from exc
+    validation_results = load_validation_results(
+        validation_result_paths,
+        error_cls=SnowflakeRawLoadError,
+        missing_message="At least one validation result file is required.",
+    )
+    assert_validation_passed(validation_results, error_cls=SnowflakeRawLoadError)
 
     manifest_groups = {
-        "raw_sba_7a_foia": _load_manifests(sba_7a_manifest_paths),
-        "raw_sba_504_foia": _load_manifests(sba_504_manifest_paths),
-        "raw_census_bds_state_year": _load_manifests(census_bds_manifest_paths),
-        "raw_bls_laus_state_month": _load_manifests(bls_laus_manifest_paths),
+        "raw_sba_7a_foia": load_manifests(sba_7a_manifest_paths),
+        "raw_sba_504_foia": load_manifests(sba_504_manifest_paths),
+        "raw_census_bds_state_year": load_manifests(census_bds_manifest_paths),
+        "raw_bls_laus_state_month": load_manifests(bls_laus_manifest_paths),
     }
-    pipeline_run_ids = tuple(
-        sorted(
-            {
-                str(manifest["pipeline_run_id"])
-                for manifests in manifest_groups.values()
-                for manifest in manifests
-            }
-        )
-    )
+    require_manifest_groups(manifest_groups, error_cls=SnowflakeRawLoadError)
+    pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
     _create_required_schemas(connection)
 
     table_row_counts: dict[str, int] = {}
     for source_table, manifests in manifest_groups.items():
-        frame = _load_source_frame(source_table, manifests)
+        frame = _snowflake_frame(
+            load_source_frame(
+                source_table,
+                manifests,
+                error_cls=SnowflakeRawLoadError,
+            )
+        )
         table_name = SNOWFLAKE_RAW_TABLES[source_table]
         _write_frame(
             connection=connection,
@@ -170,13 +175,7 @@ def load_raw_extracts_to_snowflake(
         table_row_counts[f"{raw_schema}.{table_name}"] = row_count
 
     manifest_frame = _snowflake_frame(
-        _normalize_records(
-            [
-                manifest
-                for manifests in manifest_groups.values()
-                for manifest in manifests
-            ]
-        )
+        normalize_records(flatten_manifest_groups(manifest_groups))
     )
     _write_frame(
         connection=connection,
@@ -190,9 +189,14 @@ def load_raw_extracts_to_snowflake(
         manifest_frame
     )
 
-    validation_frame = _snowflake_frame(
-        _normalize_validation_records([result.to_dict() for result in validation_results])
+    validation_frame = normalize_records(
+        [result.to_dict() for result in validation_results]
     )
+    for column_name in ("expected_value", "observed_value"):
+        validation_frame[column_name] = validation_frame[column_name].map(
+            _snowflake_cell_value
+        )
+    validation_frame = _snowflake_frame(validation_frame)
     _write_frame(
         connection=connection,
         frame=validation_frame,
@@ -268,103 +272,6 @@ def _write_frame(
     )
     if not success:
         raise SnowflakeRawLoadError(f"Snowflake write failed for {schema}.{table_name}: {output}")
-
-
-def _load_source_frame(table_name: str, manifests: list[dict[str, Any]]) -> pd.DataFrame:
-    if table_name in {"raw_sba_7a_foia", "raw_sba_504_foia"}:
-        frames = [
-            _with_metadata(pd.read_csv(manifest["local_raw_path"]), manifest)
-            for manifest in manifests
-        ]
-        return _snowflake_frame(pd.concat(frames, ignore_index=True) if frames else pd.DataFrame())
-
-    if table_name == "raw_census_bds_state_year":
-        frames = [
-            _with_metadata(_read_census_bds_json(Path(manifest["local_raw_path"])), manifest)
-            for manifest in manifests
-        ]
-        return _snowflake_frame(pd.concat(frames, ignore_index=True) if frames else pd.DataFrame())
-
-    if table_name == "raw_bls_laus_state_month":
-        frames = [
-            _with_metadata(_read_bls_laus_json(Path(manifest["local_raw_path"])), manifest)
-            for manifest in manifests
-        ]
-        return _snowflake_frame(pd.concat(frames, ignore_index=True) if frames else pd.DataFrame())
-
-    raise SnowflakeRawLoadError(f"Unsupported raw table: {table_name}")
-
-
-def _read_census_bds_json(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if len(payload) < 1:
-        return pd.DataFrame()
-    return pd.DataFrame(payload[1:], columns=payload[0])
-
-
-def _read_bls_laus_json(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return pd.DataFrame(payload.get("normalized_rows", []))
-
-
-def _with_metadata(frame: pd.DataFrame, manifest: dict[str, Any]) -> pd.DataFrame:
-    enriched = frame.copy()
-    enriched["pipeline_run_id"] = manifest["pipeline_run_id"]
-    enriched["source_system"] = manifest["source_system"]
-    enriched["source_dataset"] = manifest["dataset_name"]
-    enriched["source_resource_name"] = manifest["resource_name"]
-    enriched["ingestion_date"] = manifest["ingestion_date"]
-    enriched["raw_file_path"] = manifest["local_raw_path"]
-    enriched["s3_raw_uri"] = manifest["s3_raw_uri"]
-    enriched["sha256_checksum"] = manifest["sha256_checksum"]
-    return enriched
-
-
-def _load_manifests(paths: Iterable[Path | str]) -> list[dict[str, Any]]:
-    return [
-        json.loads(Path(path).read_text(encoding="utf-8"))
-        for path in paths
-    ]
-
-
-def _load_validation_results(paths: Iterable[Path | str]) -> list[ValidationResult]:
-    validation_paths = list(paths)
-    if not validation_paths:
-        raise SnowflakeRawLoadError("At least one validation result file is required.")
-
-    results: list[ValidationResult] = []
-    for path in validation_paths:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        results.extend(ValidationResult(**record) for record in payload)
-    return results
-
-
-def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
-    normalized_records = [
-        {
-            key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value
-            for key, value in record.items()
-        }
-        for record in records
-    ]
-    return pd.DataFrame(normalized_records)
-
-
-def _normalize_validation_records(records: list[dict[str, Any]]) -> pd.DataFrame:
-    normalized = []
-    for record in records:
-        normalized_record = {
-            key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value
-            for key, value in record.items()
-        }
-        normalized_record["expected_value"] = _snowflake_cell_value(
-            normalized_record.get("expected_value")
-        )
-        normalized_record["observed_value"] = _snowflake_cell_value(
-            normalized_record.get("observed_value")
-        )
-        normalized.append(normalized_record)
-    return pd.DataFrame(normalized)
 
 
 def _snowflake_frame(frame: pd.DataFrame) -> pd.DataFrame:

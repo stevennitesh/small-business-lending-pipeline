@@ -199,6 +199,9 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
                 "where table_schema = 'raw' and table_name = 'raw_sba_7a_foia'"
             ).fetchall()
         }
+        loaded_s3_uri = connection.execute(
+            "select distinct s3_raw_uri from raw.raw_sba_7a_foia"
+        ).fetchall()
 
     assert {
         "pipeline_run_id",
@@ -207,8 +210,12 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
         "source_resource_name",
         "ingestion_date",
         "raw_file_path",
+        "s3_raw_uri",
         "sha256_checksum",
     } <= columns
+    assert loaded_s3_uri == [
+        ("s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",)
+    ]
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):
@@ -224,6 +231,24 @@ def test_load_raw_extracts_blocks_failed_validation(tmp_path):
             sba_7a_manifest_paths=manifests["sba_7a"],
             sba_504_manifest_paths=manifests["sba_504"],
             census_bds_manifest_paths=manifests["census"],
+            bls_laus_manifest_paths=manifests["bls"],
+            validation_result_paths=[validation_path],
+        )
+
+
+def test_load_raw_extracts_rejects_empty_required_manifest_group(tmp_path):
+    manifests = _build_fixture_manifests(tmp_path)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+
+    with pytest.raises(RawLoadError, match="Required manifest group is empty"):
+        load_raw_extracts(
+            duckdb_path=tmp_path / "warehouse.duckdb",
+            sba_7a_manifest_paths=manifests["sba_7a"],
+            sba_504_manifest_paths=manifests["sba_504"],
+            census_bds_manifest_paths=[],
             bls_laus_manifest_paths=manifests["bls"],
             validation_result_paths=[validation_path],
         )

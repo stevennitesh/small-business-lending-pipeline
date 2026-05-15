@@ -1,19 +1,23 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Iterable
 
 import duckdb
 import pandas as pd
 
-from pipelines.utils.dates import utc_now_iso
-from pipelines.validation.validation_result import (
-    ValidationFailedError,
-    ValidationResult,
-    assert_no_blocking_failures,
+from pipelines.load.raw_load_common import (
+    assert_validation_passed,
+    flatten_manifest_groups,
+    load_manifests,
+    load_source_frame,
+    load_validation_results,
+    normalize_records,
+    pipeline_run_ids_from_manifest_groups,
+    require_manifest_groups,
 )
+from pipelines.utils.dates import utc_now_iso
 
 
 RAW_TABLES = (
@@ -57,34 +61,28 @@ def load_raw_extracts(
     resolved_duckdb_path = Path(duckdb_path)
     resolved_duckdb_path.parent.mkdir(parents=True, exist_ok=True)
 
-    validation_results = _load_validation_results(validation_result_paths)
-    try:
-        assert_no_blocking_failures(validation_results)
-    except ValidationFailedError as exc:
-        raise RawLoadError(str(exc)) from exc
+    validation_results = load_validation_results(
+        validation_result_paths,
+        error_cls=RawLoadError,
+        missing_message="At least one validation result file is required before loading.",
+    )
+    assert_validation_passed(validation_results, error_cls=RawLoadError)
 
     manifest_groups = {
-        "raw.raw_sba_7a_foia": _load_manifests(sba_7a_manifest_paths),
-        "raw.raw_sba_504_foia": _load_manifests(sba_504_manifest_paths),
-        "raw.raw_census_bds_state_year": _load_manifests(census_bds_manifest_paths),
-        "raw.raw_bls_laus_state_month": _load_manifests(bls_laus_manifest_paths),
+        "raw.raw_sba_7a_foia": load_manifests(sba_7a_manifest_paths),
+        "raw.raw_sba_504_foia": load_manifests(sba_504_manifest_paths),
+        "raw.raw_census_bds_state_year": load_manifests(census_bds_manifest_paths),
+        "raw.raw_bls_laus_state_month": load_manifests(bls_laus_manifest_paths),
     }
-    pipeline_run_ids = tuple(
-        sorted(
-            {
-                str(manifest["pipeline_run_id"])
-                for manifests in manifest_groups.values()
-                for manifest in manifests
-            }
-        )
-    )
+    require_manifest_groups(manifest_groups, error_cls=RawLoadError)
+    pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
 
     with duckdb.connect(str(resolved_duckdb_path)) as connection:
         connection.execute("create schema if not exists raw")
         table_row_counts: dict[str, int] = {}
 
         for table_name, manifests in manifest_groups.items():
-            frame = _load_source_frame(table_name, manifests)
+            frame = load_source_frame(table_name, manifests, error_cls=RawLoadError)
             _create_or_replace_table(connection, table_name, frame)
             row_count = _table_count(connection, table_name)
             expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
@@ -95,11 +93,10 @@ def load_raw_extracts(
                 )
             table_row_counts[table_name] = row_count
 
-        manifest_frame = _normalize_records(
+        manifest_frame = normalize_records(
             [
                 manifest
-                for manifests in manifest_groups.values()
-                for manifest in manifests
+                for manifest in flatten_manifest_groups(manifest_groups)
             ]
         )
         _create_or_replace_table(connection, "raw.raw_ingestion_manifest", manifest_frame)
@@ -108,7 +105,7 @@ def load_raw_extracts(
             "raw.raw_ingestion_manifest",
         )
 
-        validation_frame = _normalize_records(
+        validation_frame = normalize_records(
             [result.to_dict() for result in validation_results]
         )
         _create_or_replace_table(connection, "raw.raw_validation_result", validation_frame)
@@ -142,85 +139,6 @@ def load_raw_extracts(
         table_row_counts=table_row_counts,
         pipeline_run_ids=pipeline_run_ids,
     )
-
-
-def _load_source_frame(table_name: str, manifests: list[dict[str, Any]]) -> pd.DataFrame:
-    if table_name in {"raw.raw_sba_7a_foia", "raw.raw_sba_504_foia"}:
-        frames = [
-            _with_metadata(pd.read_csv(manifest["local_raw_path"]), manifest)
-            for manifest in manifests
-        ]
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    if table_name == "raw.raw_census_bds_state_year":
-        frames = [
-            _with_metadata(_read_census_bds_json(Path(manifest["local_raw_path"])), manifest)
-            for manifest in manifests
-        ]
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    if table_name == "raw.raw_bls_laus_state_month":
-        frames = [
-            _with_metadata(_read_bls_laus_json(Path(manifest["local_raw_path"])), manifest)
-            for manifest in manifests
-        ]
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    raise RawLoadError(f"Unsupported raw table: {table_name}")
-
-
-def _read_census_bds_json(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if len(payload) < 1:
-        return pd.DataFrame()
-    return pd.DataFrame(payload[1:], columns=payload[0])
-
-
-def _read_bls_laus_json(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return pd.DataFrame(payload.get("normalized_rows", []))
-
-
-def _with_metadata(frame: pd.DataFrame, manifest: dict[str, Any]) -> pd.DataFrame:
-    enriched = frame.copy()
-    enriched["pipeline_run_id"] = manifest["pipeline_run_id"]
-    enriched["source_system"] = manifest["source_system"]
-    enriched["source_dataset"] = manifest["dataset_name"]
-    enriched["source_resource_name"] = manifest["resource_name"]
-    enriched["ingestion_date"] = manifest["ingestion_date"]
-    enriched["raw_file_path"] = manifest["local_raw_path"]
-    enriched["sha256_checksum"] = manifest["sha256_checksum"]
-    return enriched
-
-
-def _load_manifests(paths: Iterable[Path | str]) -> list[dict[str, Any]]:
-    return [
-        json.loads(Path(path).read_text(encoding="utf-8"))
-        for path in paths
-    ]
-
-
-def _load_validation_results(paths: Iterable[Path | str]) -> list[ValidationResult]:
-    validation_paths = list(paths)
-    if not validation_paths:
-        raise RawLoadError("At least one validation result file is required before loading.")
-
-    results: list[ValidationResult] = []
-    for path in validation_paths:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        results.extend(ValidationResult(**record) for record in payload)
-    return results
-
-
-def _normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
-    normalized_records = [
-        {
-            key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value
-            for key, value in record.items()
-        }
-        for record in records
-    ]
-    return pd.DataFrame(normalized_records)
 
 
 def _create_or_replace_table(
