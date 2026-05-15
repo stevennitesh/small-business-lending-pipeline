@@ -188,7 +188,9 @@ class DbtBuildResult:
 class PipelineRunSummary:
     pipeline_run_id: str
     run_mode: str
+    route: str
     extract_mode: str
+    dbt_target: str
     status: str
     completed_stages: list[str]
     failed_stage: str | None
@@ -571,7 +573,9 @@ def write_run_summary(
     summary = PipelineRunSummary(
         pipeline_run_id=context.pipeline_run_id,
         run_mode=context.run_mode,
+        route=context.run_mode,
         extract_mode=context.extract_mode,
+        dbt_target=context.dbt_target,
         status=status,
         completed_stages=completed_stages,
         failed_stage=failed_stage,

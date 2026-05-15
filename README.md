@@ -66,6 +66,8 @@ The pipeline has two intentional execution routes.
 
 DuckDB and Snowflake play the same warehouse role in different environments. S3 owns durable cloud raw storage. dbt owns the transformation graph, tests, documentation, and lineage for both routes.
 
+Use the local route while developing or auditing the model logic. Use the cloud route when you want recruiter-visible evidence of S3 raw storage, Snowflake raw/BI schemas, and dbt running against the cloud warehouse.
+
 ## Data Sources
 
 | Source | Publisher | Role | Access Pattern | Grain |
@@ -140,6 +142,12 @@ make test
 make run-local
 ```
 
+Local route output:
+
+- DuckDB database at `data/warehouse/small_business_lending.duckdb`;
+- dbt models built with target `dev_duckdb`;
+- Power BI-ready CSV exports under `data/exports/powerbi/...`.
+
 Equivalent direct command:
 
 ```bash
@@ -174,6 +182,13 @@ python -m pipelines.flows.lending_pipeline_flow \
 ```
 
 `make run-final` remains available as a compatibility alias for the same cloud route.
+
+Cloud route output:
+
+- raw source artifacts, manifests, validation results, and dbt artifacts in S3;
+- Snowflake `RAW`, `STAGING`, `INTERMEDIATE`, `MARTS`, `BI`, and `AUDIT` schemas;
+- dbt models built with target `prod_snowflake`;
+- Power BI connects to Snowflake BI tables, not raw files.
 
 ## Data Quality Strategy
 

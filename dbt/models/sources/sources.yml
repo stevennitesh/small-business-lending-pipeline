@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: raw
-    description: Raw local DuckDB tables loaded from validated source extracts and pipeline audit files.
+    description: Raw warehouse tables loaded from validated source extracts and pipeline audit files in either the local DuckDB route or the cloud Snowflake route.
     schema: raw
     tables:
       - name: raw_sba_7a_foia

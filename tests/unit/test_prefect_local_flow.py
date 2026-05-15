@@ -130,6 +130,8 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
     assert summary["run_mode"] == "cloud"
+    assert summary["route"] == "cloud"
+    assert summary["dbt_target"] == "prod_snowflake"
     assert summary["s3_upload_summary"]["bucket"] == "unit-test-bucket"
     assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
         "RAW.RAW_SBA_7A_FOIA": 1
