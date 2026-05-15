@@ -162,8 +162,8 @@ def upload_run_artifacts_to_s3(
     max_attempts: int = 3,
     base_delay_seconds: float = 1.0,
 ) -> S3UploadSummary:
-    if run_mode not in {"local", "final"}:
-        raise ValueError("run_mode must be 'local' or 'final'.")
+    if run_mode not in {"local", "cloud", "final"}:
+        raise ValueError("run_mode must be 'local', 'cloud', or 'final'.")
     return upload_items_to_s3(
         build_run_upload_items(
             manifest_paths=manifest_paths,
@@ -172,7 +172,7 @@ def upload_run_artifacts_to_s3(
         ),
         bucket=bucket,
         s3_client=s3_client,
-        required=run_mode == "final",
+        required=run_mode in {"cloud", "final"},
         max_attempts=max_attempts,
         base_delay_seconds=base_delay_seconds,
     )
@@ -307,7 +307,7 @@ def main() -> None:
         validation_result_path=args.validation_result_path,
         dbt_artifact_paths=args.dbt_artifact_path,
         bucket=args.bucket,
-        run_mode="local" if args.optional else "final",
+        run_mode="local" if args.optional else "cloud",
     )
     print(json.dumps(summary.to_dict(), indent=2, sort_keys=True))
 

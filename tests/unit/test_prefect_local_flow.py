@@ -26,8 +26,8 @@ def test_local_flow_declares_expected_stage_order():
     )
 
 
-def test_final_flow_declares_expected_stage_order():
-    assert local_flow.FINAL_FLOW_STAGES == (
+def test_cloud_flow_declares_expected_stage_order():
+    assert local_flow.CLOUD_FLOW_STAGES == (
         "initialize_run",
         "load_config",
         "require_final_mode_config",
@@ -42,18 +42,36 @@ def test_final_flow_declares_expected_stage_order():
         "validate_bi_tables",
         "write_run_summary",
     )
-    assert local_flow.FINAL_FLOW_STAGES.index("validate_raw_outputs") < (
-        local_flow.FINAL_FLOW_STAGES.index("upload_raw_artifacts_to_s3")
+    assert local_flow.FINAL_FLOW_STAGES == local_flow.CLOUD_FLOW_STAGES
+    assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
+        local_flow.CLOUD_FLOW_STAGES.index("upload_raw_artifacts_to_s3")
     )
-    assert local_flow.FINAL_FLOW_STAGES.index("validate_raw_outputs") < (
-        local_flow.FINAL_FLOW_STAGES.index("load_snowflake_raw_tables")
+    assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
+        local_flow.CLOUD_FLOW_STAGES.index("load_snowflake_raw_tables")
     )
-    assert local_flow.FINAL_FLOW_STAGES.index("run_dbt_build") < (
-        local_flow.FINAL_FLOW_STAGES.index("validate_bi_tables")
+    assert local_flow.CLOUD_FLOW_STAGES.index("run_dbt_build") < (
+        local_flow.CLOUD_FLOW_STAGES.index("validate_bi_tables")
     )
 
 
-def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
+def test_final_mode_alias_normalizes_to_cloud_route(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="final",
+        extract_mode="fixture",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="legacy-final-run",
+    )
+
+    assert context.run_mode == "cloud"
+    assert context.stage_order == local_flow.CLOUD_FLOW_STAGES
+
+
+def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
     for variable_name in (
         "S3_BUCKET",
         "SNOWFLAKE_ACCOUNT",
@@ -67,7 +85,7 @@ def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
     monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
 
     context = local_flow.initialize_run.fn(
-        run_mode="final",
+        run_mode="cloud",
         extract_mode="fixture",
         dbt_target="prod_snowflake",
         data_root=str(tmp_path / "data"),
@@ -75,16 +93,16 @@ def test_final_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
         s3_bucket=None,
-        pipeline_run_id="final-missing-config",
+        pipeline_run_id="cloud-missing-config",
     )
 
-    with pytest.raises(RuntimeError, match="Missing final mode configuration"):
+    with pytest.raises(RuntimeError, match="Missing cloud mode configuration"):
         local_flow.require_final_mode_config.fn(context)
 
 
-def test_final_summary_records_cloud_outputs(tmp_path):
+def test_cloud_summary_records_cloud_outputs(tmp_path):
     context = local_flow.initialize_run.fn(
-        run_mode="final",
+        run_mode="cloud",
         extract_mode="fixture",
         dbt_target="prod_snowflake",
         data_root=str(tmp_path / "data"),
@@ -92,7 +110,7 @@ def test_final_summary_records_cloud_outputs(tmp_path):
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
         s3_bucket="unit-test-bucket",
-        pipeline_run_id="final-run",
+        pipeline_run_id="cloud-run",
     )
 
     summary_path = local_flow.write_run_summary.fn(
@@ -111,7 +129,7 @@ def test_final_summary_records_cloud_outputs(tmp_path):
     )
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
-    assert summary["run_mode"] == "final"
+    assert summary["run_mode"] == "cloud"
     assert summary["s3_upload_summary"]["bucket"] == "unit-test-bucket"
     assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
         "RAW.RAW_SBA_7A_FOIA": 1

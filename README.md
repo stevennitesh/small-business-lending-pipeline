@@ -26,8 +26,8 @@ Public small-business lending and economic data is available, but it is fragment
 flowchart LR
     A[Public Sources] --> B[Python Extractors]
     B --> C[Raw Validation]
-    C --> D[Local Raw Files]
-    C --> E[AWS S3 Raw Landing Zone]
+    C --> D[Local Route: Local Raw Files]
+    C --> E[Cloud Route: AWS S3 Raw Landing Zone]
     D --> F[DuckDB Local Warehouse]
     E --> G[Snowflake Raw Schema]
     F --> H[dbt Core - Local]
@@ -54,6 +54,17 @@ flowchart LR
 | Data quality | Python validation, pytest, dbt tests |
 | Runtime | Docker, Makefile, environment variables |
 | BI | Power BI |
+
+## Runtime Routes
+
+The pipeline has two intentional execution routes.
+
+| Route | Purpose | Storage and warehouse | Output |
+|---|---|---|---|
+| Local | Fast development, debugging, tests, and Power BI prototyping on one machine | Local raw files and DuckDB | Local BI export CSVs |
+| Cloud | Production-style portfolio run that shows cloud raw landing and warehouse modeling | AWS S3 and Snowflake | Snowflake BI schema |
+
+DuckDB and Snowflake play the same warehouse role in different environments. S3 owns durable cloud raw storage. dbt owns the transformation graph, tests, documentation, and lineage for both routes.
 
 ## Data Sources
 
@@ -146,21 +157,23 @@ make test
 
 The initial repository skeleton includes placeholder tests. Source extraction, validation, dbt, orchestration, and dashboard checks will be added with their implementation slices.
 
-## Final Warehouse Run
+## Cloud Warehouse Run
 
-Final mode requires AWS S3 and Snowflake configuration.
+Cloud mode requires AWS S3 and Snowflake configuration.
 
 ```bash
-make run-final
+make run-cloud
 ```
 
 Equivalent direct command:
 
 ```bash
 python -m pipelines.flows.lending_pipeline_flow \
-  --run-mode final \
+  --run-mode cloud \
   --dbt-target prod_snowflake
 ```
+
+`make run-final` remains available as a compatibility alias for the same cloud route.
 
 ## Data Quality Strategy
 

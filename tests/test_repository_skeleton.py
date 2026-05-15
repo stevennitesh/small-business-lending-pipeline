@@ -38,6 +38,7 @@ def test_runtime_files_exist():
         "docker-compose.yml",
         "Makefile",
         "scripts/run_local_pipeline.sh",
+        "scripts/run_cloud_pipeline.sh",
         "scripts/run_final_pipeline.sh",
         "scripts/run_dbt_local.sh",
     ]
@@ -50,6 +51,7 @@ def test_runtime_files_exist():
 def test_local_runtime_scripts_are_executable():
     scripts = [
         Path("scripts/run_local_pipeline.sh"),
+        Path("scripts/run_cloud_pipeline.sh"),
         Path("scripts/run_final_pipeline.sh"),
         Path("scripts/run_dbt_local.sh"),
     ]

@@ -67,6 +67,12 @@ from pipelines.validation.validation_result import (
 )
 
 
+RUN_MODE_ALIASES = {
+    "local": "local",
+    "cloud": "cloud",
+    "final": "cloud",
+}
+
 LOCAL_FLOW_STAGES = (
     "initialize_run",
     "load_config",
@@ -81,7 +87,7 @@ LOCAL_FLOW_STAGES = (
     "write_run_summary",
 )
 
-FINAL_FLOW_STAGES = (
+CLOUD_FLOW_STAGES = (
     "initialize_run",
     "load_config",
     "require_final_mode_config",
@@ -97,6 +103,7 @@ FINAL_FLOW_STAGES = (
     "write_run_summary",
 )
 
+FINAL_FLOW_STAGES = CLOUD_FLOW_STAGES
 FLOW_STAGES = LOCAL_FLOW_STAGES
 
 BI_TABLES = (
@@ -128,6 +135,10 @@ class LocalRunContext:
     source_end_year: int | None = None
 
     @property
+    def is_cloud_route(self) -> bool:
+        return self.run_mode == "cloud"
+
+    @property
     def run_validation_dir(self) -> Path:
         return self.data_root / "validation" / f"pipeline_run_id={self.pipeline_run_id}"
 
@@ -137,7 +148,7 @@ class LocalRunContext:
 
     @property
     def stage_order(self) -> tuple[str, ...]:
-        return FINAL_FLOW_STAGES if self.run_mode == "final" else LOCAL_FLOW_STAGES
+        return CLOUD_FLOW_STAGES if self.is_cloud_route else LOCAL_FLOW_STAGES
 
 
 @dataclass(frozen=True)
@@ -203,6 +214,7 @@ def initialize_run(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> LocalRunContext:
+    run_mode = _normalize_run_mode(run_mode)
     if extract_mode not in {"fixture", "live"}:
         raise ValueError("extract_mode must be 'fixture' or 'live'.")
     if source_start_year and source_end_year and source_start_year > source_end_year:
@@ -236,7 +248,7 @@ def load_config(config_dir: str = "config") -> ProjectConfig:
 
 @task
 def require_final_mode_config(context: LocalRunContext) -> str:
-    if context.run_mode != "final":
+    if not context.is_cloud_route:
         return context.s3_bucket or ""
 
     load_dotenv(override=True)
@@ -247,10 +259,10 @@ def require_final_mode_config(context: LocalRunContext) -> str:
     try:
         SnowflakeConfig.from_env()
     except Exception as exc:
-        raise RuntimeError(f"Missing final mode configuration: {exc}") from exc
+        raise RuntimeError(f"Missing cloud mode configuration: {exc}") from exc
     if missing:
         raise RuntimeError(
-            "Missing final mode configuration: " + ", ".join(sorted(missing))
+            "Missing cloud mode configuration: " + ", ".join(sorted(missing))
         )
     return bucket
 
@@ -260,8 +272,8 @@ def extract_sources(
     context: LocalRunContext,
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
-    if context.run_mode not in {"local", "final"}:
-        raise ValueError("run_mode must be 'local' or 'final'.")
+    if context.run_mode not in {"local", "cloud"}:
+        raise ValueError("run_mode must be 'local' or 'cloud'.")
     if context.extract_mode == "live":
         return _extract_live_sources(context, project_config)
     return _write_local_fixture_extracts(context, project_config)
@@ -499,13 +511,13 @@ def upload_dbt_artifacts_to_s3(
     return upload_items_to_s3(
         items,
         bucket=_s3_bucket(context),
-        required=context.run_mode == "final",
+        required=context.is_cloud_route,
     )
 
 
 @task
 def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
-    if context.run_mode == "final":
+    if context.is_cloud_route:
         return _validate_snowflake_bi_tables()
 
     row_counts: dict[str, int] = {}
@@ -627,7 +639,7 @@ def lending_pipeline_flow(
         project_config = load_config()
         completed_stages.append("load_config")
 
-        if context.run_mode == "final":
+        if context.is_cloud_route:
             require_final_mode_config(context)
             completed_stages.append("require_final_mode_config")
 
@@ -641,7 +653,7 @@ def lending_pipeline_flow(
         )
         completed_stages.append("validate_raw_outputs")
 
-        if context.run_mode == "final":
+        if context.is_cloud_route:
             raw_s3_summary = upload_raw_artifacts_to_s3(
                 context,
                 extraction_paths,
@@ -667,7 +679,7 @@ def lending_pipeline_flow(
         dbt_artifacts = collect_dbt_artifacts(context)
         completed_stages.append("collect_dbt_artifacts")
 
-        if context.run_mode == "final":
+        if context.is_cloud_route:
             dbt_s3_summary = upload_dbt_artifacts_to_s3(
                 context,
                 extraction_paths,
@@ -727,6 +739,14 @@ def lending_pipeline_flow(
 
 def manifests_by_resource(manifests: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {str(manifest["resource_name"]): manifest for manifest in manifests}
+
+
+def _normalize_run_mode(run_mode: str) -> str:
+    try:
+        return RUN_MODE_ALIASES[run_mode]
+    except KeyError as exc:
+        allowed = ", ".join(sorted(RUN_MODE_ALIASES))
+        raise ValueError(f"run_mode must be one of: {allowed}") from exc
 
 
 def _extract_live_sources(
@@ -1260,7 +1280,7 @@ def _source_name_for_resource(resource_name: str) -> str:
 def _ensure_dbt_profile(context: LocalRunContext) -> None:
     context.dbt_profiles_dir.mkdir(parents=True, exist_ok=True)
     profile_path = context.dbt_profiles_dir / "profiles.yml"
-    if context.run_mode == "final" or context.dbt_target == "prod_snowflake":
+    if context.is_cloud_route or context.dbt_target == "prod_snowflake":
         example_profile = context.dbt_project_dir / "profiles.yml.example"
         shutil.copyfile(example_profile, profile_path)
         return

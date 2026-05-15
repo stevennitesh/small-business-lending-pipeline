@@ -122,7 +122,7 @@ def test_upload_items_to_s3_required_mode_fails_but_optional_mode_warns(tmp_path
     assert "S3 upload skipped" in summary.warning
 
 
-def test_upload_run_artifacts_applies_local_and_final_mode_policy(tmp_path):
+def test_upload_run_artifacts_applies_local_and_cloud_mode_policy(tmp_path):
     raw_path = tmp_path / "raw.csv"
     raw_path.write_text("a,b\n1,2\n", encoding="utf-8")
     validation_path = tmp_path / "validation_results.json"
@@ -153,6 +153,17 @@ def test_upload_run_artifacts_applies_local_and_final_mode_policy(tmp_path):
     )
 
     assert local_summary.skipped
+
+    with pytest.raises(S3UploadRequiredError, match="S3 upload skipped"):
+        upload_run_artifacts_to_s3(
+            manifest_paths=[manifest_path],
+            validation_result_path=validation_path,
+            bucket=None,
+            run_mode="cloud",
+            s3_client=AlwaysFailingS3Client(),
+            max_attempts=1,
+            base_delay_seconds=0,
+        )
 
     with pytest.raises(S3UploadRequiredError, match="S3 upload skipped"):
         upload_run_artifacts_to_s3(
