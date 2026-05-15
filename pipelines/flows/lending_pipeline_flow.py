@@ -20,7 +20,6 @@ from prefect import flow, get_run_logger, task
 from pipelines.extract.bls_laus_extract import (
     BLSLAUSExtractionSummary,
     extract_bls_laus,
-    load_bls_laus_config,
     parse_monthly_period,
 )
 from pipelines.extract.census_bds_extract import (
@@ -30,7 +29,6 @@ from pipelines.extract.census_bds_extract import (
 from pipelines.extract.sba_extract import (
     SBAExtractionSummary,
     extract_sba_foia,
-    load_sba_resource_specs,
 )
 from pipelines.load.duckdb_loader import RawLoadSummary, load_raw_extracts
 from pipelines.load.s3_loader import (
@@ -45,7 +43,7 @@ from pipelines.load.snowflake_loader import (
     connect_to_snowflake,
     load_raw_extracts_to_snowflake,
 )
-from pipelines.utils.config import load_project_config
+from pipelines.utils.config import ProjectConfig, load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, write_manifest
@@ -224,9 +222,8 @@ def initialize_run(
 
 
 @task
-def load_config(config_dir: str = "config") -> dict[str, Any]:
-    project_config = load_project_config(Path(config_dir))
-    return project_config.files
+def load_config(config_dir: str = "config") -> ProjectConfig:
+    return load_project_config(Path(config_dir))
 
 
 @task
@@ -251,11 +248,14 @@ def require_final_mode_config(context: LocalRunContext) -> str:
 
 
 @task
-def extract_sources(context: LocalRunContext) -> ExtractionPaths:
+def extract_sources(
+    context: LocalRunContext,
+    project_config: ProjectConfig,
+) -> ExtractionPaths:
     if context.run_mode not in {"local", "final"}:
         raise ValueError("run_mode must be 'local' or 'final'.")
     if context.extract_mode == "live":
-        return _extract_live_sources(context)
+        return _extract_live_sources(context, project_config)
     return _write_local_fixture_extracts(context)
 
 
@@ -263,6 +263,7 @@ def extract_sources(context: LocalRunContext) -> ExtractionPaths:
 def validate_raw_outputs(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
+    project_config: ProjectConfig,
 ) -> Path:
     validation_results: list[ValidationResult] = []
     manifests = [
@@ -273,7 +274,7 @@ def validate_raw_outputs(
     for manifest_path in extraction_paths.manifest_paths:
         validation_results.extend(check_raw_manifest(manifest_path))
 
-    expectations = _raw_validation_expectations(context)
+    expectations = _raw_validation_expectations(context, project_config)
 
     validation_results.extend(
         check_sba_required_resources(
@@ -562,17 +563,21 @@ def lending_pipeline_flow(
     failed_stage: str | None = None
 
     try:
-        load_config()
+        project_config = load_config()
         completed_stages.append("load_config")
 
         if context.run_mode == "final":
             require_final_mode_config(context)
             completed_stages.append("require_final_mode_config")
 
-        extraction_paths = extract_sources(context)
+        extraction_paths = extract_sources(context, project_config)
         completed_stages.extend(["extract_sources", "write_manifests"])
 
-        validation_result_path = validate_raw_outputs(context, extraction_paths)
+        validation_result_path = validate_raw_outputs(
+            context,
+            extraction_paths,
+            project_config,
+        )
         completed_stages.append("validate_raw_outputs")
 
         if context.run_mode == "final":
@@ -663,15 +668,20 @@ def manifests_by_resource(manifests: list[dict[str, Any]]) -> dict[str, dict[str
     return {str(manifest["resource_name"]): manifest for manifest in manifests}
 
 
-def _extract_live_sources(context: LocalRunContext) -> ExtractionPaths:
+def _extract_live_sources(
+    context: LocalRunContext,
+    project_config: ProjectConfig,
+) -> ExtractionPaths:
     load_dotenv(override=True)
     bucket = _s3_bucket(context) or "local-live"
     sba_summary = extract_sba_foia(
+        config=project_config.sba,
         data_root=context.data_root,
         s3_bucket=bucket,
         pipeline_run_id=context.pipeline_run_id,
     )
     census_summary = extract_census_bds(
+        config=project_config.census_bds,
         data_root=context.data_root,
         s3_bucket=bucket,
         pipeline_run_id=context.pipeline_run_id,
@@ -684,6 +694,7 @@ def _extract_live_sources(context: LocalRunContext) -> ExtractionPaths:
         else None
     )
     bls_summary = extract_bls_laus(
+        config=project_config.bls_laus,
         data_root=context.data_root,
         s3_bucket=bucket,
         pipeline_run_id=context.pipeline_run_id,
@@ -728,7 +739,10 @@ def _sba_manifest_paths_by_program(
     )
 
 
-def _raw_validation_expectations(context: LocalRunContext) -> RawValidationExpectations:
+def _raw_validation_expectations(
+    context: LocalRunContext,
+    project_config: ProjectConfig,
+) -> RawValidationExpectations:
     if context.extract_mode == "fixture":
         return RawValidationExpectations(
             sba_required_resource_names=[
@@ -742,16 +756,17 @@ def _raw_validation_expectations(context: LocalRunContext) -> RawValidationExpec
             ),
         )
 
-    bls_config = load_bls_laus_config()
     required_sba_resources = [
         spec.logical_name
-        for spec in load_sba_resource_specs()
+        for spec in project_config.sba.resources
         if spec.required and spec.program in {"7a", "504"}
     ]
     return RawValidationExpectations(
         sba_required_resource_names=required_sba_resources,
-        census_expected_state_count=len(bls_config.series),
-        bls_expected_series_ids=tuple(series.series_id for series in bls_config.series),
+        census_expected_state_count=len(project_config.bls_laus.series),
+        bls_expected_series_ids=tuple(
+            series.series_id for series in project_config.bls_laus.series
+        ),
     )
 
 

@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import requests
 
@@ -58,7 +58,10 @@ class BLSLAUSExtractionSummary:
 def load_bls_laus_config(
     config_path: Path | str = "config/bls_laus_state_series.yml",
 ) -> BLSLAUSConfig:
-    config = load_yaml_file(Path(config_path))["bls_laus"]
+    return parse_bls_laus_config(load_yaml_file(Path(config_path))["bls_laus"])
+
+
+def parse_bls_laus_config(config: Mapping[str, Any]) -> BLSLAUSConfig:
     return BLSLAUSConfig(
         endpoint=str(config["endpoint"]),
         measure_name=str(config["measure_name"]),

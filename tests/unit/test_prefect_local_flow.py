@@ -118,6 +118,7 @@ def test_final_summary_records_cloud_outputs(tmp_path):
 
 
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
+    project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(
         run_mode="local",
         extract_mode="fixture",
@@ -130,8 +131,12 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
         pipeline_run_id="test-run",
     )
 
-    extraction_paths = local_flow.extract_sources.fn(context)
-    validation_path = local_flow.validate_raw_outputs.fn(context, extraction_paths)
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    validation_path = local_flow.validate_raw_outputs.fn(
+        context,
+        extraction_paths,
+        project_config,
+    )
     validation_payload = json.loads(validation_path.read_text(encoding="utf-8"))
 
     assert validation_path.is_file()
@@ -141,6 +146,7 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
 
 
 def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
+    project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(
         run_mode="local",
         extract_mode="live",
@@ -192,11 +198,14 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
     monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
 
-    extraction_paths = local_flow.extract_sources.fn(context)
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
 
     assert [name for name, _ in calls] == ["sba", "census", "bls"]
+    assert calls[0][1]["config"] == project_config.sba
+    assert calls[1][1]["config"] == project_config.census_bds
     assert calls[1][1]["start_year"] == 2020
     assert calls[1][1]["end_year"] == 2024
+    assert calls[2][1]["config"] == project_config.bls_laus
     assert calls[2][1]["start_year"] == 2019
     assert calls[2][1]["end_year"] == 2024
     assert len(extraction_paths.sba_7a_manifest_paths) == 1
@@ -205,6 +214,7 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
 
 
 def test_validation_expectations_follow_extract_mode(tmp_path):
+    project_config = local_flow.load_config.fn()
     fixture_context = local_flow.initialize_run.fn(
         run_mode="local",
         extract_mode="fixture",
@@ -226,8 +236,14 @@ def test_validation_expectations_follow_extract_mode(tmp_path):
         pipeline_run_id="live-run",
     )
 
-    fixture_expectations = local_flow._raw_validation_expectations(fixture_context)
-    live_expectations = local_flow._raw_validation_expectations(live_context)
+    fixture_expectations = local_flow._raw_validation_expectations(
+        fixture_context,
+        project_config,
+    )
+    live_expectations = local_flow._raw_validation_expectations(
+        live_context,
+        project_config,
+    )
 
     assert fixture_expectations.census_expected_state_count == 2
     assert fixture_expectations.bls_expected_series_ids == (
@@ -241,6 +257,7 @@ def test_validation_expectations_follow_extract_mode(tmp_path):
 
 
 def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
+    project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(
         run_mode="local",
         extract_mode="fixture",
@@ -252,7 +269,7 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
         s3_bucket=None,
         pipeline_run_id="failed-run",
     )
-    extraction_paths = local_flow.extract_sources.fn(context)
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
     broken_manifest = extraction_paths.sba_7a_manifest_paths[0]
     manifest_payload = json.loads(broken_manifest.read_text(encoding="utf-8"))
     manifest_payload["local_raw_path"] = str(tmp_path / "missing.csv")
@@ -264,7 +281,7 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
     completed_stages = ["initialize_run", "load_config", "extract_sources", "write_manifests"]
 
     with pytest.raises(ValidationFailedError) as exc_info:
-        local_flow.validate_raw_outputs.fn(context, extraction_paths)
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
 
     summary_path = local_flow.write_run_summary.fn(
         context,

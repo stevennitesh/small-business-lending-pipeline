@@ -155,7 +155,8 @@ def test_validate_bds_response_rejects_duplicate_state_year_grain():
         )
 
 
-def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path):
+def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatch):
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     config = CensusBDSConfig(
         endpoint="https://api.census.gov/data/timeseries/bds",
         geography="state",

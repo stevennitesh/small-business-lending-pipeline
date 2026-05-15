@@ -7,7 +7,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
 import requests
@@ -102,7 +102,12 @@ def load_sba_resource_specs(
 def load_sba_resources_config(
     config_path: Path | str = "config/sba_resources.yml",
 ) -> SBAResourcesConfig:
-    config = load_yaml_file(Path(config_path))["sba_resources"]
+    return parse_sba_resources_config(
+        load_yaml_file(Path(config_path))["sba_resources"]
+    )
+
+
+def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
     discovery = config.get("discovery", {})
     strategy = str(discovery.get("strategy", "sba_open_data_metadata"))
     if strategy != "sba_open_data_metadata":

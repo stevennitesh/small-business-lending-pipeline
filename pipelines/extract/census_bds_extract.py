@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import requests
 
@@ -52,7 +52,10 @@ class CensusBDSExtractionSummary:
 def load_census_bds_config(
     config_path: Path | str = "config/census_bds_variables.yml",
 ) -> CensusBDSConfig:
-    config = load_yaml_file(Path(config_path))["census_bds"]
+    return parse_census_bds_config(load_yaml_file(Path(config_path))["census_bds"])
+
+
+def parse_census_bds_config(config: Mapping[str, Any]) -> CensusBDSConfig:
     variables = tuple(
         str(variable["name"])
         for variable in config["variables"]

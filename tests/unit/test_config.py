@@ -21,6 +21,12 @@ def test_project_config_loader_returns_named_configs():
 
     assert set(project_config.files) == set(CONFIG_FILENAMES)
     assert project_config.get("sources.yml")["sources"]["sba_foia"]["enabled"] is True
+    assert project_config.sources["sba_foia"].dataset_name == "7a_504_foia"
+    assert project_config.sba.dataset_name == "7a_504_foia"
+    assert project_config.census_bds.start_year == 1990
+    assert project_config.bls_laus.measure_name == "unemployment_rate"
+    assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
+    assert project_config.validation_thresholds["bls_laus"]["min_state_count"] == 51
 
 
 def test_config_files_have_required_top_level_keys():

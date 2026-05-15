@@ -243,7 +243,8 @@ def test_normalize_bls_response_excludes_annual_and_parses_values():
     ]
 
 
-def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path):
+def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
     config = BLSLAUSConfig(
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
