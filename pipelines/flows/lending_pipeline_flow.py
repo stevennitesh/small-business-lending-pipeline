@@ -276,35 +276,46 @@ def validate_raw_outputs(
 
     expectations = _raw_validation_expectations(context, project_config)
 
-    validation_results.extend(
-        check_sba_required_resources(
-            manifests,
-            required_resource_names=expectations.sba_required_resource_names,
+    manifests_by_name = manifests_by_resource(manifests)
+
+    if project_config.is_source_enabled("sba_foia"):
+        validation_results.extend(
+            check_sba_required_resources(
+                manifests,
+                required_resource_names=expectations.sba_required_resource_names,
+            )
         )
-    )
-    validation_results.extend(
-        check_census_bds_payload(
-            json.loads(
-                Path(
-                    manifests_by_resource(manifests)["bds_state_year"]["local_raw_path"]
-                ).read_text(encoding="utf-8")
-            ),
-            required_variables=("YEAR", "NAME", "state", "ESTAB"),
-            expected_state_count=expectations.census_expected_state_count,
-            pipeline_run_id=context.pipeline_run_id,
+
+    if project_config.is_source_enabled("census_bds"):
+        validation_results.extend(
+            check_census_bds_payload(
+                json.loads(
+                    Path(
+                        manifests_by_name["bds_state_year"]["local_raw_path"]
+                    ).read_text(encoding="utf-8")
+                ),
+                required_variables=tuple(
+                    project_config.validation_thresholds["census_bds"][
+                        "required_columns"
+                    ]
+                ),
+                expected_state_count=expectations.census_expected_state_count,
+                pipeline_run_id=context.pipeline_run_id,
+            )
         )
-    )
-    validation_results.extend(
-        check_bls_laus_payload(
-            json.loads(
-                Path(
-                    manifests_by_resource(manifests)["laus_state_month"]["local_raw_path"]
-                ).read_text(encoding="utf-8")
-            ),
-            expected_series_ids=expectations.bls_expected_series_ids,
-            pipeline_run_id=context.pipeline_run_id,
+
+    if project_config.is_source_enabled("bls_laus"):
+        validation_results.extend(
+            check_bls_laus_payload(
+                json.loads(
+                    Path(
+                        manifests_by_name["laus_state_month"]["local_raw_path"]
+                    ).read_text(encoding="utf-8")
+                ),
+                expected_series_ids=expectations.bls_expected_series_ids,
+                pipeline_run_id=context.pipeline_run_id,
+            )
         )
-    )
 
     validation_path = context.run_validation_dir / "validation_results.json"
     write_validation_results(validation_results, validation_path)
@@ -674,55 +685,71 @@ def _extract_live_sources(
 ) -> ExtractionPaths:
     load_dotenv(override=True)
     bucket = _s3_bucket(context) or "local-live"
-    sba_summary = extract_sba_foia(
-        config=project_config.sba,
-        data_root=context.data_root,
-        s3_bucket=bucket,
-        pipeline_run_id=context.pipeline_run_id,
-    )
-    census_summary = extract_census_bds(
-        config=project_config.census_bds,
-        data_root=context.data_root,
-        s3_bucket=bucket,
-        pipeline_run_id=context.pipeline_run_id,
-        start_year=context.source_start_year,
-        end_year=context.source_end_year,
-    )
-    bls_start_year = (
-        max(context.source_start_year - 1, 1976)
-        if context.source_start_year is not None
-        else None
-    )
-    bls_summary = extract_bls_laus(
-        config=project_config.bls_laus,
-        data_root=context.data_root,
-        s3_bucket=bucket,
-        pipeline_run_id=context.pipeline_run_id,
-        start_year=bls_start_year,
-        end_year=context.source_end_year,
-    )
+    sba_manifest_paths: dict[str, Path] = {}
+    census_bds_manifest_paths: tuple[Path, ...] = ()
+    bls_laus_manifest_paths: tuple[Path, ...] = ()
+
+    if project_config.is_source_enabled("sba_foia"):
+        sba_summary = extract_sba_foia(
+            config=project_config.sba,
+            data_root=context.data_root,
+            s3_bucket=bucket,
+            pipeline_run_id=context.pipeline_run_id,
+        )
+        sba_manifest_paths = sba_summary.manifest_paths
+
+    if project_config.is_source_enabled("census_bds"):
+        census_summary = extract_census_bds(
+            config=project_config.census_bds,
+            data_root=context.data_root,
+            s3_bucket=bucket,
+            pipeline_run_id=context.pipeline_run_id,
+            start_year=context.source_start_year,
+            end_year=context.source_end_year,
+        )
+        census_bds_manifest_paths = (census_summary.manifest_path,)
+
+    if project_config.is_source_enabled("bls_laus"):
+        bls_start_year = (
+            max(context.source_start_year - 1, 1976)
+            if context.source_start_year is not None
+            else None
+        )
+        bls_summary = extract_bls_laus(
+            config=project_config.bls_laus,
+            data_root=context.data_root,
+            s3_bucket=bucket,
+            pipeline_run_id=context.pipeline_run_id,
+            start_year=bls_start_year,
+            end_year=context.source_end_year,
+        )
+        bls_laus_manifest_paths = (bls_summary.manifest_path,)
 
     sba_7a_manifest_paths = _sba_manifest_paths_by_program(
-        sba_summary.manifest_paths,
+        sba_manifest_paths,
         "sba_7a_",
     )
     sba_504_manifest_paths = _sba_manifest_paths_by_program(
-        sba_summary.manifest_paths,
+        sba_manifest_paths,
         "sba_504_",
     )
-    if not sba_7a_manifest_paths or not sba_504_manifest_paths:
-        raise RuntimeError("Live SBA extraction did not produce both 7(a) and 504 manifests.")
+    if project_config.is_source_enabled("sba_foia") and (
+        not sba_7a_manifest_paths or not sba_504_manifest_paths
+    ):
+        raise RuntimeError(
+            "Live SBA extraction did not produce both 7(a) and 504 manifests."
+        )
 
     return ExtractionPaths(
         sba_7a_manifest_paths=sba_7a_manifest_paths,
         sba_504_manifest_paths=sba_504_manifest_paths,
-        census_bds_manifest_paths=(census_summary.manifest_path,),
-        bls_laus_manifest_paths=(bls_summary.manifest_path,),
+        census_bds_manifest_paths=census_bds_manifest_paths,
+        bls_laus_manifest_paths=bls_laus_manifest_paths,
         manifest_paths=tuple(
             [
-                *sba_summary.manifest_paths.values(),
-                census_summary.manifest_path,
-                bls_summary.manifest_path,
+                *sba_manifest_paths.values(),
+                *census_bds_manifest_paths,
+                *bls_laus_manifest_paths,
             ]
         ),
     )
@@ -759,14 +786,22 @@ def _raw_validation_expectations(
     required_sba_resources = [
         spec.logical_name
         for spec in project_config.sba.resources
-        if spec.required and spec.program in {"7a", "504"}
+        if project_config.is_source_enabled("sba_foia")
+        and spec.required
+        and spec.program in {"7a", "504"}
     ]
     return RawValidationExpectations(
         sba_required_resource_names=required_sba_resources,
-        census_expected_state_count=len(project_config.bls_laus.series),
+        census_expected_state_count=(
+            int(project_config.validation_thresholds["census_bds"]["min_rows"])
+            if project_config.is_source_enabled("census_bds")
+            else 0
+        ),
         bls_expected_series_ids=tuple(
             series.series_id for series in project_config.bls_laus.series
-        ),
+        )
+        if project_config.is_source_enabled("bls_laus")
+        else (),
     )
 
 

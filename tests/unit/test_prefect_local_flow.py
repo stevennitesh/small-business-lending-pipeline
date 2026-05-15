@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -211,6 +212,73 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     assert len(extraction_paths.sba_7a_manifest_paths) == 1
     assert len(extraction_paths.sba_504_manifest_paths) == 1
     assert len(extraction_paths.manifest_paths) == 4
+
+
+def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
+    project_config = local_flow.load_config.fn()
+    sources = {
+        **project_config.sources,
+        "census_bds": replace(project_config.sources["census_bds"], enabled=False),
+    }
+    project_config = replace(project_config, sources=sources)
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="live",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="live-disabled-source",
+        source_start_year=2020,
+        source_end_year=2024,
+    )
+    calls = []
+
+    def fake_sba_extract(**kwargs):
+        calls.append(("sba", kwargs))
+        return local_flow.SBAExtractionSummary(
+            results={},
+            manifest_paths={
+                "sba_7a_fy2020_present": _write_manifest_stub(
+                    tmp_path, "sba_7a_fy2020_present"
+                ),
+                "sba_504_fy2010_present": _write_manifest_stub(
+                    tmp_path, "sba_504_fy2010_present"
+                ),
+            },
+            warnings=[],
+        )
+
+    def fake_census_extract(**kwargs):
+        calls.append(("census", kwargs))
+        return local_flow.CensusBDSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
+            latest_available_year=2024,
+        )
+
+    def fake_bls_extract(**kwargs):
+        calls.append(("bls", kwargs))
+        return local_flow.BLSLAUSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
+            latest_observed_month="2024-12-01",
+            series_count=51,
+        )
+
+    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    expectations = local_flow._raw_validation_expectations(context, project_config)
+
+    assert [name for name, _ in calls] == ["sba", "bls"]
+    assert extraction_paths.census_bds_manifest_paths == ()
+    assert len(extraction_paths.manifest_paths) == 3
+    assert expectations.census_expected_state_count == 0
 
 
 def test_validation_expectations_follow_extract_mode(tmp_path):

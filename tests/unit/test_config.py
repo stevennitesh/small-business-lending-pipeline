@@ -1,8 +1,10 @@
 import csv
 import re
+import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from pipelines.utils.config import CONFIG_FILENAMES, load_project_config, load_yaml_file
 
@@ -60,6 +62,52 @@ def test_enabled_sources_have_freshness_and_validation_config():
 
     assert enabled_source_names <= set(freshness_rules)
     assert enabled_source_names <= set(validation_thresholds)
+
+
+def test_project_config_rejects_unknown_policy_source(tmp_path):
+    config_dir = _copy_config_dir(tmp_path)
+    validation_path = config_dir / "validation_thresholds.yml"
+    validation_config = load_yaml_file(validation_path)
+    validation_config["validation_thresholds"]["unknown_source"] = {"min_rows": 1}
+    _write_yaml_config(validation_path, validation_config)
+
+    with pytest.raises(ValueError, match="unknown source keys: unknown_source"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_cadence_drift(tmp_path):
+    config_dir = _copy_config_dir(tmp_path)
+    freshness_path = config_dir / "freshness_rules.yml"
+    freshness_config = load_yaml_file(freshness_path)
+    freshness_config["freshness_rules"]["bls_laus"]["expected_cadence"] = "annual"
+    _write_yaml_config(freshness_path, freshness_config)
+
+    with pytest.raises(ValueError, match="refresh_cadence"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_census_validation_columns_not_requested(tmp_path):
+    config_dir = _copy_config_dir(tmp_path)
+    validation_path = config_dir / "validation_thresholds.yml"
+    validation_config = load_yaml_file(validation_path)
+    validation_config["validation_thresholds"]["census_bds"][
+        "required_columns"
+    ].append("NOT_REQUESTED")
+    _write_yaml_config(validation_path, validation_config)
+
+    with pytest.raises(ValueError, match="not requested variables: NOT_REQUESTED"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_bls_min_state_count_above_series_count(tmp_path):
+    config_dir = _copy_config_dir(tmp_path)
+    validation_path = config_dir / "validation_thresholds.yml"
+    validation_config = load_yaml_file(validation_path)
+    validation_config["validation_thresholds"]["bls_laus"]["min_state_count"] = 52
+    _write_yaml_config(validation_path, validation_config)
+
+    with pytest.raises(ValueError, match="min_state_count exceeds"):
+        load_project_config(config_dir)
 
 
 def test_census_bds_required_variables_are_declared():
@@ -147,3 +195,13 @@ def test_ref_naics_seed_has_current_sector_rows():
     assert "31-33" in sector_codes
     assert "92" in sector_codes
     assert len(rows) >= 20
+
+
+def _copy_config_dir(tmp_path: Path) -> Path:
+    config_dir = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, config_dir)
+    return config_dir
+
+
+def _write_yaml_config(path: Path, config: dict) -> None:
+    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
