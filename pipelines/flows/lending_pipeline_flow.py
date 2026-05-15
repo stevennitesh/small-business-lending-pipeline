@@ -41,6 +41,7 @@ from pipelines.load.snowflake_loader import (
     SnowflakeConfig,
     SnowflakeRawLoadSummary,
     connect_to_snowflake,
+    load_raw_extracts_to_snowflake_from_s3,
     load_raw_extracts_to_snowflake,
 )
 from pipelines.storage.raw_artifacts import (
@@ -428,7 +429,7 @@ def load_snowflake_raw_tables(
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
     try:
-        return load_raw_extracts_to_snowflake(
+        return load_raw_extracts_to_snowflake_from_s3(
             connection=connection,
             database=config.database,
             raw_schema=config.raw_schema,
@@ -438,6 +439,7 @@ def load_snowflake_raw_tables(
             census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
             bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
             validation_result_paths=[validation_result_path],
+            storage_integration=config.storage_integration,
         )
     finally:
         connection.close()

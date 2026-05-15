@@ -10,6 +10,7 @@ from pipelines.load.snowflake_loader import (
     REQUIRED_SCHEMAS,
     SNOWFLAKE_RAW_TABLES,
     SnowflakeRawLoadError,
+    load_raw_extracts_to_snowflake_from_s3,
     load_raw_extracts_to_snowflake,
 )
 from pipelines.utils.hashing import calculate_sha256, hash_schema
@@ -75,6 +76,51 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
     assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
     loaded_bls = writer.written_frames["RAW_BLS_LAUS_STATE_MONTH"]
     assert loaded_bls["FOOTNOTES"].tolist() == ["[]", "[]"]
+
+
+def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
+    manifests = _build_fixture_manifests(tmp_path)
+    _make_manifests_s3_backed(manifests)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+    connection = FakeSnowflakeConnection(
+        table_counts={
+            "RAW.RAW_SBA_7A_FOIA": 2,
+            "RAW.RAW_SBA_504_FOIA": 1,
+            "RAW.RAW_CENSUS_BDS_STATE_YEAR": 1,
+            "RAW.RAW_BLS_LAUS_STATE_MONTH": 2,
+        }
+    )
+    writer = FakeSnowflakeWriter()
+
+    summary = load_raw_extracts_to_snowflake_from_s3(
+        connection=connection,
+        database="SMALL_BUSINESS_LENDING",
+        raw_schema="RAW",
+        audit_schema="AUDIT",
+        sba_7a_manifest_paths=manifests["sba_7a"],
+        sba_504_manifest_paths=manifests["sba_504"],
+        census_bds_manifest_paths=manifests["census"],
+        bls_laus_manifest_paths=manifests["bls"],
+        validation_result_paths=[validation_path],
+        write_pandas_func=writer,
+        storage_integration="SBL_S3_INT",
+    )
+
+    assert "create stage if not exists RAW.RAW_S3_STAGE" in " ".join(
+        connection.sql_statements
+    )
+    assert "storage_integration = SBL_S3_INT" in " ".join(connection.sql_statements)
+    assert any(
+        statement.startswith("copy into RAW.RAW_SBA_7A_FOIA")
+        for statement in connection.sql_statements
+    )
+    assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 2
+    assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 4
+    summary_frame = writer.written_frames["RAW_PIPELINE_RUN_SUMMARY"]
+    assert summary_frame["LOAD_PATTERN"].tolist() == ["s3_stage_copy"]
 
 
 def test_snowflake_loader_blocks_failed_validation(tmp_path):
@@ -148,8 +194,9 @@ def test_snowflake_loader_rejects_row_count_mismatch(tmp_path):
 
 
 class FakeSnowflakeConnection:
-    def __init__(self) -> None:
+    def __init__(self, table_counts: dict[str, int] | None = None) -> None:
         self.sql_statements: list[str] = []
+        self.table_counts = table_counts or {}
 
     def cursor(self):
         return FakeSnowflakeCursor(self)
@@ -158,6 +205,7 @@ class FakeSnowflakeConnection:
 class FakeSnowflakeCursor:
     def __init__(self, connection: FakeSnowflakeConnection) -> None:
         self.connection = connection
+        self.result: tuple[int] | None = None
 
     def __enter__(self):
         return self
@@ -166,8 +214,17 @@ class FakeSnowflakeCursor:
         return None
 
     def execute(self, sql: str):
-        self.connection.sql_statements.append(" ".join(sql.split()))
+        normalized_sql = " ".join(sql.split())
+        self.connection.sql_statements.append(normalized_sql)
+        if normalized_sql.lower().startswith("select count(*) from "):
+            table_name = normalized_sql.rsplit(" ", 1)[-1]
+            self.result = (self.connection.table_counts[table_name],)
         return self
+
+    def fetchone(self):
+        if self.result is None:
+            raise AssertionError("No fake result available")
+        return self.result
 
 
 class FakeSnowflakeWriter:
@@ -236,6 +293,16 @@ def _validation_result(status: str = "passed") -> ValidationResult:
         message=f"Validation status is {status}.",
         checked_at_utc="2026-05-07T12:00:00Z",
     )
+
+
+def _make_manifests_s3_backed(manifests: dict[str, list[Path]]) -> None:
+    for manifest_paths in manifests.values():
+        for manifest_path in manifest_paths:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["storage_backend"] = "s3"
+            manifest["raw_uri"] = manifest["s3_raw_uri"]
+            manifest["local_raw_path"] = None
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def _build_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:
