@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: raw
     description: Raw warehouse tables loaded from validated source extracts and pipeline audit files in either the local DuckDB route or the cloud Snowflake route.
-    schema: raw
+    schema: "{{ env_var('SNOWFLAKE_RAW_SCHEMA', 'raw') }}"
     tables:
       - name: raw_sba_7a_foia
         description: Source-native SBA 7(a) FOIA loan records with ingestion metadata.

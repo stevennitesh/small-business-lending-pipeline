@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import os
 import shutil
@@ -46,14 +47,14 @@ from pipelines.load.snowflake_loader import (
 )
 from pipelines.storage.raw_artifacts import (
     LocalRawArtifactStore,
+    RawArtifactLocation,
     RawArtifactReader,
     S3RawArtifactStore,
 )
 from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
 from pipelines.utils.dates import utc_now_iso
-from pipelines.utils.hashing import calculate_sha256, hash_schema
+from pipelines.utils.hashing import hash_bytes, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, write_manifest
-from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
 from pipelines.validation.raw_checks import (
     check_cloud_manifest_storage,
     check_manifest_raw_uri_required,
@@ -263,15 +264,17 @@ def require_cloud_mode_config(context: LocalRunContext) -> str:
     if not context.is_cloud_route:
         return context.s3_bucket or ""
 
-    load_dotenv(override=True)
+    load_dotenv(override=False)
     bucket = _s3_bucket(context)
     missing = []
     if not bucket:
         missing.append("S3_BUCKET")
     try:
-        SnowflakeConfig.from_env()
+        snowflake_config = SnowflakeConfig.from_env()
     except Exception as exc:
         raise RuntimeError(f"Missing cloud mode configuration: {exc}") from exc
+    if not snowflake_config.storage_integration:
+        missing.append("SNOWFLAKE_STORAGE_INTEGRATION")
     if missing:
         raise RuntimeError(
             "Missing cloud mode configuration: " + ", ".join(sorted(missing))
@@ -335,6 +338,7 @@ def validate_raw_outputs(
                 manifests,
                 required_resource_names=expectations.sba_required_resource_names,
                 source_identity=project_config.source_identity("sba_foia"),
+                artifact_reader=artifact_reader,
             )
         )
 
@@ -459,7 +463,7 @@ def load_snowflake_raw_tables(
 
 @task
 def run_dbt_build(context: LocalRunContext) -> DbtBuildResult:
-    load_dotenv(override=True)
+    load_dotenv(override=False)
     _ensure_dbt_profile(context)
     dbt_executable = _dbt_executable()
     command = (
@@ -773,7 +777,7 @@ def _extract_live_sources(
     context: LocalRunContext,
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
-    load_dotenv(override=True)
+    load_dotenv(override=False)
     bucket = _s3_bucket(context) or "local-live"
     raw_artifact_store = _raw_artifact_store(context, bucket)
     sba_manifest_paths: dict[str, Path] = {}
@@ -951,7 +955,8 @@ def _write_local_fixture_extracts(
         resource_name: _write_fixture_manifest(
             context=context,
             resource_name=resource_name,
-            raw_file_path=raw_file_path,
+            raw_location=raw_location,
+            raw_payload=raw_payload,
             row_count=row_count,
             file_format=file_format,
             schema_fields=schema_fields,
@@ -960,7 +965,8 @@ def _write_local_fixture_extracts(
             ),
         )
         for resource_name, (
-            raw_file_path,
+            raw_location,
+            raw_payload,
             row_count,
             file_format,
             schema_fields,
@@ -977,39 +983,64 @@ def _write_local_fixture_extracts(
 
 def _write_fixture_raw_files(
     context: LocalRunContext,
-) -> dict[str, tuple[Path, int, str, list[str]]]:
-    output: dict[str, tuple[Path, int, str, list[str]]] = {}
+) -> dict[str, tuple[RawArtifactLocation, bytes, int, str, list[str]]]:
+    output: dict[str, tuple[RawArtifactLocation, bytes, int, str, list[str]]] = {}
+    ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
+    store = _raw_artifact_store(context, _s3_bucket(context) or "local-fixtures")
+
+    def write_fixture_artifact(
+        *,
+        output_name: str,
+        source_system: str,
+        dataset_name: str,
+        resource_name: str,
+        filename: str,
+        payload: bytes,
+        row_count: int,
+        file_format: str,
+        schema_fields: list[str],
+    ) -> None:
+        location = store.location(
+            source_system=source_system,
+            dataset_name=dataset_name,
+            resource_name=resource_name,
+            ingestion_date=ingestion_date,
+            pipeline_run_id=context.pipeline_run_id,
+            filename=filename,
+        )
+        store.write_bytes(location, payload)
+        output[output_name] = (
+            location,
+            payload,
+            row_count,
+            file_format,
+            schema_fields,
+        )
 
     sba_7a_rows = [_sba_7a_row()]
-    sba_7a_path = _raw_path(
-        context,
-        "sba",
-        "7a_foia",
-        "source_period=fy2020_present",
-        "sba_7a_fixture.csv",
-    )
-    _write_csv(sba_7a_path, sba_7a_rows)
-    output["sba_7a_fy2020_present"] = (
-        sba_7a_path,
-        len(sba_7a_rows),
-        "csv",
-        list(sba_7a_rows[0]),
+    write_fixture_artifact(
+        output_name="sba_7a_fy2020_present",
+        source_system="sba",
+        dataset_name="7a_foia",
+        resource_name="source_period=fy2020_present",
+        filename="sba_7a_fixture.csv",
+        payload=_csv_bytes(sba_7a_rows),
+        row_count=len(sba_7a_rows),
+        file_format="csv",
+        schema_fields=list(sba_7a_rows[0]),
     )
 
     sba_504_rows = [_sba_504_row()]
-    sba_504_path = _raw_path(
-        context,
-        "sba",
-        "504_foia",
-        "source_period=fy2010_present",
-        "sba_504_fixture.csv",
-    )
-    _write_csv(sba_504_path, sba_504_rows)
-    output["sba_504_fy2010_present"] = (
-        sba_504_path,
-        len(sba_504_rows),
-        "csv",
-        list(sba_504_rows[0]),
+    write_fixture_artifact(
+        output_name="sba_504_fy2010_present",
+        source_system="sba",
+        dataset_name="504_foia",
+        resource_name="source_period=fy2010_present",
+        filename="sba_504_fixture.csv",
+        payload=_csv_bytes(sba_504_rows),
+        row_count=len(sba_504_rows),
+        file_format="csv",
+        schema_fields=list(sba_504_rows[0]),
     )
 
     census_payload = [
@@ -1056,19 +1087,16 @@ def _write_fixture_raw_files(
             "17",
         ],
     ]
-    census_path = _raw_path(
-        context,
-        "census",
-        "bds",
-        "grain=state_year",
-        "bds_state_year_fixture.json",
-    )
-    census_path.write_text(json.dumps(census_payload, indent=2) + "\n", encoding="utf-8")
-    output["bds_state_year"] = (
-        census_path,
-        len(census_payload) - 1,
-        "json",
-        census_payload[0],
+    write_fixture_artifact(
+        output_name="bds_state_year",
+        source_system="census",
+        dataset_name="bds",
+        resource_name="grain=state_year",
+        filename="bds_state_year_fixture.json",
+        payload=_json_bytes(census_payload),
+        row_count=len(census_payload) - 1,
+        file_format="json",
+        schema_fields=census_payload[0],
     )
 
     bls_payload = {
@@ -1111,19 +1139,16 @@ def _write_fixture_raw_files(
             ),
         ]
     }
-    bls_path = _raw_path(
-        context,
-        "bls",
-        "laus",
-        "grain=state_month",
-        "bls_laus_state_month_fixture.json",
-    )
-    bls_path.write_text(json.dumps(bls_payload, indent=2) + "\n", encoding="utf-8")
-    output["laus_state_month"] = (
-        bls_path,
-        len(bls_payload["normalized_rows"]),
-        "json",
-        list(bls_payload["normalized_rows"][0]),
+    write_fixture_artifact(
+        output_name="laus_state_month",
+        source_system="bls",
+        dataset_name="laus",
+        resource_name="grain=state_month",
+        filename="bls_laus_state_month_fixture.json",
+        payload=_json_bytes(bls_payload),
+        row_count=len(bls_payload["normalized_rows"]),
+        file_format="json",
+        schema_fields=list(bls_payload["normalized_rows"][0]),
     )
     return output
 
@@ -1132,7 +1157,8 @@ def _write_fixture_manifest(
     *,
     context: LocalRunContext,
     resource_name: str,
-    raw_file_path: Path,
+    raw_location: RawArtifactLocation,
+    raw_payload: bytes,
     row_count: int,
     file_format: str,
     schema_fields: list[str],
@@ -1141,14 +1167,7 @@ def _write_fixture_manifest(
     source_system = source_identity.source_system
     dataset_name = source_identity.dataset_name
     ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
-    s3_raw_key = build_raw_s3_key(
-        source_system=source_system,
-        dataset_name=dataset_name,
-        resource_name=resource_name,
-        ingestion_date=ingestion_date,
-        pipeline_run_id=context.pipeline_run_id,
-        filename=raw_file_path.name,
-    )
+    manifest_fields = raw_location.manifest_fields()
     manifest = ExtractionManifest(
         pipeline_run_id=context.pipeline_run_id,
         source_system=source_system,
@@ -1157,17 +1176,19 @@ def _write_fixture_manifest(
         source_url=f"fixture://{resource_name}",
         extracted_at_utc=context.run_started_at_utc,
         ingestion_date=ingestion_date,
-        local_raw_path=str(raw_file_path),
-        s3_raw_uri=build_s3_uri(context.s3_bucket or "local-fixtures", s3_raw_key),
+        local_raw_path=manifest_fields["local_raw_path"],
+        s3_raw_uri=manifest_fields["s3_raw_uri"],
         file_format=file_format,
         row_count=row_count,
-        sha256_checksum=calculate_sha256(raw_file_path),
+        sha256_checksum=hash_bytes(raw_payload),
         schema_hash=hash_schema(schema_fields),
         validation_status="passed",
         request_parameters={"run_mode": context.run_mode},
         column_count=len(schema_fields),
-        file_size_bytes=raw_file_path.stat().st_size,
+        file_size_bytes=len(raw_payload),
         validation_messages=[],
+        storage_backend=manifest_fields["storage_backend"],
+        raw_uri=manifest_fields["raw_uri"],
     )
     manifest_path = (
         context.data_root
@@ -1180,32 +1201,16 @@ def _write_fixture_manifest(
     return manifest_path
 
 
-def _raw_path(
-    context: LocalRunContext,
-    source_system: str,
-    dataset_name: str,
-    resource_name: str,
-    filename: str,
-) -> Path:
-    path = (
-        context.data_root
-        / "raw"
-        / source_system
-        / dataset_name
-        / resource_name
-        / f"pipeline_run_id={context.pipeline_run_id}"
-        / filename
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return path
+def _csv_bytes(rows: list[dict[str, Any]]) -> bytes:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return output.getvalue().encode("utf-8")
 
 
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+def _json_bytes(payload: Any) -> bytes:
+    return (json.dumps(payload, indent=2) + "\n").encode("utf-8")
 
 
 def _sba_7a_row() -> dict[str, Any]:
@@ -1366,19 +1371,30 @@ def _dbt_executable() -> Path:
 
 def _validate_snowflake_bi_tables() -> dict[str, int]:
     config = SnowflakeConfig.from_env()
+    bi_schema = _snowflake_bi_schema()
     connection = connect_to_snowflake(config)
     try:
         row_counts: dict[str, int] = {}
         with connection.cursor() as cursor:
             for table_name in BI_TABLES:
-                cursor.execute(f"select count(*) from BI.{table_name.upper()}")
+                cursor.execute(f"select count(*) from {bi_schema}.{table_name.upper()}")
                 row_count = int(cursor.fetchone()[0])
                 if row_count <= 0:
-                    raise RuntimeError(f"BI table BI.{table_name.upper()} has no rows.")
+                    raise RuntimeError(
+                        f"BI table {bi_schema}.{table_name.upper()} has no rows."
+                    )
                 row_counts[table_name] = row_count
         return row_counts
     finally:
         connection.close()
+
+
+def _snowflake_bi_schema() -> str:
+    load_dotenv(override=False)
+    schema_prefix = os.getenv("DBT_SCHEMA_PREFIX", "").strip()
+    return os.getenv("SNOWFLAKE_BI_SCHEMA") or (
+        f"{schema_prefix}_BI" if schema_prefix else "BI"
+    )
 
 
 def _s3_bucket(context: LocalRunContext) -> str | None:

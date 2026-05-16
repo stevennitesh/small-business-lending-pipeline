@@ -103,7 +103,7 @@ class SnowflakeConfig:
 
     @classmethod
     def from_env(cls) -> "SnowflakeConfig":
-        load_dotenv(override=True)
+        load_dotenv(override=False)
         values = {
             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
             "user": os.getenv("SNOWFLAKE_USER"),
@@ -111,7 +111,10 @@ class SnowflakeConfig:
             "role": os.getenv("SNOWFLAKE_ROLE"),
             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
             "database": os.getenv("SNOWFLAKE_DATABASE"),
-            "raw_schema": os.getenv("SNOWFLAKE_SCHEMA", "RAW"),
+            "raw_schema": os.getenv(
+                "SNOWFLAKE_RAW_SCHEMA",
+                os.getenv("SNOWFLAKE_SCHEMA", "RAW"),
+            ),
             "audit_schema": os.getenv("SNOWFLAKE_AUDIT_SCHEMA", "AUDIT"),
             "storage_integration": os.getenv("SNOWFLAKE_STORAGE_INTEGRATION"),
         }
@@ -126,7 +129,21 @@ class SnowflakeConfig:
                 "Missing Snowflake environment variables: "
                 + ", ".join(f"SNOWFLAKE_{name}" for name in missing)
             )
-        return cls(**{key: str(value) for key, value in values.items()})
+        return cls(
+            account=str(values["account"]),
+            user=str(values["user"]),
+            password=str(values["password"]),
+            role=str(values["role"]),
+            warehouse=str(values["warehouse"]),
+            database=str(values["database"]),
+            raw_schema=str(values["raw_schema"]),
+            audit_schema=str(values["audit_schema"]),
+            storage_integration=(
+                str(values["storage_integration"])
+                if values["storage_integration"]
+                else None
+            ),
+        )
 
     def connect_kwargs(self) -> dict[str, str]:
         return {
@@ -190,7 +207,11 @@ def load_raw_extracts_to_snowflake(
     }
     require_manifest_groups(manifest_groups, error_cls=SnowflakeRawLoadError)
     pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
-    _create_required_schemas(connection)
+    _create_required_schemas(
+        connection,
+        raw_schema=raw_schema,
+        audit_schema=audit_schema,
+    )
 
     table_row_counts: dict[str, int] = {}
     for source_table, manifests in manifest_groups.items():
@@ -323,7 +344,11 @@ def load_raw_extracts_to_snowflake_from_s3(
     pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
     bucket = _single_s3_bucket(manifest_groups)
 
-    _create_required_schemas(connection)
+    _create_required_schemas(
+        connection,
+        raw_schema=raw_schema,
+        audit_schema=audit_schema,
+    )
     _create_s3_stage_load_objects(
         connection,
         raw_schema=raw_schema,
@@ -376,9 +401,18 @@ def load_raw_extracts_to_snowflake_from_s3(
     )
 
 
-def _create_required_schemas(connection) -> None:
+def _create_required_schemas(
+    connection,
+    *,
+    raw_schema: str = "RAW",
+    audit_schema: str = "AUDIT",
+) -> None:
+    schema_names = {raw_schema, audit_schema}
+    if raw_schema.upper() == "RAW" and audit_schema.upper() == "AUDIT":
+        schema_names.update(REQUIRED_SCHEMAS)
+
     with connection.cursor() as cursor:
-        for schema_name in REQUIRED_SCHEMAS:
+        for schema_name in sorted(schema_names):
             cursor.execute(f"create schema if not exists {schema_name}")
 
 

@@ -9,6 +9,7 @@ import pytest
 from pipelines.load.snowflake_loader import (
     REQUIRED_SCHEMAS,
     SNOWFLAKE_RAW_TABLES,
+    SnowflakeConfig,
     SnowflakeRawLoadError,
     load_raw_extracts_to_snowflake_from_s3,
     load_raw_extracts_to_snowflake,
@@ -84,6 +85,23 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
     assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
     loaded_bls = writer.written_frames["RAW_BLS_LAUS_STATE_MONTH"]
     assert loaded_bls["FOOTNOTES"].tolist() == ["[]", "[]"]
+
+
+def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
+    monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct")
+    monkeypatch.setenv("SNOWFLAKE_USER", "user")
+    monkeypatch.setenv("SNOWFLAKE_PASSWORD", "password")
+    monkeypatch.setenv("SNOWFLAKE_ROLE", "role")
+    monkeypatch.setenv("SNOWFLAKE_WAREHOUSE", "warehouse")
+    monkeypatch.setenv("SNOWFLAKE_DATABASE", "database")
+    monkeypatch.setenv("SNOWFLAKE_SCHEMA", "RAW")
+    monkeypatch.setenv("SNOWFLAKE_RAW_SCHEMA", "SMOKE_RAW")
+    monkeypatch.delenv("SNOWFLAKE_STORAGE_INTEGRATION", raising=False)
+
+    config = SnowflakeConfig.from_env()
+
+    assert config.raw_schema == "SMOKE_RAW"
+    assert config.storage_integration is None
 
 
 def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):

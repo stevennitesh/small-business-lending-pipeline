@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import pipelines.flows.lending_pipeline_flow as local_flow
+from pipelines.storage.raw_artifacts import RawArtifactReader, S3RawArtifactStore
 from pipelines.validation.validation_result import ValidationFailedError
 
 
@@ -81,7 +82,8 @@ def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
         "SNOWFLAKE_WAREHOUSE",
         "SNOWFLAKE_DATABASE",
     ):
-        monkeypatch.delenv(variable_name, raising=False)
+        monkeypatch.setenv(variable_name, "")
+    monkeypatch.setenv("SNOWFLAKE_STORAGE_INTEGRATION", "")
     monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
 
     context = local_flow.initialize_run.fn(
@@ -136,6 +138,17 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
     assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
         "RAW.RAW_SBA_7A_FOIA": 1
     }
+
+
+def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
+    monkeypatch.delenv("SNOWFLAKE_BI_SCHEMA", raising=False)
+    monkeypatch.setenv("DBT_SCHEMA_PREFIX", "SMOKE")
+
+    assert local_flow._snowflake_bi_schema() == "SMOKE_BI"
+
+    monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "CUSTOM_BI")
+
+    assert local_flow._snowflake_bi_schema() == "CUSTOM_BI"
 
 
 def test_raw_artifact_store_matches_route(tmp_path):
@@ -296,7 +309,13 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
     captured_identities = {}
 
-    def fake_sba_check(manifests, *, required_resource_names, source_identity):
+    def fake_sba_check(
+        manifests,
+        *,
+        required_resource_names,
+        source_identity,
+        artifact_reader,
+    ):
         captured_identities["sba_foia"] = source_identity
         return []
 
@@ -698,8 +717,35 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
     assert summary["validation_result_path"].endswith("validation_results.json")
 
 
-def test_cloud_validation_rejects_local_backed_fixture_manifests(tmp_path):
+def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(
+    tmp_path,
+    monkeypatch,
+):
     project_config = local_flow.load_config.fn()
+    s3_client = FakeS3ObjectClient()
+    monkeypatch.setattr(
+        local_flow,
+        "_raw_artifact_store",
+        lambda context, bucket, s3_client=None: S3RawArtifactStore(
+            bucket=bucket,
+            s3_client=s3_client or FakeS3ObjectClientHolder.client,
+        )
+        if context.is_cloud_route
+        else local_flow.LocalRawArtifactStore(
+            data_root=context.data_root,
+            s3_bucket=bucket,
+        ),
+    )
+    FakeS3ObjectClientHolder.client = s3_client
+    monkeypatch.setattr(
+        local_flow,
+        "_raw_artifact_reader",
+        lambda context, s3_client=None: RawArtifactReader(
+            s3_client=FakeS3ObjectClientHolder.client
+            if context.is_cloud_route
+            else s3_client
+        ),
+    )
     context = local_flow.initialize_run.fn(
         run_mode="cloud",
         extract_mode="fixture",
@@ -709,22 +755,47 @@ def test_cloud_validation_rejects_local_backed_fixture_manifests(tmp_path):
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
         s3_bucket="unit-test-bucket",
-        pipeline_run_id="cloud-local-backed",
+        pipeline_run_id="cloud-fixture-run",
     )
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
-
-    with pytest.raises(ValidationFailedError):
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-    validation_path = context.run_validation_dir / "validation_results.json"
+    validation_path = local_flow.validate_raw_outputs.fn(
+        context,
+        extraction_paths,
+        project_config,
+    )
     validation_results = json.loads(validation_path.read_text(encoding="utf-8"))
-    failed_check_ids = {
-        result["validation_check_id"]
-        for result in validation_results
-        if result["status"] == "failed"
-    }
+    manifests = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in extraction_paths.manifest_paths
+    ]
 
-    assert "RAW_012" in failed_check_ids
+    assert {manifest["storage_backend"] for manifest in manifests} == {"s3"}
+    assert all(manifest["local_raw_path"] is None for manifest in manifests)
+    assert all(manifest["raw_uri"].startswith("s3://unit-test-bucket/") for manifest in manifests)
+    assert {result["status"] for result in validation_results} == {"passed"}
+
+
+class FakeS3ObjectClientHolder:
+    client: "FakeS3ObjectClient"
+
+
+class FakeBody:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+
+    def read(self) -> bytes:
+        return self.payload
+
+
+class FakeS3ObjectClient:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
+        self.objects[(Bucket, Key)] = Body
+
+    def get_object(self, *, Bucket: str, Key: str):
+        return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 
 def _write_manifest_stub(tmp_path: Path, resource_name: str) -> Path:

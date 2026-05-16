@@ -185,6 +185,8 @@ make cleanup-local-data
 ## Cloud Warehouse Run
 
 Cloud mode requires AWS S3 and Snowflake configuration.
+Snowflake must have a storage integration that can read the configured S3 bucket,
+and `SNOWFLAKE_STORAGE_INTEGRATION` should name that integration.
 
 ```bash
 make run-cloud
@@ -199,6 +201,18 @@ python -m pipelines.flows.lending_pipeline_flow \
 ```
 
 `make run-final` remains available as a compatibility alias for the same cloud route.
+
+For a small cloud smoke that does not replace the main Snowflake schemas, run the
+cloud fixture route with isolated schemas:
+
+```bash
+SNOWFLAKE_RAW_SCHEMA=SMOKE_RAW \
+SNOWFLAKE_AUDIT_SCHEMA=SMOKE_AUDIT \
+SNOWFLAKE_SCHEMA=SMOKE \
+DBT_SCHEMA_PREFIX=SMOKE \
+SNOWFLAKE_BI_SCHEMA=SMOKE_BI \
+scripts/run_cloud_pipeline.sh --extract-mode fixture
+```
 
 Cloud route output:
 

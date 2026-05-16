@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable
 
+from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.config import SourceIdentity
 from pipelines.validation.validation_result import ValidationResult, make_validation_result
 
@@ -18,6 +19,7 @@ def check_sba_required_resources(
     *,
     required_resource_names: list[str],
     source_identity: SourceIdentity = DEFAULT_SBA_IDENTITY,
+    artifact_reader: RawArtifactReader | None = None,
 ) -> list[ValidationResult]:
     manifest_list = list(manifests)
     resources_by_name = {
@@ -29,7 +31,7 @@ def check_sba_required_resources(
         resource_name
         for resource_name, manifest in resources_by_name.items()
         if resource_name in required_resource_names
-        and not Path(str(manifest.get("local_raw_path", ""))).is_file()
+        and not _manifest_artifact_exists(manifest, artifact_reader=artifact_reader)
     )
     base_manifest = manifest_list[0] if manifest_list else {}
     return [
@@ -62,6 +64,16 @@ def check_sba_required_resources(
             failed_message="One or more required SBA raw files are unreadable.",
         ),
     ]
+
+
+def _manifest_artifact_exists(
+    manifest: dict[str, Any],
+    *,
+    artifact_reader: RawArtifactReader | None,
+) -> bool:
+    if artifact_reader is not None:
+        return artifact_reader.exists(manifest)
+    return Path(str(manifest.get("local_raw_path", ""))).is_file()
 
 
 def check_census_bds_payload(
