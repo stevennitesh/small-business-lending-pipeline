@@ -1078,9 +1078,27 @@ def _write_fixture_raw_files(
                 "01",
                 "AL",
                 "Alabama",
+                "2025",
+                "M01",
+                3.4,
+            ),
+            _bls_row(
+                "LASST010000000000003",
+                "01",
+                "AL",
+                "Alabama",
                 "2026",
                 "M01",
                 3.1,
+            ),
+            _bls_row(
+                "LASST170000000000003",
+                "17",
+                "IL",
+                "Illinois",
+                "2025",
+                "M01",
+                4.5,
             ),
             _bls_row(
                 "LASST170000000000003",
@@ -1333,7 +1351,7 @@ def _ensure_dbt_profile(context: LocalRunContext) -> None:
     {context.dbt_target}:
       type: duckdb
       path: {context.duckdb_path.resolve()}
-      threads: 4
+      threads: 1
 """,
         encoding="utf-8",
     )

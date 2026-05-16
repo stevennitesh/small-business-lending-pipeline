@@ -203,6 +203,17 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
         record["validation_check_id"]
         for record in validation_payload
     }
+    bls_manifest = json.loads(
+        extraction_paths.bls_laus_manifest_paths[0].read_text(encoding="utf-8")
+    )
+    bls_payload = json.loads(
+        Path(bls_manifest["local_raw_path"]).read_text(encoding="utf-8")
+    )
+    assert bls_manifest["row_count"] == 4
+    assert {
+        str(row["year"])
+        for row in bls_payload["normalized_rows"]
+    } == {"2025", "2026"}
 
 
 def test_fixture_manifests_use_source_config_identity(tmp_path):
@@ -621,6 +632,26 @@ def test_validation_expectations_follow_extract_mode(tmp_path):
     assert len(live_expectations.bls_expected_series_ids) == 51
     assert "sba_7a_fy2020_present" in live_expectations.sba_required_resource_names
     assert "sba_504_fy2010_present" in live_expectations.sba_required_resource_names
+
+
+def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        pipeline_run_id="profile-thread-check",
+    )
+
+    local_flow._ensure_dbt_profile(context)
+
+    profile_text = (tmp_path / "profiles" / "profiles.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "threads: 1" in profile_text
 
 
 def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
