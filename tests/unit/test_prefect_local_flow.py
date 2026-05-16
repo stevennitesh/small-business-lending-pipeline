@@ -667,6 +667,35 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
     assert summary["validation_result_path"].endswith("validation_results.json")
 
 
+def test_cloud_validation_rejects_local_backed_fixture_manifests(tmp_path):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="cloud",
+        extract_mode="fixture",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="cloud-local-backed",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+
+    with pytest.raises(ValidationFailedError):
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+    validation_path = context.run_validation_dir / "validation_results.json"
+    validation_results = json.loads(validation_path.read_text(encoding="utf-8"))
+    failed_check_ids = {
+        result["validation_check_id"]
+        for result in validation_results
+        if result["status"] == "failed"
+    }
+
+    assert "RAW_012" in failed_check_ids
+
+
 def _write_manifest_stub(tmp_path: Path, resource_name: str) -> Path:
     path = tmp_path / f"{resource_name}.manifest.json"
     path.write_text(

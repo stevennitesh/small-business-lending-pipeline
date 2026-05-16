@@ -131,6 +131,40 @@ def check_manifest_source_identity(
     )
 
 
+def check_cloud_manifest_storage(manifest: dict[str, Any]) -> ValidationResult:
+    storage_backend = str(manifest.get("storage_backend", "")).lower()
+    raw_uri = str(manifest.get("raw_uri") or "")
+    return _result(
+        manifest=manifest,
+        validation_check_id="RAW_012",
+        check_name="Cloud raw manifest is S3-backed",
+        check_type="lineage",
+        severity="fail",
+        passed=storage_backend == "s3" and raw_uri.startswith("s3://"),
+        expected_value={"storage_backend": "s3", "raw_uri_prefix": "s3://"},
+        observed_value={
+            "storage_backend": storage_backend or None,
+            "raw_uri": raw_uri or None,
+        },
+        failed_message="Cloud route requires S3-backed raw manifests.",
+    )
+
+
+def check_manifest_raw_uri_required(manifest: dict[str, Any]) -> ValidationResult:
+    raw_uri = manifest.get("raw_uri")
+    return _result(
+        manifest=manifest,
+        validation_check_id="RAW_013",
+        check_name="Raw artifact identity populated",
+        check_type="lineage",
+        severity="fail",
+        passed=isinstance(raw_uri, str) and bool(raw_uri.strip()),
+        expected_value="raw_uri populated",
+        observed_value=raw_uri,
+        failed_message="Manifest is missing required raw_uri identity.",
+    )
+
+
 def _check_raw_file_exists(
     manifest: dict[str, Any],
     artifact_reader: RawArtifactReader,

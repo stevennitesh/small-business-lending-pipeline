@@ -10,6 +10,8 @@ from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.config import SourceIdentity
 from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_checks import (
+    check_cloud_manifest_storage,
+    check_manifest_raw_uri_required,
     check_manifest_source_identity,
     check_raw_manifest,
     check_required_manifest_resource,
@@ -186,6 +188,33 @@ def test_raw_manifest_checks_pass_for_s3_backed_file(tmp_path):
     )
 
     assert all(result.status == "passed" for result in results)
+
+
+def test_cloud_manifest_storage_check_rejects_local_backed_manifest(tmp_path):
+    raw_file = tmp_path / "bds_state_year.json"
+    raw_file.write_text('[["YEAR","state"],["2023","01"]]\n', encoding="utf-8")
+    manifest = _manifest_for(raw_file)
+    manifest["raw_uri"] = str(raw_file)
+    manifest["storage_backend"] = "local"
+
+    result = check_cloud_manifest_storage(manifest)
+
+    assert result.validation_check_id == "RAW_012"
+    assert result.status == "failed"
+    assert result.severity == "fail"
+
+
+def test_raw_uri_required_check_rejects_missing_identity(tmp_path):
+    raw_file = tmp_path / "bds_state_year.json"
+    raw_file.write_text('[["YEAR","state"],["2023","01"]]\n', encoding="utf-8")
+    manifest = _manifest_for(raw_file)
+    manifest.pop("raw_uri", None)
+
+    result = check_manifest_raw_uri_required(manifest)
+
+    assert result.validation_check_id == "RAW_013"
+    assert result.status == "failed"
+    assert result.severity == "fail"
 
 
 def test_raw_manifest_checks_fail_cleanly_for_missing_s3_object(tmp_path):

@@ -55,6 +55,8 @@ from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.utils.manifest import ExtractionManifest, write_manifest
 from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
 from pipelines.validation.raw_checks import (
+    check_cloud_manifest_storage,
+    check_manifest_raw_uri_required,
     check_manifest_source_identity,
     check_raw_manifest,
     check_required_manifest_resource,
@@ -319,6 +321,9 @@ def validate_raw_outputs(
                 ),
             )
         )
+        if context.is_cloud_route:
+            validation_results.append(check_manifest_raw_uri_required(manifest))
+            validation_results.append(check_cloud_manifest_storage(manifest))
 
     expectations = _raw_validation_expectations(context, project_config)
 
