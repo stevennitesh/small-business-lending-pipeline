@@ -57,9 +57,9 @@ models:
           - unique
 
   - name: dim_source_file
-    description: Source-file lineage dimension for raw files represented in modeled facts.
+    description: Source-artifact lineage dimension for raw artifacts represented in modeled facts.
     meta:
-      grain: one row per local raw file path
+      grain: one row per canonical raw artifact URI
     columns:
       - name: source_file_key
         description: Surrogate key for a raw file and checksum pair.

@@ -1,14 +1,31 @@
+{% set raw_census_bds_state_year = source('raw', 'raw_census_bds_state_year') %}
+{% set has_raw_uri = relation_has_column(raw_census_bds_state_year, 'raw_uri') %}
+{% set has_storage_backend = relation_has_column(raw_census_bds_state_year, 'storage_backend') %}
+
 with latest_successful_manifests as (
     select *
-    from {{ source('raw', 'raw_ingestion_manifest') }}
+    from {{ ref('stg_ingestion_manifest') }}
     where source_system = 'census'
       and dataset_name = 'bds'
       and resource_name = 'bds_state_year'
       and validation_status = 'passed'
-    qualify dense_rank() over (
-        partition by source_system, dataset_name, resource_name
-        order by extracted_at_utc desc, ingestion_date desc, pipeline_run_id desc
-    ) = 1
+      and is_latest_successful_snapshot
+),
+
+raw_rows as (
+    select
+        raw.*,
+        {% if has_raw_uri -%}
+        raw.raw_uri
+        {%- else -%}
+        raw.raw_file_path
+        {%- endif %} as artifact_raw_uri,
+        {% if has_storage_backend -%}
+        raw.storage_backend
+        {%- else -%}
+        'local'
+        {%- endif %} as artifact_storage_backend
+    from {{ raw_census_bds_state_year }} as raw
 )
 
 select
@@ -34,12 +51,14 @@ select
     raw.source_dataset,
     raw.source_resource_name,
     raw.ingestion_date,
+    raw.artifact_storage_backend as storage_backend,
+    raw.artifact_raw_uri as raw_uri,
     raw.raw_file_path,
     raw.sha256_checksum
-from {{ source('raw', 'raw_census_bds_state_year') }} as raw
+from raw_rows as raw
 inner join latest_successful_manifests as manifest
     on raw.pipeline_run_id = manifest.pipeline_run_id
    and raw.source_resource_name = manifest.resource_name
-   and raw.raw_file_path = manifest.local_raw_path
+   and raw.artifact_raw_uri = manifest.raw_uri
 left join {{ ref('ref_state') }} as ref_state
     on lpad(cast(raw.state as varchar), 2, '0') = lpad(cast(ref_state.state_fips as varchar), 2, '0')

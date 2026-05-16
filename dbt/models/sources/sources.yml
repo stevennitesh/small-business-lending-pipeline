@@ -12,8 +12,12 @@ sources:
             description: Pipeline run identifier that produced the raw extract.
           - name: source_resource_name
             description: SBA FOIA resource represented by the raw row.
+          - name: storage_backend
+            description: Durable storage backend for the raw artifact, such as local or s3.
+          - name: raw_uri
+            description: Canonical route-neutral URI for the durable raw artifact.
           - name: raw_file_path
-            description: Local raw file path used for lineage.
+            description: Legacy local raw file path used for local-route compatibility.
 
       - name: raw_sba_504_foia
         description: Source-native SBA 504 FOIA loan records with ingestion metadata.
@@ -22,8 +26,12 @@ sources:
             description: Pipeline run identifier that produced the raw extract.
           - name: source_resource_name
             description: SBA FOIA resource represented by the raw row.
+          - name: storage_backend
+            description: Durable storage backend for the raw artifact, such as local or s3.
+          - name: raw_uri
+            description: Canonical route-neutral URI for the durable raw artifact.
           - name: raw_file_path
-            description: Local raw file path used for lineage.
+            description: Legacy local raw file path used for local-route compatibility.
 
       - name: raw_census_bds_state_year
         description: Census BDS state-year business dynamics rows with ingestion metadata.
@@ -34,6 +42,10 @@ sources:
             description: State FIPS code returned by the Census geography predicate.
           - name: YEAR
             description: BDS reference year.
+          - name: storage_backend
+            description: Durable storage backend for the raw artifact, such as local or s3.
+          - name: raw_uri
+            description: Canonical route-neutral URI for the durable raw artifact.
 
       - name: raw_bls_laus_state_month
         description: BLS LAUS state-month unemployment-rate observations with ingestion metadata.
@@ -46,6 +58,10 @@ sources:
             description: Month-start date for the monthly LAUS observation.
           - name: value
             description: Numeric unemployment-rate value.
+          - name: storage_backend
+            description: Durable storage backend for the raw artifact, such as local or s3.
+          - name: raw_uri
+            description: Canonical route-neutral URI for the durable raw artifact.
 
       - name: raw_ingestion_manifest
         description: Pipeline-generated ingestion manifests for raw extracts.

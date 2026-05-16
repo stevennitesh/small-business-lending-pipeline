@@ -1,35 +1,52 @@
+{% set raw_sba_504_foia = source('raw', 'raw_sba_504_foia') %}
+{% set has_raw_uri = relation_has_column(raw_sba_504_foia, 'raw_uri') %}
+{% set has_storage_backend = relation_has_column(raw_sba_504_foia, 'storage_backend') %}
+
 with latest_successful_manifests as (
     select *
-    from {{ source('raw', 'raw_ingestion_manifest') }}
+    from {{ ref('stg_ingestion_manifest') }}
     where source_system = 'sba'
       and dataset_name = '7a_504_foia'
       and resource_name like 'sba_504_%'
       and validation_status = 'passed'
-    qualify dense_rank() over (
-        partition by source_system, dataset_name, resource_name
-        order by extracted_at_utc desc, ingestion_date desc, pipeline_run_id desc
-    ) = 1
+      and is_latest_successful_snapshot
+),
+
+raw_rows as (
+    select
+        raw.*,
+        {% if has_raw_uri -%}
+        raw.raw_uri
+        {%- else -%}
+        raw.raw_file_path
+        {%- endif %} as artifact_raw_uri,
+        {% if has_storage_backend -%}
+        raw.storage_backend
+        {%- else -%}
+        'local'
+        {%- endif %} as artifact_storage_backend
+    from {{ raw_sba_504_foia }} as raw
 ),
 
 source_rows as (
     select
         raw.*,
         row_number() over (
-            partition by raw.pipeline_run_id, raw.source_resource_name, raw.raw_file_path
+            partition by raw.pipeline_run_id, raw.source_resource_name, raw.artifact_raw_uri
             order by raw.locationid, raw.approvaldate, raw.borrname, raw.grossapproval
         ) as raw_row_number
-    from {{ source('raw', 'raw_sba_504_foia') }} as raw
+    from raw_rows as raw
     inner join latest_successful_manifests as manifest
         on raw.pipeline_run_id = manifest.pipeline_run_id
        and raw.source_resource_name = manifest.resource_name
-       and raw.raw_file_path = manifest.local_raw_path
+       and raw.artifact_raw_uri = manifest.raw_uri
 ),
 
 standardized as (
     select
         {{ generate_surrogate_key([
             "'504'",
-            "raw_file_path",
+            "artifact_raw_uri",
             "raw_row_number",
             "locationid",
             "approvaldate",
@@ -98,6 +115,8 @@ standardized as (
         source_dataset,
         source_resource_name,
         ingestion_date,
+        artifact_storage_backend as storage_backend,
+        artifact_raw_uri as raw_uri,
         raw_file_path,
         sha256_checksum,
         raw_row_number

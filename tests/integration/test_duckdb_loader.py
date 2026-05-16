@@ -37,6 +37,8 @@ def _write_manifest(
         "source_url": "https://example.test/source",
         "extracted_at_utc": "2026-05-07T12:00:00Z",
         "ingestion_date": "2026-05-07",
+        "storage_backend": "local",
+        "raw_uri": str(raw_file),
         "local_raw_path": str(raw_file),
         "s3_raw_uri": f"s3://bucket/raw/{source_system}/{dataset_name}/{raw_file.name}",
         "file_format": file_format,
@@ -202,6 +204,9 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
         loaded_s3_uri = connection.execute(
             "select distinct s3_raw_uri from raw.raw_sba_7a_foia"
         ).fetchall()
+        loaded_raw_uri = connection.execute(
+            "select distinct storage_backend, raw_uri from raw.raw_sba_7a_foia"
+        ).fetchall()
 
     assert {
         "pipeline_run_id",
@@ -209,6 +214,8 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
         "source_dataset",
         "source_resource_name",
         "ingestion_date",
+        "storage_backend",
+        "raw_uri",
         "raw_file_path",
         "s3_raw_uri",
         "sha256_checksum",
@@ -216,6 +223,8 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
     assert loaded_s3_uri == [
         ("s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",)
     ]
+    expected_manifest = json.loads(manifests["sba_7a"][0].read_text(encoding="utf-8"))
+    assert loaded_raw_uri == [("local", expected_manifest["raw_uri"])]
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):

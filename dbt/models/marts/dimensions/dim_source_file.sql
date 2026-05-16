@@ -1,5 +1,5 @@
 select
-    {{ generate_surrogate_key(["local_raw_path"]) }} as source_file_key,
+    {{ generate_surrogate_key(["raw_uri"]) }} as source_file_key,
     pipeline_run_id,
     source_system,
     dataset_name as source_dataset,
@@ -7,6 +7,8 @@ select
     source_url,
     extracted_at_utc,
     ingestion_date,
+    storage_backend,
+    raw_uri,
     local_raw_path as raw_file_path,
     s3_raw_uri,
     file_format,

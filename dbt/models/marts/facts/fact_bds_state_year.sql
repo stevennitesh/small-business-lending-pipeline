@@ -18,8 +18,10 @@ select
     job_destruction,
     bds.pipeline_run_id,
     bds.source_resource_name,
+    bds.storage_backend,
+    bds.raw_uri,
     bds.raw_file_path,
     bds.sha256_checksum
 from {{ ref('stg_census_bds_state_year') }} as bds
 left join {{ ref('dim_source_file') }} as source_file
-    on bds.raw_file_path = source_file.raw_file_path
+    on bds.raw_uri = source_file.raw_uri

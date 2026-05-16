@@ -43,6 +43,8 @@ select
     loan_status,
     loans.pipeline_run_id,
     loans.source_resource_name,
+    loans.storage_backend,
+    loans.raw_uri,
     loans.raw_file_path,
     loans.sha256_checksum
 from loans
@@ -51,4 +53,4 @@ left join {{ ref('dim_lender') }} as lender
 left join {{ ref('dim_naics') }} as naics
     on loans.naics_sector_key = naics.naics_key
 left join {{ ref('dim_source_file') }} as source_file
-    on loans.raw_file_path = source_file.raw_file_path
+    on loans.raw_uri = source_file.raw_uri

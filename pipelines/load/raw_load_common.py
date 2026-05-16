@@ -155,12 +155,19 @@ def _read_bls_laus_json(path: Path) -> pd.DataFrame:
 
 def _with_metadata(frame: pd.DataFrame, manifest: dict[str, Any]) -> pd.DataFrame:
     enriched = frame.copy()
+    local_raw_path = manifest.get("local_raw_path")
+    raw_uri = manifest.get("raw_uri") or local_raw_path or manifest.get("s3_raw_uri")
+    storage_backend = manifest.get("storage_backend") or (
+        "s3" if not local_raw_path else "local"
+    )
     enriched["pipeline_run_id"] = manifest["pipeline_run_id"]
     enriched["source_system"] = manifest["source_system"]
     enriched["source_dataset"] = manifest["dataset_name"]
     enriched["source_resource_name"] = manifest["resource_name"]
     enriched["ingestion_date"] = manifest["ingestion_date"]
-    enriched["raw_file_path"] = manifest["local_raw_path"]
+    enriched["storage_backend"] = storage_backend
+    enriched["raw_uri"] = raw_uri
+    enriched["raw_file_path"] = local_raw_path or raw_uri
     enriched["s3_raw_uri"] = manifest["s3_raw_uri"]
     enriched["sha256_checksum"] = manifest["sha256_checksum"]
     return enriched
