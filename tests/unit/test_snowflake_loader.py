@@ -62,11 +62,19 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
         "SOURCE_DATASET",
         "SOURCE_RESOURCE_NAME",
         "INGESTION_DATE",
+        "STORAGE_BACKEND",
+        "RAW_URI",
         "RAW_FILE_PATH",
         "S3_RAW_URI",
         "SHA256_CHECKSUM",
     } <= set(loaded_sba.columns)
+    sba_manifest = json.loads(manifests["sba_7a"][0].read_text(encoding="utf-8"))
     assert loaded_sba["PIPELINE_RUN_ID"].tolist() == ["run-123", "run-123"]
+    assert loaded_sba["STORAGE_BACKEND"].tolist() == ["local", "local"]
+    assert loaded_sba["RAW_URI"].tolist() == [
+        sba_manifest["local_raw_path"],
+        sba_manifest["local_raw_path"],
+    ]
     assert loaded_sba["S3_RAW_URI"].tolist() == [
         "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
         "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
@@ -109,10 +117,26 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
         storage_integration="SBL_S3_INT",
     )
 
-    assert "create stage if not exists RAW.RAW_S3_STAGE" in " ".join(
-        connection.sql_statements
+    sql = " ".join(connection.sql_statements)
+    assert "create stage if not exists RAW.RAW_S3_STAGE" in sql
+    assert "storage_integration = SBL_S3_INT" in sql
+    assert (
+        "create or replace table RAW.RAW_SBA_7A_FOIA using template"
+        in sql
     )
-    assert "storage_integration = SBL_S3_INT" in " ".join(connection.sql_statements)
+    assert (
+        "alter table RAW.RAW_SBA_7A_FOIA add column if not exists RAW_URI varchar"
+        in sql
+    )
+    assert "update RAW.RAW_SBA_7A_FOIA set" in sql
+    assert "STORAGE_BACKEND = 's3'" in sql
+    assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a.csv'" in sql
+    assert "create or replace table RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
+    assert "insert into RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
+    assert "lateral flatten(input => PAYLOAD) as row" in sql
+    assert "create or replace table RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
+    assert "insert into RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
+    assert "lateral flatten(input => PAYLOAD:normalized_rows) as row" in sql
     assert any(
         statement.startswith("copy into RAW.RAW_SBA_7A_FOIA")
         for statement in connection.sql_statements

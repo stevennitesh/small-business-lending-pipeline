@@ -45,6 +45,45 @@ SOURCE_TABLES = {
     "raw_bls_laus_state_month": "bls_laus",
 }
 
+RAW_METADATA_COLUMNS = {
+    "PIPELINE_RUN_ID": "varchar",
+    "SOURCE_SYSTEM": "varchar",
+    "SOURCE_DATASET": "varchar",
+    "SOURCE_RESOURCE_NAME": "varchar",
+    "INGESTION_DATE": "varchar",
+    "STORAGE_BACKEND": "varchar",
+    "RAW_URI": "varchar",
+    "RAW_FILE_PATH": "varchar",
+    "S3_RAW_URI": "varchar",
+    "SHA256_CHECKSUM": "varchar",
+}
+
+CENSUS_BDS_RAW_COLUMNS = {
+    "YEAR": "varchar",
+    "NAME": "varchar",
+    "STATE": "varchar",
+    "ESTAB": "varchar",
+    "ESTABS_ENTRY": "varchar",
+    "ESTABS_ENTRY_RATE": "varchar",
+    "ESTABS_EXIT": "varchar",
+    "ESTABS_EXIT_RATE": "varchar",
+    "FIRM": "varchar",
+    "JOB_CREATION": "varchar",
+    "JOB_DESTRUCTION": "varchar",
+}
+
+BLS_LAUS_RAW_COLUMNS = {
+    "SERIES_ID": "varchar",
+    "STATE_FIPS": "varchar",
+    "STATE_ABBR": "varchar",
+    "STATE_NAME": "varchar",
+    "OBSERVED_MONTH": "varchar",
+    "VALUE": "varchar",
+    "YEAR": "varchar",
+    "PERIOD": "varchar",
+    "FOOTNOTES": "variant",
+}
+
 
 class SnowflakeRawLoadError(RuntimeError):
     pass
@@ -294,9 +333,10 @@ def load_raw_extracts_to_snowflake_from_s3(
     table_row_counts: dict[str, int] = {}
     for source_table, manifests in manifest_groups.items():
         table_name = SNOWFLAKE_RAW_TABLES[source_table]
-        _copy_manifest_group_from_stage(
+        _load_s3_manifest_group(
             connection,
             raw_schema=raw_schema,
+            source_table=source_table,
             table_name=table_name,
             manifests=manifests,
             stage_name=stage_name,
@@ -416,7 +456,6 @@ def _copy_manifest_group_from_stage(
     stage_name: str,
 ) -> None:
     with connection.cursor() as cursor:
-        cursor.execute(f"truncate table if exists {raw_schema}.{table_name}")
         for manifest in manifests:
             reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
             file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
@@ -429,6 +468,311 @@ def _copy_manifest_group_from_stage(
                 on_error = abort_statement
                 """
             )
+
+
+def _load_s3_manifest_group(
+    connection,
+    *,
+    raw_schema: str,
+    source_table: str,
+    table_name: str,
+    manifests: list[dict[str, Any]],
+    stage_name: str,
+) -> None:
+    if source_table in {"raw_sba_7a_foia", "raw_sba_504_foia"}:
+        _create_csv_source_table_from_stage(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            manifest=manifests[0],
+            stage_name=stage_name,
+        )
+        _copy_csv_manifest_group_from_stage(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            manifests=manifests,
+            stage_name=stage_name,
+        )
+        return
+
+    if source_table == "raw_census_bds_state_year":
+        _create_explicit_source_table(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            source_columns=CENSUS_BDS_RAW_COLUMNS,
+        )
+        for manifest in manifests:
+            _insert_census_bds_json_from_stage(
+                connection=connection,
+                raw_schema=raw_schema,
+                table_name=table_name,
+                manifest=manifest,
+                stage_name=stage_name,
+            )
+        return
+
+    if source_table == "raw_bls_laus_state_month":
+        _create_explicit_source_table(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            source_columns=BLS_LAUS_RAW_COLUMNS,
+        )
+        for manifest in manifests:
+            _insert_bls_laus_json_from_stage(
+                connection=connection,
+                raw_schema=raw_schema,
+                table_name=table_name,
+                manifest=manifest,
+                stage_name=stage_name,
+            )
+        return
+
+    raise SnowflakeRawLoadError(f"Unsupported Snowflake S3 source table: {source_table}")
+
+
+def _create_csv_source_table_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
+    file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            create or replace table {raw_schema}.{table_name}
+            using template (
+              select array_agg(object_construct(
+                'COLUMN_NAME', column_name,
+                'TYPE', type,
+                'NULLABLE', true
+              ))
+              from table(
+                infer_schema(
+                  location => '@{raw_schema}.{stage_name}/{reference.key}',
+                  file_format => '{file_format}',
+                  ignore_case => true
+                )
+              )
+            )
+            """
+        )
+    _add_metadata_columns(connection, raw_schema=raw_schema, table_name=table_name)
+
+
+def _copy_csv_manifest_group_from_stage(
+    connection,
+    *,
+    raw_schema: str,
+    table_name: str,
+    manifests: list[dict[str, Any]],
+    stage_name: str,
+) -> None:
+    _copy_manifest_group_from_stage(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        manifests=manifests,
+        stage_name=stage_name,
+    )
+    with connection.cursor() as cursor:
+        for manifest in manifests:
+            cursor.execute(
+                f"""
+                update {raw_schema}.{table_name}
+                set {_metadata_assignments(manifest)}
+                where RAW_URI is null
+                """
+            )
+
+
+def _create_explicit_source_table(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    source_columns: dict[str, str],
+) -> None:
+    column_definitions = {
+        **source_columns,
+        **RAW_METADATA_COLUMNS,
+    }
+    columns_sql = ",\n              ".join(
+        f"{column_name} {column_type}"
+        for column_name, column_type in column_definitions.items()
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            create or replace table {raw_schema}.{table_name} (
+              {columns_sql}
+            )
+            """
+        )
+
+
+def _add_metadata_columns(connection, *, raw_schema: str, table_name: str) -> None:
+    with connection.cursor() as cursor:
+        for column_name, column_type in RAW_METADATA_COLUMNS.items():
+            cursor.execute(
+                f"""
+                alter table {raw_schema}.{table_name}
+                add column if not exists {column_name} {column_type}
+                """
+            )
+
+
+def _insert_census_bds_json_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    _copy_json_payload_to_landing(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        manifest=manifest,
+        stage_name=stage_name,
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            insert into {raw_schema}.{table_name} (
+              YEAR, NAME, STATE, ESTAB, ESTABS_ENTRY, ESTABS_ENTRY_RATE,
+              ESTABS_EXIT, ESTABS_EXIT_RATE, FIRM, JOB_CREATION, JOB_DESTRUCTION,
+              {", ".join(RAW_METADATA_COLUMNS)}
+            )
+            select
+              row.value[0]::varchar as YEAR,
+              row.value[1]::varchar as NAME,
+              row.value[2]::varchar as STATE,
+              row.value[3]::varchar as ESTAB,
+              row.value[4]::varchar as ESTABS_ENTRY,
+              row.value[5]::varchar as ESTABS_ENTRY_RATE,
+              row.value[6]::varchar as ESTABS_EXIT,
+              row.value[7]::varchar as ESTABS_EXIT_RATE,
+              row.value[8]::varchar as FIRM,
+              row.value[9]::varchar as JOB_CREATION,
+              row.value[10]::varchar as JOB_DESTRUCTION,
+              {_metadata_select_list(manifest)}
+            from {raw_schema}.{table_name}_LANDING,
+              lateral flatten(input => PAYLOAD) as row
+            where row.index > 0
+            """
+        )
+
+
+def _insert_bls_laus_json_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    _copy_json_payload_to_landing(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        manifest=manifest,
+        stage_name=stage_name,
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            insert into {raw_schema}.{table_name} (
+              SERIES_ID, STATE_FIPS, STATE_ABBR, STATE_NAME, OBSERVED_MONTH,
+              VALUE, YEAR, PERIOD, FOOTNOTES, {", ".join(RAW_METADATA_COLUMNS)}
+            )
+            select
+              row.value:series_id::varchar as SERIES_ID,
+              row.value:state_fips::varchar as STATE_FIPS,
+              row.value:state_abbr::varchar as STATE_ABBR,
+              row.value:state_name::varchar as STATE_NAME,
+              row.value:observed_month::varchar as OBSERVED_MONTH,
+              row.value:value::varchar as VALUE,
+              row.value:year::varchar as YEAR,
+              row.value:period::varchar as PERIOD,
+              row.value:footnotes as FOOTNOTES,
+              {_metadata_select_list(manifest)}
+            from {raw_schema}.{table_name}_LANDING,
+              lateral flatten(input => PAYLOAD:normalized_rows) as row
+            """
+        )
+
+
+def _copy_json_payload_to_landing(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
+    file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            create or replace temporary table {raw_schema}.{table_name}_LANDING (
+              PAYLOAD variant
+            )
+            """
+        )
+        cursor.execute(
+            f"""
+            copy into {raw_schema}.{table_name}_LANDING
+            from @{raw_schema}.{stage_name}/{reference.key}
+            file_format = (format_name = {file_format})
+            on_error = abort_statement
+            """
+        )
+
+
+def _metadata_assignments(manifest: dict[str, Any]) -> str:
+    return ", ".join(
+        f"{column_name} = {_sql_literal(value)}"
+        for column_name, value in _metadata_values(manifest).items()
+    )
+
+
+def _metadata_select_list(manifest: dict[str, Any]) -> str:
+    return ", ".join(
+        f"{_sql_literal(value)} as {column_name}"
+        for column_name, value in _metadata_values(manifest).items()
+    )
+
+
+def _metadata_values(manifest: dict[str, Any]) -> dict[str, Any]:
+    local_raw_path = manifest.get("local_raw_path")
+    raw_uri = manifest.get("raw_uri") or manifest.get("s3_raw_uri") or local_raw_path
+    return {
+        "PIPELINE_RUN_ID": manifest["pipeline_run_id"],
+        "SOURCE_SYSTEM": manifest["source_system"],
+        "SOURCE_DATASET": manifest["dataset_name"],
+        "SOURCE_RESOURCE_NAME": manifest["resource_name"],
+        "INGESTION_DATE": manifest["ingestion_date"],
+        "STORAGE_BACKEND": manifest.get("storage_backend") or "s3",
+        "RAW_URI": raw_uri,
+        "RAW_FILE_PATH": local_raw_path or raw_uri,
+        "S3_RAW_URI": manifest["s3_raw_uri"],
+        "SHA256_CHECKSUM": manifest["sha256_checksum"],
+    }
+
+
+def _sql_literal(value: Any) -> str:
+    if value is None:
+        return "null"
+    return "'" + str(value).replace("'", "''") + "'"
 
 
 def _stage_file_format(raw_schema: str, file_format: str) -> str:
