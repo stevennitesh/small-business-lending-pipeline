@@ -30,7 +30,7 @@ def test_cloud_flow_declares_expected_stage_order():
     assert local_flow.CLOUD_FLOW_STAGES == (
         "initialize_run",
         "load_config",
-        "require_final_mode_config",
+        "require_cloud_mode_config",
         "extract_sources",
         "write_manifests",
         "validate_raw_outputs",
@@ -97,7 +97,7 @@ def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
     )
 
     with pytest.raises(RuntimeError, match="Missing cloud mode configuration"):
-        local_flow.require_final_mode_config.fn(context)
+        local_flow.require_cloud_mode_config.fn(context)
 
 
 def test_cloud_summary_records_cloud_outputs(tmp_path):

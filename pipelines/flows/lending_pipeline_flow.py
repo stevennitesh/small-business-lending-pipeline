@@ -96,7 +96,7 @@ LOCAL_FLOW_STAGES = (
 CLOUD_FLOW_STAGES = (
     "initialize_run",
     "load_config",
-    "require_final_mode_config",
+    "require_cloud_mode_config",
     "extract_sources",
     "write_manifests",
     "validate_raw_outputs",
@@ -109,6 +109,8 @@ CLOUD_FLOW_STAGES = (
     "write_run_summary",
 )
 
+# Compatibility alias for older final-mode callers; active route code should use
+# CLOUD_FLOW_STAGES.
 FINAL_FLOW_STAGES = CLOUD_FLOW_STAGES
 FLOW_STAGES = LOCAL_FLOW_STAGES
 
@@ -255,7 +257,7 @@ def load_config(config_dir: str = "config") -> ProjectConfig:
 
 
 @task
-def require_final_mode_config(context: LocalRunContext) -> str:
+def require_cloud_mode_config(context: LocalRunContext) -> str:
     if not context.is_cloud_route:
         return context.s3_bucket or ""
 
@@ -273,6 +275,9 @@ def require_final_mode_config(context: LocalRunContext) -> str:
             "Missing cloud mode configuration: " + ", ".join(sorted(missing))
         )
     return bucket
+
+
+require_final_mode_config = require_cloud_mode_config
 
 
 @task
@@ -650,8 +655,8 @@ def lending_pipeline_flow(
         completed_stages.append("load_config")
 
         if context.is_cloud_route:
-            require_final_mode_config(context)
-            completed_stages.append("require_final_mode_config")
+            require_cloud_mode_config(context)
+            completed_stages.append("require_cloud_mode_config")
 
         extraction_paths = extract_sources(context, project_config)
         completed_stages.extend(["extract_sources", "write_manifests"])
