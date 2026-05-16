@@ -161,9 +161,26 @@ python -m pipelines.flows.lending_pipeline_flow \
 ```bash
 make install
 make test
+make dbt-local
 ```
 
-The initial repository skeleton includes placeholder tests. Source extraction, validation, dbt, orchestration, and dashboard checks will be added with their implementation slices.
+`make dbt-local` is the WSL-safe dbt verification path; it compiles the local dbt graph without running the full live-data DuckDB build. When you intentionally want the heavier full local dbt build, use:
+
+```bash
+make dbt-build-local-full
+```
+
+Local generated data can be previewed for cleanup with:
+
+```bash
+make cleanup-local-data-dry-run
+```
+
+Apply the cleanup only after reviewing the listed paths:
+
+```bash
+make cleanup-local-data
+```
 
 ## Cloud Warehouse Run
 

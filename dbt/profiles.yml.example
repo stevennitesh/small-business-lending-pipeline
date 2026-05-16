@@ -4,7 +4,7 @@ small_business_lending_pipeline:
     dev_duckdb:
       type: duckdb
       path: ../data/warehouse/small_business_lending.duckdb
-      threads: 4
+      threads: 1
 
     prod_snowflake:
       type: snowflake

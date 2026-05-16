@@ -50,14 +50,16 @@ Parallel groups:
   - The older Python connector Snowflake loader can still auto-create enriched raw tables from local files.
 - Relevant checks:
   - `make test`
-  - `make dbt-local`
+  - `make dbt-local` for lightweight local dbt compile verification.
+  - `make dbt-build-local-full` only when an explicit full live-data DuckDB build is needed and WSL has enough memory headroom.
   - `.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py tests/unit/test_snowflake_loader.py tests/integration/test_duckdb_loader.py`
   - `git diff --check`
 
 ## Acceptance Checks
 
 - Local route still passes focused flow and DuckDB loader tests.
-- `make dbt-local` passes after dbt joins move to route-neutral raw identity.
+- `make dbt-local` compiles after dbt joins move to route-neutral raw identity.
+- The explicit full local build remains available as `make dbt-build-local-full`.
 - Cloud route tests prove raw artifacts are S3-backed and Snowflake raw loading does not use local raw paths.
 - Snowflake loader tests prove a fresh fake Snowflake warehouse can create/load required raw tables from S3-oriented inputs.
 - Run summaries and docs clearly identify `local` and `cloud` routes.

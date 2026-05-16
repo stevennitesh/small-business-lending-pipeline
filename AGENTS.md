@@ -94,7 +94,7 @@ Each implementation slice should end with verification appropriate to its scope.
 - config: parser tests and required-key checks;
 - extractors: fixture-based tests plus a controlled source smoke check when appropriate;
 - validation: focused tests for invalid and valid examples;
-- dbt: `dbt build --target dev_duckdb`;
+- dbt: prefer `make dbt-local`, which is the lightweight local dbt compile check; use `make dbt-build-local-full` only when an explicit full live-data DuckDB build is needed and WSL has enough memory headroom;
 - orchestration: `make run-local`;
 - documentation-only changes: `git diff --check` plus targeted review.
 

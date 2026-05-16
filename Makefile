@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local run-cloud run-final dbt-local dbt-seed-local powerbi-model-check
+.PHONY: install test runtime-smoke run-local run-cloud run-final dbt-local dbt-compile-local dbt-build-local-full dbt-seed-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -35,11 +35,22 @@ run-cloud: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 run-final: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_final_pipeline.sh
 
-dbt-local: $(DBT_PROFILES_TMP)/profiles.yml
-	scripts/run_dbt_local.sh
+dbt-local: dbt-compile-local
+
+dbt-compile-local: $(DBT_PROFILES_TMP)/profiles.yml
+	scripts/run_dbt_local.sh compile
+
+dbt-build-local-full: $(DBT_PROFILES_TMP)/profiles.yml
+	scripts/run_dbt_local.sh build
 
 dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb
+
+cleanup-local-data-dry-run:
+	$(VENV_PYTHON) scripts/cleanup_local_data.py --dry-run
+
+cleanup-local-data:
+	$(VENV_PYTHON) scripts/cleanup_local_data.py --apply
 
 powerbi-model-check:
 	$(VENV_PYTHON) scripts/validate_powerbi_model.py
