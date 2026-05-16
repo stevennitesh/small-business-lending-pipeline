@@ -11,7 +11,7 @@ The recruiter-facing story should be simple: the pipeline is proven locally firs
 
 ## Current Reality
 
-The repo already has separate local and final stage lists in `pipelines/flows/lending_pipeline_flow.py`.
+The repo now has active local and cloud route stage lists in `pipelines/flows/lending_pipeline_flow.py`. The older `final` run-mode name remains only as a compatibility alias for callers and scripts that predate the cloud naming.
 
 Local mode currently does this:
 
@@ -19,14 +19,14 @@ Local mode currently does this:
 source extracts -> local raw files -> raw validation -> DuckDB raw tables -> dbt dev_duckdb -> local BI CSV exports
 ```
 
-Final mode currently does this:
+Cloud mode is intended to do this:
 
 ```text
-source extracts -> local raw files -> raw validation -> upload raw artifacts to S3
-             -> Snowflake raw load from local files -> dbt prod_snowflake -> Snowflake BI tables
+source extracts -> S3 raw landing zone -> raw validation -> Snowflake raw load from S3
+             -> dbt prod_snowflake -> Snowflake BI tables
 ```
 
-That final path demonstrates S3 and Snowflake, but it is still local-file-centered. The cloud route should instead make S3 the cloud raw landing owner and make Snowflake load from S3.
+The local-file Snowflake loader remains available as compatibility, but it is not the active cloud route. The active cloud route makes S3 the cloud raw landing owner and makes Snowflake load from S3-backed manifests.
 
 ## Target Architecture
 
@@ -88,8 +88,8 @@ Outcome: the code and docs explain local versus cloud ownership clearly.
 
 Changes:
 
-- Introduce `cloud` as the public cloud run mode.
-- Keep `final` as a backward-compatible alias if needed, or deprecate it in docs after scripts are updated.
+- Use `cloud` as the public cloud run mode.
+- Keep `final` as a backward-compatible alias until the later deletion phase.
 - Add a `make run-cloud` command and `scripts/run_cloud_pipeline.sh`.
 - Keep `make run-local` as the default development command.
 - Update README architecture and run instructions to show the two routes side by side.
@@ -224,7 +224,7 @@ Changes:
 - Add Snowflake stage setup for the configured S3 raw landing zone.
 - Add file-format definitions for CSV and JSON.
 - Prefer `COPY INTO` from S3 stage into Snowflake raw tables.
-- Keep the Python connector fallback only as a deliberate fallback path, not the main cloud story.
+- Keep the Python connector fallback only as a compatibility path, not the main cloud story.
 - Record the raw load pattern in `raw_pipeline_run_summary`.
 - Reconcile Snowflake row counts against manifests after load.
 
@@ -351,6 +351,4 @@ Manual evidence:
 
 ## Open Questions
 
-- Should the public run mode be renamed from `final` to `cloud`, or should `cloud` be added as an alias while preserving `final`?
-- Should the first Snowflake-from-S3 implementation use external stage plus `COPY INTO`, or should the Python connector fallback stay as the default until stage credentials are fully configured?
 - Should validation read full large S3 objects for row counts, or should extraction compute and trust manifest row counts while validation checks object existence, checksum, schema metadata, and source identity?

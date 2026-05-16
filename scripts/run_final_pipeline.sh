@@ -8,6 +8,8 @@ fi
 export PREFECT_HOME="${PREFECT_HOME:-.tmp/prefect}"
 mkdir -p "$PREFECT_HOME"
 
+# Compatibility wrapper for older commands. Use run_cloud_pipeline.sh for the
+# active cloud route.
 "$PYTHON_BIN" -m pipelines.flows.lending_pipeline_flow \
   --run-mode cloud \
   --dbt-target prod_snowflake \

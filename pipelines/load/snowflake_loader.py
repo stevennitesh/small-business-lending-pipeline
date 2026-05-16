@@ -173,6 +173,8 @@ def load_raw_extracts_to_snowflake(
     validation_result_paths: Iterable[Path | str],
     write_pandas_func: WritePandasFunc = write_pandas,
 ) -> SnowflakeRawLoadSummary:
+    """Compatibility local-file loader; cloud flow uses the S3 loader."""
+
     validation_results = load_validation_results(
         validation_result_paths,
         error_cls=SnowflakeRawLoadError,
