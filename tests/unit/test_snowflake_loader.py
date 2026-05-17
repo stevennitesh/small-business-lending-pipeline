@@ -161,6 +161,7 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     assert "create or replace file format RAW.RAW_JSON_FORMAT" in sql
     assert "create or replace stage RAW.RAW_S3_STAGE" in sql
     assert "storage_integration = SBL_S3_INT" in sql
+    assert "escape_unenclosed_field = none" in sql
     assert "error_on_column_count_mismatch = false" in sql
     assert "create or replace table RAW.RAW_SBA_7A_FOIA (" in sql
     assert "LOANNUMBER varchar" in sql

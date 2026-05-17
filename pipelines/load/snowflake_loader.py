@@ -470,6 +470,7 @@ def _create_s3_stage_load_objects(
               type = csv
               skip_header = 1
               field_optionally_enclosed_by = '"'
+              escape_unenclosed_field = none
               trim_space = true
               null_if = ('', 'NULL', 'null')
               error_on_column_count_mismatch = false
