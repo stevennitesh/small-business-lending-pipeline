@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from typing import Any, Literal, Protocol
+from typing import Any, BinaryIO, Literal, Protocol
 
 from pipelines.utils.paths import (
     build_local_raw_path,
@@ -17,7 +18,7 @@ StorageBackend = Literal["local", "s3"]
 
 
 class S3ObjectClientProtocol(Protocol):
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> Any:
+    def put_object(self, *, Bucket: str, Key: str, Body: Any) -> Any:
         ...
 
     def get_object(self, *, Bucket: str, Key: str) -> Any:
@@ -182,6 +183,14 @@ class LocalRawArtifactStore:
         location.local_path.parent.mkdir(parents=True, exist_ok=True)
         location.local_path.write_bytes(payload)
 
+    def write_file(self, location: RawArtifactLocation, payload: BinaryIO) -> None:
+        if location.local_path is None:
+            raise ValueError("Local raw artifact location requires local_path.")
+        location.local_path.parent.mkdir(parents=True, exist_ok=True)
+        payload.seek(0)
+        with location.local_path.open("wb") as output_file:
+            shutil.copyfileobj(payload, output_file)
+
     def read_bytes(self, location: RawArtifactLocation) -> bytes:
         if location.local_path is None:
             raise ValueError("Local raw artifact location requires local_path.")
@@ -280,6 +289,15 @@ class S3RawArtifactStore:
 
     def write_bytes(self, location: RawArtifactLocation, payload: bytes) -> None:
         self._require_s3_location(location)
+        self.s3_client.put_object(
+            Bucket=self.bucket,
+            Key=location.s3_key,
+            Body=payload,
+        )
+
+    def write_file(self, location: RawArtifactLocation, payload: BinaryIO) -> None:
+        self._require_s3_location(location)
+        payload.seek(0)
         self.s3_client.put_object(
             Bucket=self.bucket,
             Key=location.s3_key,

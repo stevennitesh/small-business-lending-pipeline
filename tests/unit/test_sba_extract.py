@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 import requests
 
+import pipelines.extract.sba_extract as sba_extract
 from pipelines.extract.sba_extract import (
     DEFAULT_SBA_PACKAGE_URL,
     SBADiscoveryConfig,
@@ -72,7 +74,7 @@ def _sample_package_metadata() -> dict:
 
 
 class FakeResponse:
-    def __init__(self, content: bytes | dict, status_code: int = 200):
+    def __init__(self, content: bytes | dict | list[bytes], status_code: int = 200):
         self.content = content
         self.status_code = status_code
 
@@ -81,6 +83,9 @@ class FakeResponse:
             raise requests.HTTPError(f"HTTP {self.status_code}")
 
     def iter_content(self, chunk_size: int):
+        if isinstance(self.content, list):
+            yield from self.content
+            return
         if not isinstance(self.content, bytes):
             raise TypeError("FakeResponse content is not bytes")
         for index in range(0, len(self.content), chunk_size):
@@ -93,7 +98,7 @@ class FakeResponse:
 
 
 class FakeSession:
-    def __init__(self, downloads: dict[str, bytes | dict | Exception]):
+    def __init__(self, downloads: dict[str, bytes | dict | list[bytes] | Exception]):
         self.downloads = downloads
         self.requested_urls: list[str] = []
 
@@ -108,9 +113,11 @@ class FakeSession:
 class FakeS3ObjectClient:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], bytes] = {}
+        self.body_types: dict[tuple[str, str], str] = {}
 
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
+    def put_object(self, *, Bucket: str, Key: str, Body) -> None:
+        self.body_types[(Bucket, Key)] = type(Body).__name__
+        self.objects[(Bucket, Key)] = Body.read() if hasattr(Body, "read") else Body
 
     def get_object(self, *, Bucket: str, Key: str):
         raise NotImplementedError
@@ -278,6 +285,52 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     assert manifest["validation_status"] == "passed"
 
 
+def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(
+    tmp_path, monkeypatch
+):
+    spec = SBAResourceSpec(
+        logical_name="sba_7a_fy2020_present",
+        program="7a",
+        source_period="fy2020_present",
+        expected_format="csv",
+        required=True,
+        title_pattern="FOIA - 7(a) (FY2020-Present)",
+    )
+    metadata = _sample_package_metadata()
+    chunks = [b"col_a,", b"col_b\n", b"1,2\n", b"3,4\n"]
+    expected_payload = b"".join(chunks)
+    session = FakeSession({"https://example.test/7a_2020_present.csv": chunks})
+
+    def fail_full_payload_hash(_payload: bytes) -> str:
+        raise AssertionError("SBA extraction should hash streamed chunks")
+
+    monkeypatch.setattr(
+        sba_extract,
+        "hash_bytes",
+        fail_full_payload_hash,
+        raising=False,
+    )
+
+    summary = extract_sba_foia(
+        specs=[spec],
+        package_metadata=metadata,
+        session=session,
+        data_root=tmp_path,
+        s3_bucket="unit-test-bucket",
+        pipeline_run_id="run-123",
+        extracted_at_utc="2026-05-06T12:00:00Z",
+    )
+
+    result = summary.results["sba_7a_fy2020_present"]
+    assert result.local_raw_path.read_bytes() == expected_payload
+    assert result.manifest.row_count == 2
+    assert result.manifest.column_count == 2
+    assert result.manifest.file_size_bytes == len(expected_payload)
+    assert result.manifest.sha256_checksum == hashlib.sha256(
+        expected_payload
+    ).hexdigest()
+
+
 def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
     spec = SBAResourceSpec(
         logical_name="sba_7a_fy2020_present",
@@ -365,6 +418,7 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
     assert manifest["raw_uri"].startswith("s3://cloud-bucket/raw/sba/7a_foia/")
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
     assert s3_client.objects[("cloud-bucket", key)] == payload
+    assert s3_client.body_types[("cloud-bucket", key)] != "bytes"
     manifest_location = summary.manifest_locations["sba_7a_fy2020_present"]
     assert manifest_location.artifact_uri.startswith(
         "s3://cloud-bucket/manifests/sba/7a_504_foia/"

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import re
+import tempfile
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, BinaryIO, Mapping
 from urllib.parse import urlparse
 
 import requests
@@ -26,7 +28,7 @@ from pipelines.utils.dates import (
     ingestion_date_from_timestamp,
     utc_now,
 )
-from pipelines.utils.hashing import hash_bytes, hash_schema
+from pipelines.utils.hashing import hash_schema
 from pipelines.utils.manifest import (
     ExtractionManifest,
     ExtractionResult,
@@ -384,18 +386,16 @@ def _download_resource(
     response = session.get(resource.url, timeout=timeout, stream=True)
     response.raise_for_status()
 
-    raw_payload = b"".join(
-        chunk
-        for chunk in response.iter_content(chunk_size=1024 * 1024)
-        if chunk
-    )
-    raw_artifact_store.write_bytes(location, raw_payload)
-
-    row_count, column_count, schema_hash = _profile_downloaded_payload(
-        raw_payload,
-        resource.file_format,
-        resource.filename,
-    )
+    raw_payload, sha256_checksum, file_size_bytes = _spool_response_payload(response)
+    try:
+        raw_artifact_store.write_file(location, raw_payload)
+        row_count, column_count, schema_hash = _profile_downloaded_payload(
+            raw_payload,
+            resource.file_format,
+            resource.filename,
+        )
+    finally:
+        raw_payload.close()
     manifest_fields = location.manifest_fields()
     manifest = ExtractionManifest(
         pipeline_run_id=pipeline_run_id,
@@ -409,7 +409,7 @@ def _download_resource(
         s3_raw_uri=str(manifest_fields["s3_raw_uri"]),
         file_format=resource.file_format,
         row_count=row_count,
-        sha256_checksum=hash_bytes(raw_payload),
+        sha256_checksum=sha256_checksum,
         schema_hash=schema_hash,
         validation_status="passed",
         raw_uri=str(manifest_fields["raw_uri"]),
@@ -421,7 +421,7 @@ def _download_resource(
             "source_period": resource.spec.source_period,
         },
         column_count=column_count,
-        file_size_bytes=len(raw_payload),
+        file_size_bytes=file_size_bytes,
         validation_messages=[],
     )
     manifest_path = _build_local_manifest_path(
@@ -469,16 +469,40 @@ def _manifest_artifact_location(
     )
 
 
+def _spool_response_payload(response: requests.Response) -> tuple[BinaryIO, str, int]:
+    payload = tempfile.SpooledTemporaryFile(max_size=16 * 1024 * 1024)
+    hasher = hashlib.sha256()
+    file_size_bytes = 0
+
+    try:
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if not chunk:
+                continue
+            hasher.update(chunk)
+            file_size_bytes += len(chunk)
+            payload.write(chunk)
+        payload.seek(0)
+    except Exception:
+        payload.close()
+        raise
+
+    return payload, hasher.hexdigest(), file_size_bytes
+
+
 def _profile_downloaded_payload(
-    payload: bytes,
+    payload: BinaryIO,
     file_format: str,
     filename: str,
 ) -> tuple[int, int | None, str]:
+    payload.seek(0)
     if file_format == "csv":
-        text = payload.decode("utf-8-sig")
-        reader = csv.reader(io.StringIO(text))
-        header = next(reader, [])
-        row_count = sum(1 for _ in reader)
+        text_stream = io.TextIOWrapper(payload, encoding="utf-8-sig", newline="")
+        try:
+            reader = csv.reader(text_stream)
+            header = next(reader, [])
+            row_count = sum(1 for _ in reader)
+        finally:
+            text_stream.detach()
         schema = [
             {"name": column_name, "ordinal": index}
             for index, column_name in enumerate(header)
