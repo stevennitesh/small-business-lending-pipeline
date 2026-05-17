@@ -210,14 +210,17 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     )
 
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    validation_path = local_flow.validate_raw_outputs.fn(
+    validation_output = local_flow.validate_raw_outputs.fn(
         context,
         extraction_paths,
         project_config,
     )
-    validation_payload = json.loads(validation_path.read_text(encoding="utf-8"))
+    validation_payload = json.loads(
+        validation_output.local_path.read_text(encoding="utf-8")
+    )
 
-    assert validation_path.is_file()
+    assert validation_output.local_path.is_file()
+    assert validation_output.artifact_location is None
     assert len(extraction_paths.manifest_paths) == 4
     assert all(Path(path).is_file() for path in extraction_paths.manifest_paths)
     assert {record["status"] for record in validation_payload} == {"passed"}
@@ -835,6 +838,28 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(
     FakeS3ObjectClientHolder.client = s3_client
     monkeypatch.setattr(
         local_flow,
+        "_artifact_store",
+        lambda context, bucket, s3_client=None: local_flow.S3ArtifactStore(
+            bucket=bucket,
+            s3_client=s3_client or FakeS3ObjectClientHolder.client,
+        )
+        if context.is_cloud_route
+        else local_flow.LocalArtifactStore(
+            data_root=context.data_root,
+            s3_bucket=bucket,
+        ),
+    )
+    monkeypatch.setattr(
+        local_flow,
+        "_artifact_reader",
+        lambda context, s3_client=None: local_flow.ArtifactReader(
+            s3_client=FakeS3ObjectClientHolder.client
+            if context.is_cloud_route
+            else s3_client
+        ),
+    )
+    monkeypatch.setattr(
+        local_flow,
         "_raw_artifact_reader",
         lambda context, s3_client=None: RawArtifactReader(
             s3_client=FakeS3ObjectClientHolder.client
@@ -854,12 +879,14 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(
         pipeline_run_id="cloud-fixture-run",
     )
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    validation_path = local_flow.validate_raw_outputs.fn(
+    validation_output = local_flow.validate_raw_outputs.fn(
         context,
         extraction_paths,
         project_config,
     )
-    validation_results = json.loads(validation_path.read_text(encoding="utf-8"))
+    validation_results = json.loads(
+        validation_output.local_path.read_text(encoding="utf-8")
+    )
     manifests = [
         json.loads(path.read_text(encoding="utf-8"))
         for path in extraction_paths.manifest_paths
@@ -869,6 +896,14 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(
     assert all(manifest["local_raw_path"] is None for manifest in manifests)
     assert all(manifest["raw_uri"].startswith("s3://unit-test-bucket/") for manifest in manifests)
     assert {result["status"] for result in validation_results} == {"passed"}
+    assert validation_output.artifact_location is not None
+    assert validation_output.artifact_location.artifact_uri.startswith(
+        "s3://unit-test-bucket/validation/pipeline/raw_validation/"
+    )
+    validation_key = validation_output.artifact_location.artifact_key
+    assert json.loads(s3_client.objects[("unit-test-bucket", validation_key)]) == (
+        validation_results
+    )
 
 
 class FakeS3ObjectClientHolder:

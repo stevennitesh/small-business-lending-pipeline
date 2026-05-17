@@ -47,6 +47,7 @@ from pipelines.load.snowflake_loader import (
 )
 from pipelines.storage.raw_artifacts import (
     ArtifactLocation,
+    ArtifactReader,
     LocalArtifactStore,
     LocalRawArtifactStore,
     RawArtifactLocation,
@@ -57,7 +58,11 @@ from pipelines.storage.raw_artifacts import (
 from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
 from pipelines.utils.dates import utc_now_iso
 from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import ExtractionManifest, write_manifest
+from pipelines.utils.manifest import (
+    ExtractionManifest,
+    manifest_to_json_bytes,
+    write_manifest,
+)
 from pipelines.validation.raw_checks import (
     check_cloud_manifest_storage,
     check_manifest_raw_uri_required,
@@ -75,6 +80,7 @@ from pipelines.validation.validation_result import (
     ValidationFailedError,
     ValidationResult,
     assert_no_blocking_failures,
+    validation_results_to_json_bytes,
     write_validation_results,
 )
 
@@ -180,6 +186,16 @@ class ExtractionPaths:
 
 
 @dataclass(frozen=True)
+class ValidationOutput:
+    local_path: Path
+    artifact_location: ArtifactLocation | None = None
+
+    @property
+    def durable_reference(self) -> Path | ArtifactLocation:
+        return self.artifact_location or self.local_path
+
+
+@dataclass(frozen=True)
 class RawValidationExpectations:
     sba_required_resource_names: list[str]
     census_expected_state_count: int
@@ -211,6 +227,7 @@ class PipelineRunSummary:
     started_at_utc: str
     finished_at_utc: str
     validation_result_path: str | None = None
+    validation_result_uri: str | None = None
     duckdb_path: str | None = None
     dbt_artifacts: dict[str, str] = field(default_factory=dict)
     bi_row_counts: dict[str, int] = field(default_factory=dict)
@@ -310,17 +327,23 @@ def validate_raw_outputs(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
     project_config: ProjectConfig,
-) -> Path:
+) -> ValidationOutput:
     validation_results: list[ValidationResult] = []
+    manifest_references = _manifest_references_for_validation(context, extraction_paths)
+    manifest_artifact_reader = _artifact_reader(context)
     manifests = [
-        json.loads(path.read_text(encoding="utf-8"))
-        for path in extraction_paths.manifest_paths
+        json.loads(_read_artifact_text(reference, manifest_artifact_reader))
+        for reference in manifest_references
     ]
     artifact_reader = _raw_artifact_reader(context)
 
-    for manifest_path in extraction_paths.manifest_paths:
+    for manifest_reference in manifest_references:
         validation_results.extend(
-            check_raw_manifest(manifest_path, artifact_reader=artifact_reader)
+            check_raw_manifest(
+                manifest_reference,
+                artifact_reader=artifact_reader,
+                manifest_artifact_reader=manifest_artifact_reader,
+            )
         )
 
     for manifest in manifests:
@@ -399,26 +422,47 @@ def validate_raw_outputs(
             )
 
     validation_path = context.run_validation_dir / "validation_results.json"
+    validation_location = _validation_artifact_location(context, manifests)
     write_validation_results(validation_results, validation_path)
+    if validation_location is not None:
+        _artifact_store(
+            context,
+            _s3_bucket(context) or "local-validation",
+        ).write_bytes(
+            validation_location,
+            validation_results_to_json_bytes(validation_results),
+        )
     validation_results.append(
         check_validation_output_created(
-            validation_path,
+            validation_location or validation_path,
             pipeline_run_id=context.pipeline_run_id,
             source_system="pipeline",
             source_dataset="raw_validation",
             source_resource_name="validation_results",
+            artifact_reader=manifest_artifact_reader,
         )
     )
     write_validation_results(validation_results, validation_path)
+    if validation_location is not None:
+        _artifact_store(
+            context,
+            _s3_bucket(context) or "local-validation",
+        ).write_bytes(
+            validation_location,
+            validation_results_to_json_bytes(validation_results),
+        )
     assert_no_blocking_failures(validation_results)
-    return validation_path
+    return ValidationOutput(
+        local_path=validation_path,
+        artifact_location=validation_location,
+    )
 
 
 @task
 def load_duckdb_raw_tables(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_result_path: Path,
+    validation_output: ValidationOutput,
 ) -> RawLoadSummary:
     return load_raw_extracts(
         duckdb_path=context.duckdb_path,
@@ -426,7 +470,7 @@ def load_duckdb_raw_tables(
         sba_504_manifest_paths=extraction_paths.sba_504_manifest_paths,
         census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
         bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
-        validation_result_paths=[validation_result_path],
+        validation_result_paths=[validation_output.local_path],
     )
 
 
@@ -434,11 +478,20 @@ def load_duckdb_raw_tables(
 def upload_raw_artifacts_to_s3(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_result_path: Path,
+    validation_output: ValidationOutput,
 ) -> S3UploadSummary:
+    if context.is_cloud_route and validation_output.artifact_location is not None:
+        uploaded_objects = [
+            *(location.artifact_uri for location in extraction_paths.manifest_locations),
+            validation_output.artifact_location.artifact_uri,
+        ]
+        return S3UploadSummary(
+            bucket=_s3_bucket(context),
+            uploaded_objects=tuple(uploaded_objects),
+        )
     return upload_run_artifacts_to_s3(
         manifest_paths=list(extraction_paths.manifest_paths),
-        validation_result_path=validation_result_path,
+        validation_result_path=validation_output.local_path,
         bucket=_s3_bucket(context),
         run_mode=context.run_mode,
     )
@@ -448,7 +501,7 @@ def upload_raw_artifacts_to_s3(
 def load_snowflake_raw_tables(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_result_path: Path,
+    validation_output: ValidationOutput,
 ) -> SnowflakeRawLoadSummary:
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
@@ -462,7 +515,7 @@ def load_snowflake_raw_tables(
             sba_504_manifest_paths=extraction_paths.sba_504_manifest_paths,
             census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
             bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
-            validation_result_paths=[validation_result_path],
+            validation_result_paths=[validation_output.local_path],
             storage_integration=config.storage_integration,
         )
     finally:
@@ -585,7 +638,7 @@ def write_run_summary(
     completed_stages: list[str],
     failed_stage: str | None = None,
     error_message: str | None = None,
-    validation_result_path: Path | None = None,
+    validation_result_path: Path | ValidationOutput | None = None,
     dbt_artifacts: dict[str, str] | None = None,
     bi_row_counts: dict[str, int] | None = None,
     export_paths: list[str] | None = None,
@@ -604,7 +657,8 @@ def write_run_summary(
         error_message=error_message,
         started_at_utc=context.run_started_at_utc,
         finished_at_utc=utc_now_iso(),
-        validation_result_path=str(validation_result_path) if validation_result_path else None,
+        validation_result_path=_validation_output_local_path(validation_result_path),
+        validation_result_uri=_validation_output_uri(validation_result_path),
         duckdb_path=str(context.duckdb_path),
         dbt_artifacts=dbt_artifacts or {},
         bi_row_counts=bi_row_counts or {},
@@ -659,7 +713,7 @@ def lending_pipeline_flow(
     )
     completed_stages.append("initialize_run")
 
-    validation_result_path: Path | None = None
+    validation_result_path: ValidationOutput | None = None
     dbt_artifacts: dict[str, str] = {}
     bi_row_counts: dict[str, int] = {}
     export_paths: list[str] = []
@@ -927,11 +981,84 @@ def _artifact_store(
     return LocalArtifactStore(data_root=context.data_root, s3_bucket=bucket)
 
 
+def _artifact_reader(
+    context: LocalRunContext,
+    s3_client=None,
+) -> ArtifactReader:
+    return ArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
+
+
 def _raw_artifact_reader(
     context: LocalRunContext,
     s3_client=None,
 ) -> RawArtifactReader:
     return RawArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
+
+
+def _manifest_references_for_validation(
+    context: LocalRunContext,
+    extraction_paths: ExtractionPaths,
+) -> tuple[Path | ArtifactLocation, ...]:
+    if context.is_cloud_route and extraction_paths.manifest_locations:
+        return extraction_paths.manifest_locations
+    return extraction_paths.manifest_paths
+
+
+def _read_artifact_text(
+    reference: Path | ArtifactLocation,
+    artifact_reader: ArtifactReader,
+) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return artifact_reader.read_text(reference)
+    return reference.read_text(encoding="utf-8")
+
+
+def _validation_artifact_location(
+    context: LocalRunContext,
+    manifests: list[dict[str, Any]],
+) -> ArtifactLocation | None:
+    if not context.is_cloud_route:
+        return None
+    ingestion_date = (
+        str(manifests[0]["ingestion_date"])
+        if manifests
+        else context.run_started_at_utc[:10]
+    )
+    return _artifact_store(
+        context,
+        _s3_bucket(context) or "local-validation",
+    ).location(
+        prefix="validation",
+        source_system="pipeline",
+        dataset_name="raw_validation",
+        resource_name="validation_results",
+        ingestion_date=ingestion_date,
+        pipeline_run_id=context.pipeline_run_id,
+        filename="validation_results.json",
+    )
+
+
+def _validation_output_local_path(
+    validation_output: Path | ValidationOutput | None,
+) -> str | None:
+    if validation_output is None:
+        return None
+    if isinstance(validation_output, ValidationOutput):
+        return str(validation_output.local_path)
+    return str(validation_output)
+
+
+def _validation_output_uri(
+    validation_output: Path | ValidationOutput | None,
+) -> str | None:
+    if validation_output is None:
+        return None
+    if isinstance(validation_output, ValidationOutput):
+        return str(validation_output.durable_reference.artifact_uri) if isinstance(
+            validation_output.durable_reference,
+            ArtifactLocation,
+        ) else str(validation_output.durable_reference)
+    return str(validation_output)
 
 
 def _raw_validation_expectations(
@@ -1002,7 +1129,7 @@ def _write_local_fixture_extracts(
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
     raw_paths = _write_fixture_raw_files(context)
-    manifest_paths = {
+    manifest_outputs = {
         resource_name: _write_fixture_manifest(
             context=context,
             resource_name=resource_name,
@@ -1023,12 +1150,38 @@ def _write_local_fixture_extracts(
             schema_fields,
         ) in raw_paths.items()
     }
+    manifest_paths = {
+        resource_name: manifest_path
+        for resource_name, (manifest_path, _) in manifest_outputs.items()
+    }
+    manifest_locations = {
+        resource_name: manifest_location
+        for resource_name, (_, manifest_location) in manifest_outputs.items()
+        if manifest_location is not None
+    }
     return ExtractionPaths(
         sba_7a_manifest_paths=(manifest_paths["sba_7a_fy2020_present"],),
         sba_504_manifest_paths=(manifest_paths["sba_504_fy2010_present"],),
         census_bds_manifest_paths=(manifest_paths["bds_state_year"],),
         bls_laus_manifest_paths=(manifest_paths["laus_state_month"],),
         manifest_paths=tuple(manifest_paths.values()),
+        sba_7a_manifest_locations=tuple(
+            [manifest_locations["sba_7a_fy2020_present"]]
+        )
+        if "sba_7a_fy2020_present" in manifest_locations
+        else (),
+        sba_504_manifest_locations=tuple(
+            [manifest_locations["sba_504_fy2010_present"]]
+        )
+        if "sba_504_fy2010_present" in manifest_locations
+        else (),
+        census_bds_manifest_locations=tuple([manifest_locations["bds_state_year"]])
+        if "bds_state_year" in manifest_locations
+        else (),
+        bls_laus_manifest_locations=tuple([manifest_locations["laus_state_month"]])
+        if "laus_state_month" in manifest_locations
+        else (),
+        manifest_locations=tuple(manifest_locations.values()),
     )
 
 
@@ -1214,7 +1367,7 @@ def _write_fixture_manifest(
     file_format: str,
     schema_fields: list[str],
     source_identity: SourceIdentity,
-) -> Path:
+) -> tuple[Path, ArtifactLocation | None]:
     source_system = source_identity.source_system
     dataset_name = source_identity.dataset_name
     ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
@@ -1249,7 +1402,28 @@ def _write_fixture_manifest(
         / f"{resource_name}.manifest.json"
     )
     write_manifest(manifest, manifest_path)
-    return manifest_path
+    manifest_location = None
+    if context.is_cloud_route:
+        manifest_location = _artifact_store(
+            context,
+            _s3_bucket(context) or "local-fixtures",
+        ).location(
+            prefix="manifests",
+            source_system=manifest.source_system,
+            dataset_name=manifest.dataset_name,
+            resource_name=manifest.resource_name,
+            ingestion_date=manifest.ingestion_date,
+            pipeline_run_id=manifest.pipeline_run_id,
+            filename=manifest_path.name,
+        )
+        _artifact_store(
+            context,
+            _s3_bucket(context) or "local-fixtures",
+        ).write_bytes(
+            manifest_location,
+            manifest_to_json_bytes(manifest),
+        )
+    return manifest_path, manifest_location
 
 
 def _csv_bytes(rows: list[dict[str, Any]]) -> bytes:

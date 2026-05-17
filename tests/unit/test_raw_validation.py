@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from pipelines.storage.raw_artifacts import RawArtifactReader
+from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader, RawArtifactReader
 from pipelines.utils.config import SourceIdentity
 from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_checks import (
@@ -185,6 +185,51 @@ def test_raw_manifest_checks_pass_for_s3_backed_file(tmp_path):
                 {("bucket", "raw/census/bds/file.json"): raw_payload}
             )
         ),
+    )
+
+    assert all(result.status == "passed" for result in results)
+
+
+def test_raw_manifest_checks_manifest_artifact_from_s3(tmp_path):
+    raw_payload = b'[["YEAR","state"],["2023","01"],["2024","01"]]\n'
+    manifest = {
+        "pipeline_run_id": "run-123",
+        "source_system": "census",
+        "dataset_name": "bds",
+        "resource_name": "bds_state_year",
+        "source_url": "https://example.test/source",
+        "extracted_at_utc": "2026-05-07T12:00:00Z",
+        "ingestion_date": "2026-05-07",
+        "local_raw_path": None,
+        "s3_raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "raw_uri": "s3://bucket/raw/census/bds/file.json",
+        "storage_backend": "s3",
+        "file_format": "json",
+        "row_count": 2,
+        "sha256_checksum": hash_bytes(raw_payload),
+        "schema_hash": hash_schema(["YEAR", "state"]),
+        "validation_status": "passed",
+        "column_count": 2,
+        "file_size_bytes": len(raw_payload),
+    }
+    s3_client = FakeS3ObjectClient(
+        {
+            ("bucket", "manifests/census/bds/manifest.json"): json.dumps(
+                manifest
+            ).encode("utf-8"),
+            ("bucket", "raw/census/bds/file.json"): raw_payload,
+        }
+    )
+
+    results = check_raw_manifest(
+        ArtifactLocation(
+            storage_backend="s3",
+            artifact_uri="s3://bucket/manifests/census/bds/manifest.json",
+            artifact_key="manifests/census/bds/manifest.json",
+            s3_uri="s3://bucket/manifests/census/bds/manifest.json",
+        ),
+        artifact_reader=RawArtifactReader(s3_client=s3_client),
+        manifest_artifact_reader=ArtifactReader(s3_client=s3_client),
     )
 
     assert all(result.status == "passed" for result in results)

@@ -107,6 +107,32 @@ class RawArtifactReader:
         return Path(str(local_raw_path)).read_bytes()
 
 
+class ArtifactReader:
+    def __init__(self, *, s3_client: S3ObjectClientProtocol | None = None):
+        self.s3_client = s3_client
+
+    def exists(self, location: ArtifactLocation) -> bool:
+        try:
+            self.read_bytes(location)
+        except Exception:
+            return False
+        return True
+
+    def read_text(self, location: ArtifactLocation, encoding: str = "utf-8") -> str:
+        return self.read_bytes(location).decode(encoding)
+
+    def read_bytes(self, location: ArtifactLocation) -> bytes:
+        if location.storage_backend == "s3":
+            reference = parse_s3_uri(location.s3_uri or location.artifact_uri)
+            client = self.s3_client or _default_s3_client()
+            response = client.get_object(Bucket=reference.bucket, Key=reference.key)
+            return response["Body"].read()
+
+        if location.local_path is None:
+            raise FileNotFoundError("Local artifact location requires local_path.")
+        return location.local_path.read_bytes()
+
+
 class LocalRawArtifactStore:
     storage_backend: StorageBackend = "local"
 

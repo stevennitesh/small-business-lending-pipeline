@@ -83,14 +83,18 @@ def write_validation_results(
     results: list[ValidationResult],
     path: Path | str,
 ) -> Path:
+    payload = validation_results_to_json_bytes(results)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps([result.to_dict() for result in results], indent=2, sort_keys=True)
-        + "\n",
-        encoding="utf-8",
-    )
+    output_path.write_bytes(payload)
     return output_path
+
+
+def validation_results_to_json_bytes(results: list[ValidationResult]) -> bytes:
+    return (
+        json.dumps([result.to_dict() for result in results], indent=2, sort_keys=True)
+        + "\n"
+    ).encode("utf-8")
 
 
 def assert_no_blocking_failures(results: list[ValidationResult]) -> None:

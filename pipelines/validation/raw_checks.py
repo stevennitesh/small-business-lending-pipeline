@@ -9,7 +9,7 @@ from pipelines.utils.manifest import (
     REQUIRED_MANIFEST_FIELDS,
     normalize_manifest_storage_fields,
 )
-from pipelines.storage.raw_artifacts import RawArtifactReader
+from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader, RawArtifactReader
 from pipelines.validation.validation_result import (
     ValidationResult,
     make_validation_result,
@@ -17,13 +17,16 @@ from pipelines.validation.validation_result import (
 
 
 def check_raw_manifest(
-    manifest_path: Path | str,
+    manifest_reference: Path | str | ArtifactLocation,
     *,
     artifact_reader: RawArtifactReader | None = None,
+    manifest_artifact_reader: ArtifactReader | None = None,
 ) -> list[ValidationResult]:
-    resolved_manifest_path = Path(manifest_path)
     reader = artifact_reader or RawArtifactReader()
-    if not resolved_manifest_path.is_file():
+    manifest_reader = manifest_artifact_reader or ArtifactReader()
+    try:
+        manifest = _read_manifest_reference(manifest_reference, manifest_reader)
+    except Exception:
         return [
             _result(
                 manifest={},
@@ -33,17 +36,16 @@ def check_raw_manifest(
                 severity="fail",
                 passed=False,
                 expected_value="manifest file exists",
-                observed_value=str(resolved_manifest_path),
+                observed_value=_manifest_reference_uri(manifest_reference),
                 failed_message="Manifest file is missing.",
             )
         ]
 
-    manifest = json.loads(resolved_manifest_path.read_text(encoding="utf-8"))
     results = [
         _check_raw_file_exists(manifest, reader),
         _check_raw_file_size(manifest, reader),
         _check_checksum(manifest, reader),
-        _check_manifest_created(manifest, resolved_manifest_path),
+        _check_manifest_created(manifest, manifest_reference, manifest_reader),
         _check_required_metadata(manifest),
         _check_row_count(manifest),
         _check_schema_hash(manifest),
@@ -53,14 +55,15 @@ def check_raw_manifest(
 
 
 def check_validation_output_created(
-    output_path: Path | str,
+    output_reference: Path | str | ArtifactLocation,
     *,
     pipeline_run_id: str,
     source_system: str,
     source_dataset: str,
     source_resource_name: str,
+    artifact_reader: ArtifactReader | None = None,
 ) -> ValidationResult:
-    resolved_output_path = Path(output_path)
+    output_exists = _artifact_exists(output_reference, artifact_reader or ArtifactReader())
     return make_validation_result(
         pipeline_run_id=pipeline_run_id,
         validation_check_id="RAW_009",
@@ -71,9 +74,9 @@ def check_validation_output_created(
         check_name="Validation result created",
         check_type="lineage",
         severity="fail",
-        passed=resolved_output_path.is_file(),
+        passed=output_exists,
         expected_value="validation output file exists",
-        observed_value=str(resolved_output_path),
+        observed_value=_manifest_reference_uri(output_reference),
         passed_message="Validation output file exists.",
         failed_message="Validation output file is missing.",
     )
@@ -222,19 +225,45 @@ def _check_checksum(
 
 def _check_manifest_created(
     manifest: dict[str, Any],
-    manifest_path: Path,
+    manifest_reference: Path | str | ArtifactLocation,
+    manifest_artifact_reader: ArtifactReader,
 ) -> ValidationResult:
+    manifest_exists = _artifact_exists(manifest_reference, manifest_artifact_reader)
     return _result(
         manifest=manifest,
         validation_check_id="RAW_004",
         check_name="Manifest created",
         check_type="lineage",
         severity="fail",
-        passed=manifest_path.is_file(),
+        passed=manifest_exists,
         expected_value="manifest file exists",
-        observed_value=str(manifest_path),
+        observed_value=_manifest_reference_uri(manifest_reference),
         failed_message="Manifest file is missing.",
     )
+
+
+def _read_manifest_reference(
+    manifest_reference: Path | str | ArtifactLocation,
+    manifest_artifact_reader: ArtifactReader,
+) -> dict[str, Any]:
+    if isinstance(manifest_reference, ArtifactLocation):
+        return json.loads(manifest_artifact_reader.read_text(manifest_reference))
+    return json.loads(Path(manifest_reference).read_text(encoding="utf-8"))
+
+
+def _artifact_exists(
+    reference: Path | str | ArtifactLocation,
+    artifact_reader: ArtifactReader,
+) -> bool:
+    if isinstance(reference, ArtifactLocation):
+        return artifact_reader.exists(reference)
+    return Path(reference).is_file()
+
+
+def _manifest_reference_uri(reference: Path | str | ArtifactLocation) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return reference.artifact_uri
+    return str(reference)
 
 
 def _check_required_metadata(manifest: dict[str, Any]) -> ValidationResult:
