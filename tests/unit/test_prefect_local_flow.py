@@ -184,6 +184,15 @@ def test_raw_artifact_store_matches_route(tmp_path):
         "cloud-bucket",
         s3_client=object(),
     ).storage_backend == "s3"
+    assert local_flow._artifact_store(
+        local_context,
+        "local-live",
+    ).storage_backend == "local"
+    assert local_flow._artifact_store(
+        cloud_context,
+        "cloud-bucket",
+        s3_client=object(),
+    ).storage_backend == "s3"
 
 
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
@@ -481,6 +490,93 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     assert len(extraction_paths.sba_7a_manifest_paths) == 1
     assert len(extraction_paths.sba_504_manifest_paths) == 1
     assert len(extraction_paths.manifest_paths) == 4
+
+
+def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
+    tmp_path,
+    monkeypatch,
+):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="cloud",
+        extract_mode="live",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket="cloud-bucket",
+        pipeline_run_id="cloud-live-test-run",
+        source_start_year=2020,
+        source_end_year=2024,
+    )
+    calls = []
+
+    def fake_manifest_location(resource_name: str):
+        return local_flow.ArtifactLocation(
+            storage_backend="s3",
+            artifact_uri=f"s3://cloud-bucket/manifests/test/{resource_name}.json",
+            artifact_key=f"manifests/test/{resource_name}.json",
+            local_path=None,
+            s3_uri=f"s3://cloud-bucket/manifests/test/{resource_name}.json",
+        )
+
+    def fake_sba_extract(**kwargs):
+        calls.append(("sba", kwargs))
+        return local_flow.SBAExtractionSummary(
+            results={},
+            manifest_paths={
+                "sba_7a_fy2020_present": _write_manifest_stub(
+                    tmp_path, "sba_7a_fy2020_present"
+                ),
+                "sba_504_fy2010_present": _write_manifest_stub(
+                    tmp_path, "sba_504_fy2010_present"
+                ),
+            },
+            warnings=[],
+            manifest_locations={
+                "sba_7a_fy2020_present": fake_manifest_location(
+                    "sba_7a_fy2020_present"
+                ),
+                "sba_504_fy2010_present": fake_manifest_location(
+                    "sba_504_fy2010_present"
+                ),
+            },
+        )
+
+    def fake_census_extract(**kwargs):
+        calls.append(("census", kwargs))
+        return local_flow.CensusBDSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
+            latest_available_year=2024,
+            manifest_location=fake_manifest_location("bds_state_year"),
+        )
+
+    def fake_bls_extract(**kwargs):
+        calls.append(("bls", kwargs))
+        return local_flow.BLSLAUSExtractionSummary(
+            result=None,
+            manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
+            latest_observed_month="2024-12-01",
+            series_count=51,
+            manifest_location=fake_manifest_location("laus_state_month"),
+        )
+
+    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+
+    assert [
+        kwargs["manifest_artifact_store"].storage_backend
+        for _, kwargs in calls
+    ] == ["s3", "s3", "s3"]
+    assert len(extraction_paths.manifest_locations) == 4
+    assert {
+        location.storage_backend for location in extraction_paths.manifest_locations
+    } == {"s3"}
 
 
 def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monkeypatch):

@@ -109,18 +109,22 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_manifest(manifest: ExtractionManifest | dict[str, Any], path: Path | str) -> Path:
+    payload = manifest_to_json_bytes(manifest)
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(payload)
+    return output_path
+
+
+def manifest_to_json_bytes(manifest: ExtractionManifest | dict[str, Any]) -> bytes:
     manifest_dict = (
         manifest.to_dict()
         if isinstance(manifest, ExtractionManifest)
         else validate_manifest(manifest)
     )
-    output_path = Path(path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(manifest_dict, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    return (json.dumps(manifest_dict, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
     )
-    return output_path
 
 
 def _validate_utc_timestamp(value: str) -> None:

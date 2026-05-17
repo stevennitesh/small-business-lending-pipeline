@@ -46,9 +46,12 @@ from pipelines.load.snowflake_loader import (
     load_raw_extracts_to_snowflake,
 )
 from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    LocalArtifactStore,
     LocalRawArtifactStore,
     RawArtifactLocation,
     RawArtifactReader,
+    S3ArtifactStore,
     S3RawArtifactStore,
 )
 from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
@@ -169,6 +172,11 @@ class ExtractionPaths:
     census_bds_manifest_paths: tuple[Path, ...]
     bls_laus_manifest_paths: tuple[Path, ...]
     manifest_paths: tuple[Path, ...]
+    sba_7a_manifest_locations: tuple[ArtifactLocation, ...] = ()
+    sba_504_manifest_locations: tuple[ArtifactLocation, ...] = ()
+    census_bds_manifest_locations: tuple[ArtifactLocation, ...] = ()
+    bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
+    manifest_locations: tuple[ArtifactLocation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -780,9 +788,15 @@ def _extract_live_sources(
     load_dotenv(override=False)
     bucket = _s3_bucket(context) or "local-live"
     raw_artifact_store = _raw_artifact_store(context, bucket)
+    manifest_artifact_store = (
+        _artifact_store(context, bucket) if context.is_cloud_route else None
+    )
     sba_manifest_paths: dict[str, Path] = {}
+    sba_manifest_locations: dict[str, ArtifactLocation] = {}
     census_bds_manifest_paths: tuple[Path, ...] = ()
+    census_bds_manifest_locations: tuple[ArtifactLocation, ...] = ()
     bls_laus_manifest_paths: tuple[Path, ...] = ()
+    bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
 
     if project_config.is_source_enabled("sba_foia"):
         sba_summary = extract_sba_foia(
@@ -792,8 +806,10 @@ def _extract_live_sources(
             s3_bucket=bucket,
             pipeline_run_id=context.pipeline_run_id,
             raw_artifact_store=raw_artifact_store,
+            manifest_artifact_store=manifest_artifact_store,
         )
         sba_manifest_paths = sba_summary.manifest_paths
+        sba_manifest_locations = sba_summary.manifest_locations
 
     if project_config.is_source_enabled("census_bds"):
         census_summary = extract_census_bds(
@@ -805,8 +821,11 @@ def _extract_live_sources(
             start_year=context.source_start_year,
             end_year=context.source_end_year,
             raw_artifact_store=raw_artifact_store,
+            manifest_artifact_store=manifest_artifact_store,
         )
         census_bds_manifest_paths = (census_summary.manifest_path,)
+        if census_summary.manifest_location is not None:
+            census_bds_manifest_locations = (census_summary.manifest_location,)
 
     if project_config.is_source_enabled("bls_laus"):
         requested_bls_start_year = (
@@ -822,15 +841,26 @@ def _extract_live_sources(
             start_year=bls_start_year,
             end_year=context.source_end_year,
             raw_artifact_store=raw_artifact_store,
+            manifest_artifact_store=manifest_artifact_store,
         )
         bls_laus_manifest_paths = (bls_summary.manifest_path,)
+        if bls_summary.manifest_location is not None:
+            bls_laus_manifest_locations = (bls_summary.manifest_location,)
 
     sba_7a_manifest_paths = _sba_manifest_paths_by_program(
         sba_manifest_paths,
         "sba_7a_",
     )
+    sba_7a_manifest_locations = _sba_manifest_paths_by_program(
+        sba_manifest_locations,
+        "sba_7a_",
+    )
     sba_504_manifest_paths = _sba_manifest_paths_by_program(
         sba_manifest_paths,
+        "sba_504_",
+    )
+    sba_504_manifest_locations = _sba_manifest_paths_by_program(
+        sba_manifest_locations,
         "sba_504_",
     )
     if project_config.is_source_enabled("sba_foia") and (
@@ -850,6 +880,17 @@ def _extract_live_sources(
                 *sba_manifest_paths.values(),
                 *census_bds_manifest_paths,
                 *bls_laus_manifest_paths,
+            ]
+        ),
+        sba_7a_manifest_locations=sba_7a_manifest_locations,
+        sba_504_manifest_locations=sba_504_manifest_locations,
+        census_bds_manifest_locations=census_bds_manifest_locations,
+        bls_laus_manifest_locations=bls_laus_manifest_locations,
+        manifest_locations=tuple(
+            [
+                *sba_manifest_locations.values(),
+                *census_bds_manifest_locations,
+                *bls_laus_manifest_locations,
             ]
         ),
     )
@@ -874,6 +915,16 @@ def _raw_artifact_store(
     if context.is_cloud_route:
         return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
     return LocalRawArtifactStore(data_root=context.data_root, s3_bucket=bucket)
+
+
+def _artifact_store(
+    context: LocalRunContext,
+    bucket: str,
+    s3_client=None,
+) -> LocalArtifactStore | S3ArtifactStore:
+    if context.is_cloud_route:
+        return S3ArtifactStore(bucket=bucket, s3_client=s3_client)
+    return LocalArtifactStore(data_root=context.data_root, s3_bucket=bucket)
 
 
 def _raw_artifact_reader(

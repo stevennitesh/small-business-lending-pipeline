@@ -6,14 +6,20 @@ import io
 import json
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
 import requests
 
-from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    LocalArtifactStore,
+    LocalRawArtifactStore,
+    S3ArtifactStore,
+    S3RawArtifactStore,
+)
 from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
@@ -21,7 +27,12 @@ from pipelines.utils.dates import (
     utc_now,
 )
 from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import ExtractionManifest, ExtractionResult, write_manifest
+from pipelines.utils.manifest import (
+    ExtractionManifest,
+    ExtractionResult,
+    manifest_to_json_bytes,
+    write_manifest,
+)
 
 
 DEFAULT_SBA_PACKAGE_URL = (
@@ -96,6 +107,7 @@ class SBAExtractionSummary:
     results: dict[str, ExtractionResult]
     manifest_paths: dict[str, Path]
     warnings: list[str]
+    manifest_locations: dict[str, ArtifactLocation] = field(default_factory=dict)
 
 
 def load_sba_resource_specs(
@@ -215,6 +227,7 @@ def extract_sba_foia(
     extracted_at_utc: str | None = None,
     timeout: int = 120,
     raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
 ) -> SBAExtractionSummary:
     active_session = session or requests.Session()
     active_config = config or (
@@ -249,6 +262,7 @@ def extract_sba_foia(
 
     results: dict[str, ExtractionResult] = {}
     manifest_paths: dict[str, Path] = {}
+    manifest_locations: dict[str, ArtifactLocation] = {}
     warnings: list[str] = []
 
     for logical_name, resource in resources.items():
@@ -259,6 +273,7 @@ def extract_sba_foia(
                 session=active_session,
                 data_root=Path(data_root),
                 raw_artifact_store=store,
+                manifest_artifact_store=manifest_artifact_store,
                 package_url=active_package_url,
                 pipeline_run_id=run_id,
                 extracted_at_utc=extracted_timestamp,
@@ -275,10 +290,17 @@ def extract_sba_foia(
 
         results[logical_name] = result
         manifest_paths[logical_name] = manifest_path
+        if manifest_artifact_store is not None:
+            manifest_locations[logical_name] = _manifest_artifact_location(
+                manifest_artifact_store,
+                manifest=result.manifest,
+                filename=manifest_path.name,
+            )
 
     return SBAExtractionSummary(
         results=results,
         manifest_paths=manifest_paths,
+        manifest_locations=manifest_locations,
         warnings=warnings,
     )
 
@@ -343,6 +365,7 @@ def _download_resource(
     session: requests.Session,
     data_root: Path,
     raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None,
     package_url: str,
     pipeline_run_id: str,
     extracted_at_utc: str,
@@ -408,6 +431,16 @@ def _download_resource(
         logical_name=resource.spec.logical_name,
     )
     write_manifest(manifest, manifest_path)
+    if manifest_artifact_store is not None:
+        manifest_location = _manifest_artifact_location(
+            manifest_artifact_store,
+            manifest=manifest,
+            filename=manifest_path.name,
+        )
+        manifest_artifact_store.write_bytes(
+            manifest_location,
+            manifest_to_json_bytes(manifest),
+        )
 
     return (
         ExtractionResult(
@@ -416,6 +449,23 @@ def _download_resource(
             row_count=row_count,
         ),
         manifest_path,
+    )
+
+
+def _manifest_artifact_location(
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore,
+    *,
+    manifest: ExtractionManifest,
+    filename: str,
+) -> ArtifactLocation:
+    return manifest_artifact_store.location(
+        prefix="manifests",
+        source_system=manifest.source_system,
+        dataset_name=manifest.dataset_name,
+        resource_name=manifest.resource_name,
+        ingestion_date=manifest.ingestion_date,
+        pipeline_run_id=manifest.pipeline_run_id,
+        filename=filename,
     )
 
 

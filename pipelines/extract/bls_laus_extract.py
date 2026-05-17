@@ -17,9 +17,20 @@ from pipelines.utils.dates import (
     ingestion_date_from_timestamp,
     utc_now,
 )
-from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    LocalArtifactStore,
+    LocalRawArtifactStore,
+    S3ArtifactStore,
+    S3RawArtifactStore,
+)
 from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import ExtractionManifest, ExtractionResult, write_manifest
+from pipelines.utils.manifest import (
+    ExtractionManifest,
+    ExtractionResult,
+    manifest_to_json_bytes,
+    write_manifest,
+)
 
 
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
@@ -58,6 +69,7 @@ class BLSLAUSExtractionSummary:
     manifest_path: Path
     latest_observed_month: str
     series_count: int
+    manifest_location: ArtifactLocation | None = None
 
 
 def load_bls_laus_config(
@@ -253,6 +265,7 @@ def extract_bls_laus(
     year_window_size: int | None = None,
     timeout: int = 120,
     raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
 ) -> BLSLAUSExtractionSummary:
     active_config = config or load_bls_laus_config()
     active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
@@ -356,6 +369,17 @@ def extract_bls_laus(
         "latest_observed_month": latest_observed_month,
     }
     write_manifest(manifest_dict, manifest_path)
+    manifest_location = None
+    if manifest_artifact_store is not None:
+        manifest_location = _manifest_artifact_location(
+            manifest_artifact_store,
+            manifest=manifest,
+            filename=manifest_path.name,
+        )
+        manifest_artifact_store.write_bytes(
+            manifest_location,
+            manifest_to_json_bytes(manifest_dict),
+        )
 
     return BLSLAUSExtractionSummary(
         result=ExtractionResult(
@@ -364,6 +388,7 @@ def extract_bls_laus(
             row_count=len(normalized_rows),
         ),
         manifest_path=manifest_path,
+        manifest_location=manifest_location,
         latest_observed_month=latest_observed_month,
         series_count=len(active_config.series),
     )
@@ -410,6 +435,23 @@ def _clean_footnotes(footnotes: Any) -> list[dict[str, str]]:
         for footnote in footnotes
         if isinstance(footnote, dict) and any(footnote.values())
     ]
+
+
+def _manifest_artifact_location(
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore,
+    *,
+    manifest: ExtractionManifest,
+    filename: str,
+) -> ArtifactLocation:
+    return manifest_artifact_store.location(
+        prefix="manifests",
+        source_system=manifest.source_system,
+        dataset_name=manifest.dataset_name,
+        resource_name=manifest.resource_name,
+        ingestion_date=manifest.ingestion_date,
+        pipeline_run_id=manifest.pipeline_run_id,
+        filename=filename,
+    )
 
 
 def _build_local_manifest_path(

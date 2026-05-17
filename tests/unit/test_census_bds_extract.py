@@ -13,7 +13,7 @@ from pipelines.extract.census_bds_extract import (
     load_census_bds_config,
     validate_bds_response,
 )
-from pipelines.storage.raw_artifacts import S3RawArtifactStore
+from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity
 
 
@@ -295,6 +295,10 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
             bucket="cloud-bucket",
             s3_client=s3_client,
         ),
+        manifest_artifact_store=S3ArtifactStore(
+            bucket="cloud-bucket",
+            s3_client=s3_client,
+        ),
     )
 
     assert summary.result.local_raw_path is None
@@ -304,3 +308,12 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
     assert manifest["raw_uri"] == manifest["s3_raw_uri"]
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
     assert json.loads(s3_client.objects[("cloud-bucket", key)]) == _fixture_response()
+    assert summary.manifest_location is not None
+    assert summary.manifest_location.artifact_uri.startswith(
+        "s3://cloud-bucket/manifests/census/bds/"
+    )
+    assert json.loads(
+        s3_client.objects[
+            ("cloud-bucket", summary.manifest_location.artifact_key)
+        ]
+    )["latest_available_year"] == 2023

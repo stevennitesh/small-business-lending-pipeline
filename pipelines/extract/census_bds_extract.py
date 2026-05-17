@@ -17,9 +17,20 @@ from pipelines.utils.dates import (
     ingestion_date_from_timestamp,
     utc_now,
 )
-from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    LocalArtifactStore,
+    LocalRawArtifactStore,
+    S3ArtifactStore,
+    S3RawArtifactStore,
+)
 from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import ExtractionManifest, ExtractionResult, write_manifest
+from pipelines.utils.manifest import (
+    ExtractionManifest,
+    ExtractionResult,
+    manifest_to_json_bytes,
+    write_manifest,
+)
 
 
 DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
@@ -51,6 +62,7 @@ class CensusBDSExtractionSummary:
     result: ExtractionResult
     manifest_path: Path
     latest_available_year: int
+    manifest_location: ArtifactLocation | None = None
 
 
 def load_census_bds_config(
@@ -181,6 +193,7 @@ def extract_census_bds(
     api_key: str | None = None,
     timeout: int = 120,
     raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
 ) -> CensusBDSExtractionSummary:
     active_config = config or load_census_bds_config()
     active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
@@ -255,6 +268,17 @@ def extract_census_bds(
         "latest_available_year": response_summary.latest_available_year,
     }
     write_manifest(manifest_dict, manifest_path)
+    manifest_location = None
+    if manifest_artifact_store is not None:
+        manifest_location = _manifest_artifact_location(
+            manifest_artifact_store,
+            manifest=manifest,
+            filename=manifest_path.name,
+        )
+        manifest_artifact_store.write_bytes(
+            manifest_location,
+            manifest_to_json_bytes(manifest_dict),
+        )
 
     return CensusBDSExtractionSummary(
         result=ExtractionResult(
@@ -263,6 +287,7 @@ def extract_census_bds(
             row_count=response_summary.row_count,
         ),
         manifest_path=manifest_path,
+        manifest_location=manifest_location,
         latest_available_year=response_summary.latest_available_year,
     )
 
@@ -312,6 +337,23 @@ def _build_local_manifest_path(
         / f"ingestion_date={ingestion_date}"
         / f"pipeline_run_id={pipeline_run_id}"
         / f"{RESOURCE_NAME}.manifest.json"
+    )
+
+
+def _manifest_artifact_location(
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore,
+    *,
+    manifest: ExtractionManifest,
+    filename: str,
+) -> ArtifactLocation:
+    return manifest_artifact_store.location(
+        prefix="manifests",
+        source_system=manifest.source_system,
+        dataset_name=manifest.dataset_name,
+        resource_name=manifest.resource_name,
+        ingestion_date=manifest.ingestion_date,
+        pipeline_run_id=manifest.pipeline_run_id,
+        filename=filename,
     )
 
 

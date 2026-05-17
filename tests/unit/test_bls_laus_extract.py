@@ -19,7 +19,7 @@ from pipelines.extract.bls_laus_extract import (
     normalize_bls_response,
     parse_monthly_period,
 )
-from pipelines.storage.raw_artifacts import S3RawArtifactStore
+from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity
 
 
@@ -372,6 +372,10 @@ def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
             bucket="cloud-bucket",
             s3_client=s3_client,
         ),
+        manifest_artifact_store=S3ArtifactStore(
+            bucket="cloud-bucket",
+            s3_client=s3_client,
+        ),
     )
 
     assert summary.result.local_raw_path is None
@@ -382,3 +386,12 @@ def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
     raw_payload = json.loads(s3_client.objects[("cloud-bucket", key)])
     assert raw_payload["normalized_rows"][0]["observed_month"] == "2023-02-01"
+    assert summary.manifest_location is not None
+    assert summary.manifest_location.artifact_uri.startswith(
+        "s3://cloud-bucket/manifests/bls/laus/"
+    )
+    assert json.loads(
+        s3_client.objects[
+            ("cloud-bucket", summary.manifest_location.artifact_key)
+        ]
+    )["latest_observed_month"] == "2023-02-01"

@@ -16,7 +16,7 @@ from pipelines.extract.sba_extract import (
     load_sba_resource_specs,
     resolve_sba_resources,
 )
-from pipelines.storage.raw_artifacts import S3RawArtifactStore
+from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
 from pipelines.utils.config import SourceIdentity
 
 
@@ -348,6 +348,10 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
             bucket="cloud-bucket",
             s3_client=s3_client,
         ),
+        manifest_artifact_store=S3ArtifactStore(
+            bucket="cloud-bucket",
+            s3_client=s3_client,
+        ),
     )
 
     result = summary.results["sba_7a_fy2020_present"]
@@ -361,6 +365,13 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
     assert manifest["raw_uri"].startswith("s3://cloud-bucket/raw/sba/7a_foia/")
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
     assert s3_client.objects[("cloud-bucket", key)] == payload
+    manifest_location = summary.manifest_locations["sba_7a_fy2020_present"]
+    assert manifest_location.artifact_uri.startswith(
+        "s3://cloud-bucket/manifests/sba/7a_504_foia/"
+    )
+    assert json.loads(
+        s3_client.objects[("cloud-bucket", manifest_location.artifact_key)]
+    )["resource_name"] == "sba_7a_fy2020_present"
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):
