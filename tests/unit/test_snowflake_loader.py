@@ -96,7 +96,7 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_DATABASE", "database")
     monkeypatch.setenv("SNOWFLAKE_SCHEMA", "RAW")
     monkeypatch.setenv("SNOWFLAKE_RAW_SCHEMA", "SMOKE_RAW")
-    monkeypatch.delenv("SNOWFLAKE_STORAGE_INTEGRATION", raising=False)
+    monkeypatch.setenv("SNOWFLAKE_STORAGE_INTEGRATION", "")
 
     config = SnowflakeConfig.from_env()
 
@@ -136,8 +136,11 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     )
 
     sql = " ".join(connection.sql_statements)
-    assert "create stage if not exists RAW.RAW_S3_STAGE" in sql
+    assert "create or replace file format RAW.RAW_CSV_FORMAT" in sql
+    assert "create or replace file format RAW.RAW_JSON_FORMAT" in sql
+    assert "create or replace stage RAW.RAW_S3_STAGE" in sql
     assert "storage_integration = SBL_S3_INT" in sql
+    assert "error_on_column_count_mismatch = false" in sql
     assert (
         "create or replace table RAW.RAW_SBA_7A_FOIA using template"
         in sql
@@ -148,13 +151,16 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     )
     assert "update RAW.RAW_SBA_7A_FOIA set" in sql
     assert "STORAGE_BACKEND = 's3'" in sql
+    assert "lateral flatten(input => PAYLOAD)" in sql
+    assert "array_position(to_variant('YEAR'), headers)" in sql
+    assert "array_position(to_variant('state'), headers)" in sql
+    assert "lateral flatten(input => PAYLOAD:normalized_rows)" in sql
+    assert "row.value" not in sql
     assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a.csv'" in sql
     assert "create or replace table RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
     assert "insert into RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
-    assert "lateral flatten(input => PAYLOAD) as row" in sql
     assert "create or replace table RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
     assert "insert into RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
-    assert "lateral flatten(input => PAYLOAD:normalized_rows) as row" in sql
     assert any(
         statement.startswith("copy into RAW.RAW_SBA_7A_FOIA")
         for statement in connection.sql_statements

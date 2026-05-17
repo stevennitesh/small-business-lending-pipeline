@@ -460,24 +460,25 @@ def _create_s3_stage_load_objects(
     with connection.cursor() as cursor:
         cursor.execute(
             f"""
-            create file format if not exists {raw_schema}.RAW_CSV_FORMAT
+            create or replace file format {raw_schema}.RAW_CSV_FORMAT
               type = csv
               parse_header = true
               field_optionally_enclosed_by = '"'
               trim_space = true
               null_if = ('', 'NULL', 'null')
+              error_on_column_count_mismatch = false
             """
         )
         cursor.execute(
             f"""
-            create file format if not exists {raw_schema}.RAW_JSON_FORMAT
+            create or replace file format {raw_schema}.RAW_JSON_FORMAT
               type = json
               strip_outer_array = false
             """
         )
         cursor.execute(
             f"""
-            create stage if not exists {raw_schema}.{stage_name}
+            create or replace stage {raw_schema}.{stage_name}
               url = 's3://{bucket}'{integration_clause}
             """
         )
@@ -688,21 +689,26 @@ def _insert_census_bds_json_from_stage(
               {", ".join(RAW_METADATA_COLUMNS)}
             )
             select
-              row.value[0]::varchar as YEAR,
-              row.value[1]::varchar as NAME,
-              row.value[2]::varchar as STATE,
-              row.value[3]::varchar as ESTAB,
-              row.value[4]::varchar as ESTABS_ENTRY,
-              row.value[5]::varchar as ESTABS_ENTRY_RATE,
-              row.value[6]::varchar as ESTABS_EXIT,
-              row.value[7]::varchar as ESTABS_EXIT_RATE,
-              row.value[8]::varchar as FIRM,
-              row.value[9]::varchar as JOB_CREATION,
-              row.value[10]::varchar as JOB_DESTRUCTION,
+              get(data_row, array_position(to_variant('YEAR'), headers))::varchar as YEAR,
+              get(data_row, array_position(to_variant('NAME'), headers))::varchar as NAME,
+              get(data_row, array_position(to_variant('state'), headers))::varchar as STATE,
+              get(data_row, array_position(to_variant('ESTAB'), headers))::varchar as ESTAB,
+              get(data_row, array_position(to_variant('ESTABS_ENTRY'), headers))::varchar as ESTABS_ENTRY,
+              get(data_row, array_position(to_variant('ESTABS_ENTRY_RATE'), headers))::varchar as ESTABS_ENTRY_RATE,
+              get(data_row, array_position(to_variant('ESTABS_EXIT'), headers))::varchar as ESTABS_EXIT,
+              get(data_row, array_position(to_variant('ESTABS_EXIT_RATE'), headers))::varchar as ESTABS_EXIT_RATE,
+              get(data_row, array_position(to_variant('FIRM'), headers))::varchar as FIRM,
+              get(data_row, array_position(to_variant('JOB_CREATION'), headers))::varchar as JOB_CREATION,
+              get(data_row, array_position(to_variant('JOB_DESTRUCTION'), headers))::varchar as JOB_DESTRUCTION,
               {_metadata_select_list(manifest)}
-            from {raw_schema}.{table_name}_LANDING,
-              lateral flatten(input => PAYLOAD) as row
-            where row.index > 0
+            from (
+              select
+                PAYLOAD[0] as headers,
+                flattened.value as data_row
+              from {raw_schema}.{table_name}_LANDING,
+                lateral flatten(input => PAYLOAD) as flattened
+              where flattened.index > 0
+            )
             """
         )
 
@@ -730,18 +736,18 @@ def _insert_bls_laus_json_from_stage(
               VALUE, YEAR, PERIOD, FOOTNOTES, {", ".join(RAW_METADATA_COLUMNS)}
             )
             select
-              row.value:series_id::varchar as SERIES_ID,
-              row.value:state_fips::varchar as STATE_FIPS,
-              row.value:state_abbr::varchar as STATE_ABBR,
-              row.value:state_name::varchar as STATE_NAME,
-              row.value:observed_month::varchar as OBSERVED_MONTH,
-              row.value:value::varchar as VALUE,
-              row.value:year::varchar as YEAR,
-              row.value:period::varchar as PERIOD,
-              row.value:footnotes as FOOTNOTES,
+              value:series_id::varchar as SERIES_ID,
+              value:state_fips::varchar as STATE_FIPS,
+              value:state_abbr::varchar as STATE_ABBR,
+              value:state_name::varchar as STATE_NAME,
+              value:observed_month::varchar as OBSERVED_MONTH,
+              value:value::varchar as VALUE,
+              value:year::varchar as YEAR,
+              value:period::varchar as PERIOD,
+              value:footnotes as FOOTNOTES,
               {_metadata_select_list(manifest)}
             from {raw_schema}.{table_name}_LANDING,
-              lateral flatten(input => PAYLOAD:normalized_rows) as row
+              lateral flatten(input => PAYLOAD:normalized_rows)
             """
         )
 
