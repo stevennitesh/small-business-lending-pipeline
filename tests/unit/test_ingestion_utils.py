@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from pipelines.utils.dates import ingestion_date_from_timestamp, utc_now_iso
+from pipelines.utils.dates import (
+    ingestion_date_from_iso_timestamp,
+    ingestion_date_from_timestamp,
+    utc_now_iso,
+)
 from pipelines.utils.hashing import calculate_sha256, hash_row, hash_schema
 from pipelines.utils.manifest import (
     REQUIRED_MANIFEST_FIELDS,
@@ -83,6 +87,10 @@ def test_timestamps_are_utc():
     parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     assert parsed.tzinfo == timezone.utc
     assert ingestion_date_from_timestamp(parsed) == parsed.date().isoformat()
+
+
+def test_ingestion_date_from_iso_timestamp_accepts_zulu_timestamp():
+    assert ingestion_date_from_iso_timestamp("2026-05-06T12:00:00Z") == "2026-05-06"
 
 
 def test_manifest_contains_required_fields_and_validates():

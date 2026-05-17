@@ -31,5 +31,10 @@ def ingestion_date_from_timestamp(timestamp: datetime) -> str:
     return utc_timestamp.date().isoformat()
 
 
+def ingestion_date_from_iso_timestamp(value: str) -> str:
+    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return ingestion_date_from_timestamp(timestamp)
+
+
 def today_utc() -> date:
     return utc_now().date()

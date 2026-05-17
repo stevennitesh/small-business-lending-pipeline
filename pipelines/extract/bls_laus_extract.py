@@ -14,7 +14,7 @@ import requests
 from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
-    ingestion_date_from_timestamp,
+    ingestion_date_from_iso_timestamp,
     utc_now,
 )
 from pipelines.storage.raw_artifacts import (
@@ -275,7 +275,7 @@ def extract_bls_laus(
     resolved_start_year = start_year or active_config.start_year
     run_id = pipeline_run_id or str(uuid.uuid4())
     extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
-    ingestion_date = _ingestion_date_from_iso(extracted_timestamp)
+    ingestion_date = ingestion_date_from_iso_timestamp(extracted_timestamp)
     active_api_key = api_key or os.getenv("BLS_API_KEY") or None
 
     responses = fetch_bls_laus_responses(
@@ -439,11 +439,6 @@ def _clean_footnotes(footnotes: Any) -> list[dict[str, str]]:
         for footnote in footnotes
         if isinstance(footnote, dict) and any(footnote.values())
     ]
-
-
-def _ingestion_date_from_iso(value: str) -> str:
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return ingestion_date_from_timestamp(timestamp)
 
 
 if __name__ == "__main__":

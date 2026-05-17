@@ -14,7 +14,7 @@ import requests
 from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
-    ingestion_date_from_timestamp,
+    ingestion_date_from_iso_timestamp,
     utc_now,
 )
 from pipelines.storage.raw_artifacts import (
@@ -203,7 +203,7 @@ def extract_census_bds(
     resolved_end_year = end_year or datetime.now().year
     run_id = pipeline_run_id or str(uuid.uuid4())
     extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
-    ingestion_date = _ingestion_date_from_iso(extracted_timestamp)
+    ingestion_date = ingestion_date_from_iso_timestamp(extracted_timestamp)
 
     response_rows = fetch_census_bds_response(
         active_config,
@@ -326,11 +326,6 @@ def _time_predicate(start_year: int, end_year: int) -> str:
     if start_year == end_year:
         return str(start_year)
     return f"from {start_year} to {end_year}"
-
-
-def _ingestion_date_from_iso(value: str) -> str:
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return ingestion_date_from_timestamp(timestamp)
 
 
 if __name__ == "__main__":

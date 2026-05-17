@@ -25,7 +25,7 @@ from pipelines.storage.raw_artifacts import (
 from pipelines.utils.config import SourceIdentity, load_yaml_file
 from pipelines.utils.dates import (
     format_utc_timestamp,
-    ingestion_date_from_timestamp,
+    ingestion_date_from_iso_timestamp,
     utc_now,
 )
 from pipelines.utils.hashing import hash_schema
@@ -258,7 +258,7 @@ def extract_sba_foia(
     resources = resolve_sba_resources(active_specs, metadata)
     run_id = pipeline_run_id or str(uuid.uuid4())
     extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
-    ingestion_date = _ingestion_date_from_iso(extracted_timestamp)
+    ingestion_date = ingestion_date_from_iso_timestamp(extracted_timestamp)
     store = raw_artifact_store or LocalRawArtifactStore(
         data_root=Path(data_root),
         s3_bucket=s3_bucket,
@@ -540,13 +540,6 @@ def _optional_int(value: Any) -> int | None:
 
 def _is_data_dictionary(resource: ResolvedSBAResource) -> bool:
     return resource.spec.logical_name == "sba_foia_data_dictionary"
-
-
-def _ingestion_date_from_iso(value: str) -> str:
-    from datetime import datetime
-
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return ingestion_date_from_timestamp(timestamp)
 
 
 if __name__ == "__main__":

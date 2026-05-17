@@ -122,7 +122,7 @@ Parallel groups: None
   - Date drift would affect partition paths; rollback if any manifest path assertions change unexpectedly.
 - Stop/ask if:
   - The utility name creates confusion with existing date helpers.
-- Status: pending
+- Status: completed in #61
 
 ### Task 3: Remove SBA Resource-Spec Compatibility Wrapper
 
