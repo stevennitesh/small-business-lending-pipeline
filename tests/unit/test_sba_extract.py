@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 import requests
 
-import pipelines.extract.sba_extract as sba_extract
 from pipelines.extract.sba_extract import (
     DEFAULT_SBA_PACKAGE_URL,
     SBADiscoveryConfig,
@@ -284,9 +283,7 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     assert manifest["validation_status"] == "passed"
 
 
-def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(
-    tmp_path, monkeypatch
-):
+def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_path):
     spec = SBAResourceSpec(
         logical_name="sba_7a_fy2020_present",
         program="7a",
@@ -299,16 +296,6 @@ def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(
     chunks = [b"col_a,", b"col_b\n", b"1,2\n", b"3,4\n"]
     expected_payload = b"".join(chunks)
     session = FakeSession({"https://example.test/7a_2020_present.csv": chunks})
-
-    def fail_full_payload_hash(_payload: bytes) -> str:
-        raise AssertionError("SBA extraction should hash streamed chunks")
-
-    monkeypatch.setattr(
-        sba_extract,
-        "hash_bytes",
-        fail_full_payload_hash,
-        raising=False,
-    )
 
     summary = extract_sba_foia(
         specs=[spec],

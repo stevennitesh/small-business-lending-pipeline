@@ -178,7 +178,7 @@ Parallel groups: None
   - Low; if the test becomes too weak, add a better fake response assertion instead of keeping a stale monkeypatch.
 - Stop/ask if:
   - The team wants tests to assert absence of a specific implementation call rather than behavior.
-- Status: pending
+- Status: completed in #63
 
 ## Final Verification
 
