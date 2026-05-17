@@ -490,7 +490,7 @@ validation_thresholds:
       - lender_name
 
   census_bds:
-    min_rows: 51
+    min_state_count: 51
     required_columns:
       - YEAR
       - state
@@ -499,7 +499,6 @@ validation_thresholds:
       - ESTABS_EXIT
 
   bls_laus:
-    min_state_count: 51
     required_period_pattern: '^M(0[1-9]|1[0-2])$'
     unemployment_rate_min: 0
     unemployment_rate_max: 100

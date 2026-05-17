@@ -220,12 +220,6 @@ def _validate_project_config_contract(
 
     if "bls_laus" in validation_thresholds:
         bls_thresholds = validation_thresholds["bls_laus"]
-        min_state_count = int(bls_thresholds["min_state_count"])
-        if min_state_count > len(bls_laus.series):
-            raise ValueError(
-                "BLS LAUS min_state_count exceeds configured series count: "
-                f"{min_state_count} > {len(bls_laus.series)}"
-            )
         re.compile(str(bls_thresholds["required_period_pattern"]))
         unemployment_rate_min = float(bls_thresholds["unemployment_rate_min"])
         unemployment_rate_max = float(bls_thresholds["unemployment_rate_max"])

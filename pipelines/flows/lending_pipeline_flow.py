@@ -1265,7 +1265,7 @@ def _raw_validation_expectations(
     return RawValidationExpectations(
         sba_required_resource_names=required_sba_resources,
         census_expected_state_count=(
-            int(project_config.validation_thresholds["census_bds"]["min_rows"])
+            int(project_config.validation_thresholds["census_bds"]["min_state_count"])
             if project_config.is_source_enabled("census_bds")
             else 0
         ),

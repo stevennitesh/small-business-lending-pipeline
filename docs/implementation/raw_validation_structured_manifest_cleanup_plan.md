@@ -149,8 +149,8 @@ Execution mode: sequential.
 - Verification command:
   - `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
-  - `census_bds.min_rows` should not pretend to be row-count validation if the check is actually state coverage.
-  - `bls_laus.min_state_count` should either be used clearly or removed if configured-series checks supersede it.
+  - `census_bds.min_state_count` should describe state coverage directly.
+  - BLS should rely on configured-series checks instead of a redundant `min_state_count` threshold.
 - Risk/rollback:
   - If config compatibility gets noisy, defer this to a separate issue and keep structured manifest cleanup focused.
 - Stop/ask if:
@@ -167,4 +167,4 @@ Execution mode: sequential.
 ## Open Questions
 
 - Should malformed manifest JSON reuse `RAW_004 Manifest created`, or should it get a new check ID such as `RAW_014 Manifest readable JSON`?
-- Should threshold renaming be part of this cleanup or a separate config-specific issue?
+- Threshold renaming is tracked in #67.

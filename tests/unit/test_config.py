@@ -29,7 +29,7 @@ def test_project_config_loader_returns_named_configs():
     assert project_config.bls_laus.start_year == 1990
     assert project_config.bls_laus.measure_name == "unemployment_rate"
     assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
-    assert project_config.validation_thresholds["bls_laus"]["min_state_count"] == 51
+    assert project_config.validation_thresholds["census_bds"]["min_state_count"] == 51
     assert project_config.source_identity("bls_laus").source_system == "bls"
     assert project_config.source_identity("bls_laus").dataset_name == "laus"
 
@@ -96,7 +96,7 @@ def test_project_config_rejects_unknown_policy_source(tmp_path):
     config_dir = _copy_config_dir(tmp_path)
     validation_path = config_dir / "validation_thresholds.yml"
     validation_config = load_yaml_file(validation_path)
-    validation_config["validation_thresholds"]["unknown_source"] = {"min_rows": 1}
+    validation_config["validation_thresholds"]["unknown_source"] = {"min_state_count": 1}
     _write_yaml_config(validation_path, validation_config)
 
     with pytest.raises(ValueError, match="unknown source keys: unknown_source"):
@@ -127,15 +127,14 @@ def test_project_config_rejects_census_validation_columns_not_requested(tmp_path
         load_project_config(config_dir)
 
 
-def test_project_config_rejects_bls_min_state_count_above_series_count(tmp_path):
-    config_dir = _copy_config_dir(tmp_path)
-    validation_path = config_dir / "validation_thresholds.yml"
-    validation_config = load_yaml_file(validation_path)
-    validation_config["validation_thresholds"]["bls_laus"]["min_state_count"] = 52
-    _write_yaml_config(validation_path, validation_config)
+def test_bls_validation_thresholds_only_declare_active_raw_validation_controls():
+    project_config = load_project_config(CONFIG_DIR)
 
-    with pytest.raises(ValueError, match="min_state_count exceeds"):
-        load_project_config(config_dir)
+    assert set(project_config.validation_thresholds["bls_laus"]) == {
+        "required_period_pattern",
+        "unemployment_rate_min",
+        "unemployment_rate_max",
+    }
 
 
 def test_census_bds_required_variables_are_declared():
