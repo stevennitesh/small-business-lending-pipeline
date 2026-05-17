@@ -15,6 +15,7 @@ from pipelines.load.snowflake_loader import (
     load_raw_extracts_to_snowflake_from_s3,
     load_raw_extracts_to_snowflake,
 )
+from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.utils.hashing import calculate_sha256, hash_schema
 from pipelines.validation.validation_result import (
     ValidationResult,
@@ -196,6 +197,77 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     assert summary_frame["LOAD_PATTERN"].tolist() == ["s3_stage_copy"]
 
 
+def test_snowflake_s3_loader_accepts_cloud_artifact_references(tmp_path):
+    manifests = _build_fixture_manifests(tmp_path)
+    _make_manifests_s3_backed(manifests)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+    manifest_locations, s3_objects = _manifest_artifact_locations(manifests)
+    validation_location = ArtifactLocation(
+        storage_backend="s3",
+        artifact_uri=(
+            "s3://bucket/validation/pipeline/raw_validation/validation_results/"
+            "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
+            "validation_results.json"
+        ),
+        artifact_key=(
+            "validation/pipeline/raw_validation/validation_results/"
+            "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
+            "validation_results.json"
+        ),
+        s3_uri=(
+            "s3://bucket/validation/pipeline/raw_validation/validation_results/"
+            "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
+            "validation_results.json"
+        ),
+    )
+    s3_objects[("bucket", validation_location.artifact_key)] = (
+        validation_path.read_bytes()
+    )
+    for paths in manifests.values():
+        for path in paths:
+            path.unlink()
+    validation_path.unlink()
+
+    connection = FakeSnowflakeConnection(
+        table_counts={
+            "RAW.RAW_SBA_7A_FOIA": 2,
+            "RAW.RAW_SBA_504_FOIA": 1,
+            "RAW.RAW_CENSUS_BDS_STATE_YEAR": 1,
+            "RAW.RAW_BLS_LAUS_STATE_MONTH": 2,
+        }
+    )
+    writer = FakeSnowflakeWriter()
+
+    summary = load_raw_extracts_to_snowflake_from_s3(
+        connection=connection,
+        database="SMALL_BUSINESS_LENDING",
+        raw_schema="RAW",
+        audit_schema="AUDIT",
+        sba_7a_manifest_paths=manifest_locations["sba_7a"],
+        sba_504_manifest_paths=manifest_locations["sba_504"],
+        census_bds_manifest_paths=manifest_locations["census"],
+        bls_laus_manifest_paths=manifest_locations["bls"],
+        validation_result_paths=[validation_location],
+        write_pandas_func=writer,
+        s3_client=FakeS3Client(
+            {
+                "raw/sba/7a_504_foia/sba_7a.csv": "LoanNumber,GrossApproval\n",
+                "raw/sba/7a_504_foia/sba_504.csv": "LoanNumber,GrossApproval\n",
+            },
+            objects=s3_objects,
+        ),
+    )
+
+    assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 4
+    assert summary.table_row_counts["RAW.RAW_VALIDATION_RESULT"] == 1
+    assert writer.written_frames["RAW_INGESTION_MANIFEST"]["RAW_URI"].str.startswith(
+        "s3://bucket/raw/"
+    ).all()
+
+
 def test_snowflake_csv_columns_are_stable_text_identifiers():
     assert _snowflake_csv_columns(
         ["LocationID", "Gross Approval", "123 Code", "", "Gross-Approval"]
@@ -328,10 +400,19 @@ class FakeSnowflakeWriter:
 
 
 class FakeS3Client:
-    def __init__(self, headers: dict[str, str]) -> None:
+    def __init__(
+        self,
+        headers: dict[str, str],
+        *,
+        objects: dict[tuple[str, str], bytes] | None = None,
+    ) -> None:
         self.headers = headers
+        self.objects = objects or {}
 
     def get_object(self, **kwargs):
+        object_key = (kwargs["Bucket"], kwargs["Key"])
+        if object_key in self.objects:
+            return {"Body": FakeBody(self.objects[object_key])}
         return {"Body": FakeBody(self.headers[kwargs["Key"]].encode("utf-8"))}
 
 
@@ -404,6 +485,34 @@ def _make_manifests_s3_backed(manifests: dict[str, list[Path]]) -> None:
             manifest["raw_uri"] = manifest["s3_raw_uri"]
             manifest["local_raw_path"] = None
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def _manifest_artifact_locations(
+    manifests: dict[str, list[Path]],
+) -> tuple[dict[str, list[ArtifactLocation]], dict[tuple[str, str], bytes]]:
+    objects: dict[tuple[str, str], bytes] = {}
+    locations: dict[str, list[ArtifactLocation]] = {}
+    for source_group, manifest_paths in manifests.items():
+        locations[source_group] = []
+        for manifest_path in manifest_paths:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            key = (
+                f"manifests/{manifest['source_system']}/{manifest['dataset_name']}/"
+                f"{manifest['resource_name']}/"
+                f"ingestion_date={manifest['ingestion_date']}/"
+                f"pipeline_run_id={manifest['pipeline_run_id']}/"
+                f"{manifest_path.name}"
+            )
+            objects[("bucket", key)] = manifest_path.read_bytes()
+            locations[source_group].append(
+                ArtifactLocation(
+                    storage_backend="s3",
+                    artifact_uri=f"s3://bucket/{key}",
+                    artifact_key=key,
+                    s3_uri=f"s3://bucket/{key}",
+                )
+            )
+    return locations, objects
 
 
 def _build_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:

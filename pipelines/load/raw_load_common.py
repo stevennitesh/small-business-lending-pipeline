@@ -6,6 +6,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader
 from pipelines.validation.validation_result import (
     ValidationFailedError,
     ValidationResult,
@@ -21,26 +22,36 @@ SOURCE_TABLE_KINDS = {
 }
 
 
-def load_manifests(paths: Iterable[Path | str]) -> list[dict[str, Any]]:
+ManifestReference = Path | str | ArtifactLocation
+
+
+def load_manifests(
+    paths: Iterable[ManifestReference],
+    *,
+    artifact_reader: ArtifactReader | None = None,
+) -> list[dict[str, Any]]:
+    reader = artifact_reader or ArtifactReader()
     return [
-        json.loads(Path(path).read_text(encoding="utf-8"))
+        json.loads(_read_reference_text(path, reader))
         for path in paths
     ]
 
 
 def load_validation_results(
-    paths: Iterable[Path | str],
+    paths: Iterable[ManifestReference],
     *,
     error_cls: type[Exception],
     missing_message: str,
+    artifact_reader: ArtifactReader | None = None,
 ) -> list[ValidationResult]:
     validation_paths = list(paths)
     if not validation_paths:
         raise error_cls(missing_message)
 
+    reader = artifact_reader or ArtifactReader()
     results: list[ValidationResult] = []
     for path in validation_paths:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        payload = json.loads(_read_reference_text(path, reader))
         results.extend(ValidationResult(**record) for record in payload)
     return results
 
@@ -124,6 +135,15 @@ def normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
         for record in records
     ]
     return pd.DataFrame(normalized_records)
+
+
+def _read_reference_text(
+    reference: ManifestReference,
+    artifact_reader: ArtifactReader,
+) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return artifact_reader.read_text(reference)
+    return Path(reference).read_text(encoding="utf-8")
 
 
 def _table_key(table_name: str) -> str:

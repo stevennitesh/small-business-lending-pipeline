@@ -511,11 +511,25 @@ def load_snowflake_raw_tables(
             database=config.database,
             raw_schema=config.raw_schema,
             audit_schema=config.audit_schema,
-            sba_7a_manifest_paths=extraction_paths.sba_7a_manifest_paths,
-            sba_504_manifest_paths=extraction_paths.sba_504_manifest_paths,
-            census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
-            bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
-            validation_result_paths=[validation_output.local_path],
+            sba_7a_manifest_paths=(
+                extraction_paths.sba_7a_manifest_locations
+                or extraction_paths.sba_7a_manifest_paths
+            ),
+            sba_504_manifest_paths=(
+                extraction_paths.sba_504_manifest_locations
+                or extraction_paths.sba_504_manifest_paths
+            ),
+            census_bds_manifest_paths=(
+                extraction_paths.census_bds_manifest_locations
+                or extraction_paths.census_bds_manifest_paths
+            ),
+            bls_laus_manifest_paths=(
+                extraction_paths.bls_laus_manifest_locations
+                or extraction_paths.bls_laus_manifest_paths
+            ),
+            validation_result_paths=[
+                validation_output.artifact_location or validation_output.local_path
+            ],
             storage_integration=config.storage_integration,
         )
     finally:

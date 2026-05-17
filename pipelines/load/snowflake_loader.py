@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from snowflake.connector.pandas_tools import write_pandas
 
 from pipelines.load.raw_load_common import (
+    ManifestReference,
     assert_validation_passed,
     flatten_manifest_groups,
     load_manifests,
@@ -26,7 +27,7 @@ from pipelines.load.raw_load_common import (
     pipeline_run_ids_from_manifest_groups,
     require_manifest_groups,
 )
-from pipelines.storage.raw_artifacts import parse_s3_uri
+from pipelines.storage.raw_artifacts import ArtifactReader, parse_s3_uri
 from pipelines.utils.dates import utc_now_iso
 
 
@@ -187,11 +188,11 @@ def load_raw_extracts_to_snowflake(
     database: str,
     raw_schema: str = "RAW",
     audit_schema: str = "AUDIT",
-    sba_7a_manifest_paths: Iterable[Path | str],
-    sba_504_manifest_paths: Iterable[Path | str],
-    census_bds_manifest_paths: Iterable[Path | str],
-    bls_laus_manifest_paths: Iterable[Path | str],
-    validation_result_paths: Iterable[Path | str],
+    sba_7a_manifest_paths: Iterable[ManifestReference],
+    sba_504_manifest_paths: Iterable[ManifestReference],
+    census_bds_manifest_paths: Iterable[ManifestReference],
+    bls_laus_manifest_paths: Iterable[ManifestReference],
+    validation_result_paths: Iterable[ManifestReference],
     write_pandas_func: WritePandasFunc = write_pandas,
 ) -> SnowflakeRawLoadSummary:
     """Compatibility local-file loader; cloud flow uses the S3 loader."""
@@ -331,18 +332,32 @@ def load_raw_extracts_to_snowflake_from_s3(
     storage_integration: str | None = None,
     s3_client: Any | None = None,
 ) -> SnowflakeRawLoadSummary:
+    artifact_reader = ArtifactReader(s3_client=s3_client)
     validation_results = load_validation_results(
         validation_result_paths,
         error_cls=SnowflakeRawLoadError,
         missing_message="At least one validation result file is required.",
+        artifact_reader=artifact_reader,
     )
     assert_validation_passed(validation_results, error_cls=SnowflakeRawLoadError)
 
     manifest_groups = {
-        "raw_sba_7a_foia": load_manifests(sba_7a_manifest_paths),
-        "raw_sba_504_foia": load_manifests(sba_504_manifest_paths),
-        "raw_census_bds_state_year": load_manifests(census_bds_manifest_paths),
-        "raw_bls_laus_state_month": load_manifests(bls_laus_manifest_paths),
+        "raw_sba_7a_foia": load_manifests(
+            sba_7a_manifest_paths,
+            artifact_reader=artifact_reader,
+        ),
+        "raw_sba_504_foia": load_manifests(
+            sba_504_manifest_paths,
+            artifact_reader=artifact_reader,
+        ),
+        "raw_census_bds_state_year": load_manifests(
+            census_bds_manifest_paths,
+            artifact_reader=artifact_reader,
+        ),
+        "raw_bls_laus_state_month": load_manifests(
+            bls_laus_manifest_paths,
+            artifact_reader=artifact_reader,
+        ),
     }
     require_manifest_groups(manifest_groups, error_cls=SnowflakeRawLoadError)
     _require_s3_backed_manifests(manifest_groups)
