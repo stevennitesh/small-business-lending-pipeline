@@ -28,6 +28,8 @@ from pipelines.utils.hashing import hash_bytes, hash_schema
 from pipelines.utils.manifest import (
     ExtractionManifest,
     ExtractionResult,
+    build_local_manifest_path,
+    build_manifest_artifact_location,
     manifest_to_json_bytes,
     write_manifest,
 )
@@ -258,10 +260,12 @@ def extract_census_bds(
         file_size_bytes=len(raw_payload),
         validation_messages=[],
     )
-    manifest_path = _build_local_manifest_path(
+    manifest_path = build_local_manifest_path(
         data_root=Path(data_root),
+        source_directory="census",
         ingestion_date=ingestion_date,
         pipeline_run_id=run_id,
+        filename=f"{RESOURCE_NAME}.manifest.json",
     )
     manifest_dict = {
         **manifest.to_dict(),
@@ -270,7 +274,7 @@ def extract_census_bds(
     write_manifest(manifest_dict, manifest_path)
     manifest_location = None
     if manifest_artifact_store is not None:
-        manifest_location = _manifest_artifact_location(
+        manifest_location = build_manifest_artifact_location(
             manifest_artifact_store,
             manifest=manifest,
             filename=manifest_path.name,
@@ -322,39 +326,6 @@ def _time_predicate(start_year: int, end_year: int) -> str:
     if start_year == end_year:
         return str(start_year)
     return f"from {start_year} to {end_year}"
-
-
-def _build_local_manifest_path(
-    *,
-    data_root: Path,
-    ingestion_date: str,
-    pipeline_run_id: str,
-) -> Path:
-    return (
-        data_root
-        / "manifests"
-        / "census"
-        / f"ingestion_date={ingestion_date}"
-        / f"pipeline_run_id={pipeline_run_id}"
-        / f"{RESOURCE_NAME}.manifest.json"
-    )
-
-
-def _manifest_artifact_location(
-    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore,
-    *,
-    manifest: ExtractionManifest,
-    filename: str,
-) -> ArtifactLocation:
-    return manifest_artifact_store.location(
-        prefix="manifests",
-        source_system=manifest.source_system,
-        dataset_name=manifest.dataset_name,
-        resource_name=manifest.resource_name,
-        ingestion_date=manifest.ingestion_date,
-        pipeline_run_id=manifest.pipeline_run_id,
-        filename=filename,
-    )
 
 
 def _ingestion_date_from_iso(value: str) -> str:

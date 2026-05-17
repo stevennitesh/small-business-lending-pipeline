@@ -127,6 +127,41 @@ def manifest_to_json_bytes(manifest: ExtractionManifest | dict[str, Any]) -> byt
     )
 
 
+def build_local_manifest_path(
+    *,
+    data_root: Path,
+    source_directory: str,
+    ingestion_date: str,
+    pipeline_run_id: str,
+    filename: str,
+) -> Path:
+    return (
+        data_root
+        / "manifests"
+        / source_directory
+        / f"ingestion_date={ingestion_date}"
+        / f"pipeline_run_id={pipeline_run_id}"
+        / filename
+    )
+
+
+def build_manifest_artifact_location(
+    manifest_artifact_store: Any,
+    *,
+    manifest: ExtractionManifest,
+    filename: str,
+) -> Any:
+    return manifest_artifact_store.location(
+        prefix="manifests",
+        source_system=manifest.source_system,
+        dataset_name=manifest.dataset_name,
+        resource_name=manifest.resource_name,
+        ingestion_date=manifest.ingestion_date,
+        pipeline_run_id=manifest.pipeline_run_id,
+        filename=filename,
+    )
+
+
 def _validate_utc_timestamp(value: str) -> None:
     timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if timestamp.tzinfo is None or timestamp.utcoffset().total_seconds() != 0:

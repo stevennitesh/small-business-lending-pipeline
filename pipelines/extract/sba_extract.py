@@ -32,6 +32,8 @@ from pipelines.utils.hashing import hash_schema
 from pipelines.utils.manifest import (
     ExtractionManifest,
     ExtractionResult,
+    build_local_manifest_path,
+    build_manifest_artifact_location,
     manifest_to_json_bytes,
     write_manifest,
 )
@@ -293,7 +295,7 @@ def extract_sba_foia(
         results[logical_name] = result
         manifest_paths[logical_name] = manifest_path
         if manifest_artifact_store is not None:
-            manifest_locations[logical_name] = _manifest_artifact_location(
+            manifest_locations[logical_name] = build_manifest_artifact_location(
                 manifest_artifact_store,
                 manifest=result.manifest,
                 filename=manifest_path.name,
@@ -424,15 +426,16 @@ def _download_resource(
         file_size_bytes=file_size_bytes,
         validation_messages=[],
     )
-    manifest_path = _build_local_manifest_path(
+    manifest_path = build_local_manifest_path(
         data_root=data_root,
+        source_directory="sba",
         ingestion_date=ingestion_date,
         pipeline_run_id=pipeline_run_id,
-        logical_name=resource.spec.logical_name,
+        filename=f"{resource.spec.logical_name}.manifest.json",
     )
     write_manifest(manifest, manifest_path)
     if manifest_artifact_store is not None:
-        manifest_location = _manifest_artifact_location(
+        manifest_location = build_manifest_artifact_location(
             manifest_artifact_store,
             manifest=manifest,
             filename=manifest_path.name,
@@ -449,23 +452,6 @@ def _download_resource(
             row_count=row_count,
         ),
         manifest_path,
-    )
-
-
-def _manifest_artifact_location(
-    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore,
-    *,
-    manifest: ExtractionManifest,
-    filename: str,
-) -> ArtifactLocation:
-    return manifest_artifact_store.location(
-        prefix="manifests",
-        source_system=manifest.source_system,
-        dataset_name=manifest.dataset_name,
-        resource_name=manifest.resource_name,
-        ingestion_date=manifest.ingestion_date,
-        pipeline_run_id=manifest.pipeline_run_id,
-        filename=filename,
     )
 
 
@@ -511,23 +497,6 @@ def _profile_downloaded_payload(
 
     schema = [{"file_format": file_format, "filename": filename}]
     return 0, None, hash_schema(schema)
-
-
-def _build_local_manifest_path(
-    *,
-    data_root: Path,
-    ingestion_date: str,
-    pipeline_run_id: str,
-    logical_name: str,
-) -> Path:
-    return (
-        data_root
-        / "manifests"
-        / "sba"
-        / f"ingestion_date={ingestion_date}"
-        / f"pipeline_run_id={pipeline_run_id}"
-        / f"{logical_name}.manifest.json"
-    )
 
 
 def _find_resource_match(

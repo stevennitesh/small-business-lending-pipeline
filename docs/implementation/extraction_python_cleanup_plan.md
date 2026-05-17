@@ -93,7 +93,7 @@ Parallel groups: None
   - Main risk is subtle path drift; rollback shared helper and restore private helper calls if path assertions fail.
 - Stop/ask if:
   - Consolidation requires changing raw/manifest path conventions.
-- Status: pending
+- Status: completed in #60
 
 ### Task 2: Consolidate Ingestion Date Parsing
 
