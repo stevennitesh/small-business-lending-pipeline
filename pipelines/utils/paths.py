@@ -70,6 +70,28 @@ def build_manifest_s3_key(
     return "/".join(_clean_segment(part) for part in parts)
 
 
+def build_partitioned_artifact_key(
+    *,
+    prefix: str,
+    source_system: str,
+    dataset_name: str,
+    resource_name: str,
+    ingestion_date: str,
+    pipeline_run_id: str,
+    filename: str,
+) -> str:
+    parts = [
+        prefix,
+        source_system,
+        dataset_name,
+        resource_name,
+        f"ingestion_date={ingestion_date}",
+        f"pipeline_run_id={pipeline_run_id}",
+        filename,
+    ]
+    return "/".join(_clean_segment(part) for part in parts)
+
+
 def build_s3_uri(bucket: str, key: str) -> str:
     cleaned_bucket = bucket.removeprefix("s3://").strip("/")
     if not cleaned_bucket:

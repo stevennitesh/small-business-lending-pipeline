@@ -10,7 +10,11 @@ from typing import Any, Protocol
 import boto3
 from botocore.exceptions import ClientError, EndpointConnectionError
 
-from pipelines.utils.paths import build_raw_s3_key, build_s3_uri
+from pipelines.utils.paths import (
+    build_partitioned_artifact_key,
+    build_raw_s3_key,
+    build_s3_uri,
+)
 
 
 TRANSIENT_ERROR_CODES = {
@@ -274,16 +278,14 @@ def _partitioned_artifact_key(
     manifest: dict[str, Any],
     filename: str,
 ) -> str:
-    return "/".join(
-        [
-            prefix,
-            str(manifest["source_system"]),
-            str(manifest["dataset_name"]),
-            str(manifest["resource_name"]),
-            f"ingestion_date={manifest['ingestion_date']}",
-            f"pipeline_run_id={manifest['pipeline_run_id']}",
-            filename,
-        ]
+    return build_partitioned_artifact_key(
+        prefix=prefix,
+        source_system=str(manifest["source_system"]),
+        dataset_name=str(manifest["dataset_name"]),
+        resource_name=str(manifest["resource_name"]),
+        ingestion_date=str(manifest["ingestion_date"]),
+        pipeline_run_id=str(manifest["pipeline_run_id"]),
+        filename=filename,
     )
 
 
