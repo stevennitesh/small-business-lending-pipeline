@@ -20,6 +20,7 @@ def check_sba_required_resources(
     required_resource_names: list[str],
     source_identity: SourceIdentity = DEFAULT_SBA_IDENTITY,
     artifact_reader: RawArtifactReader | None = None,
+    readable_resource_names: set[str] | None = None,
 ) -> list[ValidationResult]:
     manifest_list = list(manifests)
     resources_by_name = {
@@ -27,11 +28,11 @@ def check_sba_required_resources(
         for manifest in manifest_list
     }
     missing_resources = sorted(set(required_resource_names) - set(resources_by_name))
-    unreadable_resources = sorted(
-        resource_name
-        for resource_name, manifest in resources_by_name.items()
-        if resource_name in required_resource_names
-        and not _manifest_artifact_exists(manifest, artifact_reader=artifact_reader)
+    unreadable_resources = _unreadable_required_resources(
+        resources_by_name,
+        required_resource_names=required_resource_names,
+        artifact_reader=artifact_reader,
+        readable_resource_names=readable_resource_names,
     )
     base_manifest = manifest_list[0] if manifest_list else {}
     return [
@@ -74,6 +75,29 @@ def _manifest_artifact_exists(
     if artifact_reader is not None:
         return artifact_reader.exists(manifest)
     return Path(str(manifest.get("local_raw_path", ""))).is_file()
+
+
+def _unreadable_required_resources(
+    resources_by_name: dict[str, dict[str, Any]],
+    *,
+    required_resource_names: list[str],
+    artifact_reader: RawArtifactReader | None,
+    readable_resource_names: set[str] | None,
+) -> list[str]:
+    required_resources = set(required_resource_names)
+    if readable_resource_names is not None:
+        return sorted(
+            resource_name
+            for resource_name in resources_by_name
+            if resource_name in required_resources
+            and resource_name not in readable_resource_names
+        )
+    return sorted(
+        resource_name
+        for resource_name, manifest in resources_by_name.items()
+        if resource_name in required_resources
+        and not _manifest_artifact_exists(manifest, artifact_reader=artifact_reader)
+    )
 
 
 def check_census_bds_payload(

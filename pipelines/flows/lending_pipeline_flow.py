@@ -356,15 +356,18 @@ def validate_raw_outputs(
     validation_results.extend(manifest_load_results)
     manifests = [loaded.manifest for loaded in loaded_manifest_references]
     artifact_reader = _raw_artifact_reader(context)
+    raw_manifest_results: list[ValidationResult] = []
 
     for loaded_manifest in loaded_manifest_references:
-        validation_results.extend(
+        raw_manifest_results.extend(
             check_raw_manifest(
                 loaded_manifest.reference,
                 artifact_reader=artifact_reader,
                 manifest_artifact_reader=manifest_artifact_reader,
             )
         )
+    validation_results.extend(raw_manifest_results)
+    readable_resource_names = _readable_resource_names(raw_manifest_results)
 
     for manifest in manifests:
         validation_results.append(
@@ -393,6 +396,7 @@ def validate_raw_outputs(
                 required_resource_names=expectations.sba_required_resource_names,
                 source_identity=project_config.source_identity("sba_foia"),
                 artifact_reader=artifact_reader,
+                readable_resource_names=readable_resource_names,
             )
         )
 
@@ -1110,6 +1114,14 @@ def _manifest_reference_failure(
         passed_message=f"{check_name} check passed.",
         failed_message=failed_message,
     )
+
+
+def _readable_resource_names(results: list[ValidationResult]) -> set[str]:
+    return {
+        result.source_resource_name
+        for result in results
+        if result.validation_check_id == "RAW_001" and result.status == "passed"
+    }
 
 
 def _validation_artifact_location(

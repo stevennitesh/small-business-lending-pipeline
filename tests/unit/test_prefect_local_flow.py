@@ -333,6 +333,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
         required_resource_names,
         source_identity,
         artifact_reader,
+        readable_resource_names,
     ):
         captured_identities["sba_foia"] = source_identity
         return []

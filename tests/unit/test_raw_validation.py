@@ -71,6 +71,16 @@ class FakeS3ObjectClient:
         return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 
+class CountingRawArtifactReader(RawArtifactReader):
+    def __init__(self) -> None:
+        super().__init__()
+        self.exists_calls = 0
+
+    def exists(self, manifest: dict) -> bool:
+        self.exists_calls += 1
+        return True
+
+
 def test_validation_result_serializes_and_writes_json(tmp_path):
     result = ValidationResult(
         pipeline_run_id="run-123",
@@ -406,6 +416,30 @@ def test_sba_required_resources_check_reports_missing_resource(tmp_path):
     ]
     assert results[0].status == "failed"
     assert "sba_504_fy2010_present" in str(results[0].observed_value)
+
+
+def test_sba_required_resources_reuses_readable_resource_names(tmp_path):
+    raw_file = tmp_path / "sba.csv"
+    raw_file.write_text("a,b\n1,2\n", encoding="utf-8")
+    manifest = _manifest_for(raw_file)
+    manifest.update(
+        {
+            "source_system": "sba",
+            "dataset_name": "7a_504_foia",
+            "resource_name": "sba_7a_fy2020_present",
+        }
+    )
+    artifact_reader = CountingRawArtifactReader()
+
+    results = check_sba_required_resources(
+        [manifest],
+        required_resource_names=["sba_7a_fy2020_present"],
+        artifact_reader=artifact_reader,
+        readable_resource_names={"sba_7a_fy2020_present"},
+    )
+
+    assert artifact_reader.exists_calls == 0
+    assert all(result.status == "passed" for result in results)
 
 
 def test_source_validation_checks_use_configured_identity(tmp_path):
