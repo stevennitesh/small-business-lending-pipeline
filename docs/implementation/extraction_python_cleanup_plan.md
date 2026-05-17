@@ -152,7 +152,7 @@ Parallel groups: None
   - Low; restore wrapper if an external/manual workflow is discovered that depends on it.
 - Stop/ask if:
   - Documentation or CLI examples present `load_sba_resource_specs(...)` as public API.
-- Status: pending
+- Status: completed in #62
 
 ### Task 4: Remove Stale SBA Streaming Test Monkeypatch
 

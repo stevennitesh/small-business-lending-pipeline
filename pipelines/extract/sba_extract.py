@@ -114,12 +114,6 @@ class SBAExtractionSummary:
     manifest_locations: dict[str, ArtifactLocation] = field(default_factory=dict)
 
 
-def load_sba_resource_specs(
-    config_path: Path | str = "config/sba_resources.yml",
-) -> list[SBAResourceSpec]:
-    return list(load_sba_resources_config(config_path).resources)
-
-
 def load_sba_resources_config(
     config_path: Path | str = "config/sba_resources.yml",
 ) -> SBAResourcesConfig:

@@ -15,7 +15,6 @@ from pipelines.extract.sba_extract import (
     SBAResourceSpec,
     extract_sba_foia,
     load_sba_resources_config,
-    load_sba_resource_specs,
     resolve_sba_resources,
 )
 from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
@@ -134,8 +133,8 @@ def test_load_sba_resources_config_includes_discovery_settings():
     assert len(config.resources) == 7
 
 
-def test_load_sba_resource_specs_from_config():
-    specs = load_sba_resource_specs(Path("config/sba_resources.yml"))
+def test_load_sba_resources_config_provides_resource_specs():
+    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
 
     assert len(specs) == 7
     assert {spec.logical_name for spec in specs} == {
@@ -230,7 +229,7 @@ def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp
 
 
 def test_resolve_sba_resources_matches_expected_metadata():
-    specs = load_sba_resource_specs(Path("config/sba_resources.yml"))
+    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
     resolved = resolve_sba_resources(specs, _sample_package_metadata())
 
     assert len(resolved) == 7
@@ -240,7 +239,7 @@ def test_resolve_sba_resources_matches_expected_metadata():
 
 
 def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
-    specs = load_sba_resource_specs(Path("config/sba_resources.yml"))
+    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
     metadata = _sample_package_metadata()
     downloads = {
         resource["url"]: b"col_a,col_b\n1,2\n3,4\n"
