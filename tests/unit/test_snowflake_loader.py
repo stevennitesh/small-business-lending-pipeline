@@ -11,6 +11,7 @@ from pipelines.load.snowflake_loader import (
     SNOWFLAKE_RAW_TABLES,
     SnowflakeConfig,
     SnowflakeRawLoadError,
+    _snowflake_csv_columns,
     load_raw_extracts_to_snowflake_from_s3,
     load_raw_extracts_to_snowflake,
 )
@@ -106,6 +107,20 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
 
 def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     manifests = _build_fixture_manifests(tmp_path)
+    sba_7a_part2 = tmp_path / "raw" / "sba_7a_part2.csv"
+    sba_7a_part2.write_text("LoanNumber,GrossApproval\n4,4000\n", encoding="utf-8")
+    manifests["sba_7a"].append(
+        _write_manifest(
+            raw_file=sba_7a_part2,
+            manifest_path=tmp_path / "manifests" / "sba_7a_part2.manifest.json",
+            source_system="sba",
+            dataset_name="7a_504_foia",
+            resource_name="sba_7a_fy2000_fy2009",
+            row_count=1,
+            file_format="csv",
+            schema_fields=["LoanNumber", "GrossApproval"],
+        )
+    )
     _make_manifests_s3_backed(manifests)
     validation_path = write_validation_results(
         [_validation_result()],
@@ -113,13 +128,18 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     )
     connection = FakeSnowflakeConnection(
         table_counts={
-            "RAW.RAW_SBA_7A_FOIA": 2,
+            "RAW.RAW_SBA_7A_FOIA": 3,
             "RAW.RAW_SBA_504_FOIA": 1,
             "RAW.RAW_CENSUS_BDS_STATE_YEAR": 1,
             "RAW.RAW_BLS_LAUS_STATE_MONTH": 2,
         }
     )
     writer = FakeSnowflakeWriter()
+    s3_headers = {
+        "raw/sba/7a_504_foia/sba_7a.csv": "LoanNumber,GrossApproval\n",
+        "raw/sba/7a_504_foia/sba_7a_part2.csv": "LoanNumber,GrossApproval\n",
+        "raw/sba/7a_504_foia/sba_504.csv": "LoanNumber,GrossApproval\n",
+    }
 
     summary = load_raw_extracts_to_snowflake_from_s3(
         connection=connection,
@@ -133,22 +153,20 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
         validation_result_paths=[validation_path],
         write_pandas_func=writer,
         storage_integration="SBL_S3_INT",
+        s3_client=FakeS3Client(s3_headers),
     )
 
     sql = " ".join(connection.sql_statements)
-    assert "create or replace file format RAW.RAW_CSV_FORMAT" in sql
+    assert "create or replace file format RAW.RAW_CSV_LOAD_FORMAT" in sql
     assert "create or replace file format RAW.RAW_JSON_FORMAT" in sql
     assert "create or replace stage RAW.RAW_S3_STAGE" in sql
     assert "storage_integration = SBL_S3_INT" in sql
     assert "error_on_column_count_mismatch = false" in sql
-    assert (
-        "create or replace table RAW.RAW_SBA_7A_FOIA using template"
-        in sql
-    )
-    assert (
-        "alter table RAW.RAW_SBA_7A_FOIA add column if not exists RAW_URI varchar"
-        in sql
-    )
+    assert "create or replace table RAW.RAW_SBA_7A_FOIA (" in sql
+    assert "LOANNUMBER varchar" in sql
+    assert "GROSSAPPROVAL varchar" in sql
+    assert "using template" not in sql
+    assert "RAW_URI varchar" in sql
     assert "update RAW.RAW_SBA_7A_FOIA set" in sql
     assert "STORAGE_BACKEND = 's3'" in sql
     assert "lateral flatten(input => PAYLOAD)" in sql
@@ -157,6 +175,12 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     assert "lateral flatten(input => PAYLOAD:normalized_rows)" in sql
     assert "row.value" not in sql
     assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a.csv'" in sql
+    assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a_part2.csv'" in sql
+    first_copy = sql.index("@RAW.RAW_S3_STAGE/raw/sba/7a_504_foia/sba_7a.csv")
+    first_update = sql.index("SOURCE_RESOURCE_NAME = 'sba_7a_fy2020_present'")
+    second_copy = sql.index("@RAW.RAW_S3_STAGE/raw/sba/7a_504_foia/sba_7a_part2.csv")
+    second_update = sql.index("SOURCE_RESOURCE_NAME = 'sba_7a_fy2000_fy2009'")
+    assert first_copy < first_update < second_copy < second_update
     assert "create or replace table RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
     assert "insert into RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
     assert "create or replace table RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
@@ -165,10 +189,22 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
         statement.startswith("copy into RAW.RAW_SBA_7A_FOIA")
         for statement in connection.sql_statements
     )
-    assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 2
-    assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 4
+    assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 3
+    assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 5
     summary_frame = writer.written_frames["RAW_PIPELINE_RUN_SUMMARY"]
     assert summary_frame["LOAD_PATTERN"].tolist() == ["s3_stage_copy"]
+
+
+def test_snowflake_csv_columns_are_stable_text_identifiers():
+    assert _snowflake_csv_columns(
+        ["LocationID", "Gross Approval", "123 Code", "", "Gross-Approval"]
+    ) == [
+        "LOCATIONID",
+        "GROSS_APPROVAL",
+        "_123_CODE",
+        "COLUMN_4",
+        "GROSS_APPROVAL_2",
+    ]
 
 
 def test_snowflake_loader_blocks_failed_validation(tmp_path):
@@ -288,6 +324,22 @@ class FakeSnowflakeWriter:
     ) -> tuple[bool, int, int, list[tuple[str, str]]]:
         self.written_frames[table_name] = frame.copy()
         return True, 1, len(frame), []
+
+
+class FakeS3Client:
+    def __init__(self, headers: dict[str, str]) -> None:
+        self.headers = headers
+
+    def get_object(self, **kwargs):
+        return {"Body": FakeBody(self.headers[kwargs["Key"]].encode("utf-8"))}
+
+
+class FakeBody:
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def read(self) -> bytes:
+        return self.body
 
 
 def _write_manifest(

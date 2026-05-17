@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import os
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+import boto3
 import pandas as pd
 import snowflake.connector
 from dotenv import load_dotenv
@@ -325,6 +329,7 @@ def load_raw_extracts_to_snowflake_from_s3(
     write_pandas_func: WritePandasFunc = write_pandas,
     stage_name: str = "RAW_S3_STAGE",
     storage_integration: str | None = None,
+    s3_client: Any | None = None,
 ) -> SnowflakeRawLoadSummary:
     validation_results = load_validation_results(
         validation_result_paths,
@@ -367,6 +372,7 @@ def load_raw_extracts_to_snowflake_from_s3(
             table_name=table_name,
             manifests=manifests,
             stage_name=stage_name,
+            s3_client=s3_client,
         )
         expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
         row_count = _snowflake_table_count(connection, raw_schema, table_name)
@@ -460,9 +466,9 @@ def _create_s3_stage_load_objects(
     with connection.cursor() as cursor:
         cursor.execute(
             f"""
-            create or replace file format {raw_schema}.RAW_CSV_FORMAT
+            create or replace file format {raw_schema}.RAW_CSV_LOAD_FORMAT
               type = csv
-              parse_header = true
+              skip_header = 1
               field_optionally_enclosed_by = '"'
               trim_space = true
               null_if = ('', 'NULL', 'null')
@@ -484,29 +490,6 @@ def _create_s3_stage_load_objects(
         )
 
 
-def _copy_manifest_group_from_stage(
-    connection,
-    *,
-    raw_schema: str,
-    table_name: str,
-    manifests: list[dict[str, Any]],
-    stage_name: str,
-) -> None:
-    with connection.cursor() as cursor:
-        for manifest in manifests:
-            reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
-            file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
-            cursor.execute(
-                f"""
-                copy into {raw_schema}.{table_name}
-                from @{raw_schema}.{stage_name}/{reference.key}
-                file_format = (format_name = {file_format})
-                match_by_column_name = case_insensitive
-                on_error = abort_statement
-                """
-            )
-
-
 def _load_s3_manifest_group(
     connection,
     *,
@@ -515,6 +498,7 @@ def _load_s3_manifest_group(
     table_name: str,
     manifests: list[dict[str, Any]],
     stage_name: str,
+    s3_client: Any | None,
 ) -> None:
     if source_table in {"raw_sba_7a_foia", "raw_sba_504_foia"}:
         _create_csv_source_table_from_stage(
@@ -523,6 +507,7 @@ def _load_s3_manifest_group(
             table_name=table_name,
             manifest=manifests[0],
             stage_name=stage_name,
+            s3_client=s3_client,
         )
         _copy_csv_manifest_group_from_stage(
             connection=connection,
@@ -577,30 +562,68 @@ def _create_csv_source_table_from_stage(
     table_name: str,
     manifest: dict[str, Any],
     stage_name: str,
+    s3_client: Any | None,
 ) -> None:
-    reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
-    file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"""
-            create or replace table {raw_schema}.{table_name}
-            using template (
-              select array_agg(object_construct(
-                'COLUMN_NAME', column_name,
-                'TYPE', type,
-                'NULLABLE', true
-              ))
-              from table(
-                infer_schema(
-                  location => '@{raw_schema}.{stage_name}/{reference.key}',
-                  file_format => '{file_format}',
-                  ignore_case => true
-                )
-              )
-            )
-            """
-        )
-    _add_metadata_columns(connection, raw_schema=raw_schema, table_name=table_name)
+    del stage_name
+    header = _csv_header_from_manifest(manifest, s3_client=s3_client)
+    source_columns = {column_name: "varchar" for column_name in _snowflake_csv_columns(header)}
+    _create_explicit_source_table(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        source_columns=source_columns,
+    )
+
+
+def _csv_header_from_manifest(
+    manifest: dict[str, Any],
+    *,
+    s3_client: Any | None = None,
+) -> list[str]:
+    local_path = manifest.get("local_raw_path")
+    if local_path:
+        path = Path(local_path)
+        if path.exists():
+            with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+                return next(csv.reader(csv_file))
+
+    raw_uri = str(manifest.get("raw_uri") or manifest["s3_raw_uri"])
+    reference = parse_s3_uri(raw_uri)
+    client = s3_client or boto3.client("s3")
+    response = client.get_object(
+        Bucket=reference.bucket,
+        Key=reference.key,
+        Range="bytes=0-65535",
+    )
+    header_chunk = response["Body"].read().decode("utf-8-sig", errors="replace")
+    return next(csv.reader(io.StringIO(header_chunk)))
+
+
+def _snowflake_csv_columns(header: list[str]) -> list[str]:
+    if not header:
+        raise SnowflakeRawLoadError("CSV source header is empty.")
+
+    columns: list[str] = []
+    seen: dict[str, int] = {}
+    for index, raw_column in enumerate(header, start=1):
+        normalized = _snowflake_identifier(raw_column)
+        if not normalized:
+            normalized = f"COLUMN_{index}"
+        if normalized in seen:
+            seen[normalized] += 1
+            normalized = f"{normalized}_{seen[normalized]}"
+        else:
+            seen[normalized] = 1
+        columns.append(normalized)
+    return columns
+
+
+def _snowflake_identifier(value: str) -> str:
+    identifier = re.sub(r"[^0-9A-Za-z_]+", "_", value.strip()).strip("_").upper()
+    identifier = re.sub(r"_+", "_", identifier)
+    if identifier and identifier[0].isdigit():
+        identifier = f"_{identifier}"
+    return identifier
 
 
 def _copy_csv_manifest_group_from_stage(
@@ -611,15 +634,18 @@ def _copy_csv_manifest_group_from_stage(
     manifests: list[dict[str, Any]],
     stage_name: str,
 ) -> None:
-    _copy_manifest_group_from_stage(
-        connection=connection,
-        raw_schema=raw_schema,
-        table_name=table_name,
-        manifests=manifests,
-        stage_name=stage_name,
-    )
     with connection.cursor() as cursor:
         for manifest in manifests:
+            reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
+            file_format = _csv_load_file_format(raw_schema)
+            cursor.execute(
+                f"""
+                copy into {raw_schema}.{table_name}
+                from @{raw_schema}.{stage_name}/{reference.key}
+                file_format = (format_name = {file_format})
+                on_error = abort_statement
+                """
+            )
             cursor.execute(
                 f"""
                 update {raw_schema}.{table_name}
@@ -819,10 +845,14 @@ def _sql_literal(value: Any) -> str:
 
 def _stage_file_format(raw_schema: str, file_format: str) -> str:
     if file_format.lower() == "csv":
-        return f"{raw_schema}.RAW_CSV_FORMAT"
+        return _csv_load_file_format(raw_schema)
     if file_format.lower() == "json":
         return f"{raw_schema}.RAW_JSON_FORMAT"
     raise SnowflakeRawLoadError(f"Unsupported Snowflake S3 file format: {file_format}")
+
+
+def _csv_load_file_format(raw_schema: str) -> str:
+    return f"{raw_schema}.RAW_CSV_LOAD_FORMAT"
 
 
 def _snowflake_table_count(connection, raw_schema: str, table_name: str) -> int:
