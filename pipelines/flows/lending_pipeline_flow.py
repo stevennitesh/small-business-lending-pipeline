@@ -228,6 +228,7 @@ class PipelineRunSummary:
     finished_at_utc: str
     validation_result_path: str | None = None
     validation_result_uri: str | None = None
+    manifest_artifact_uris: list[str] = field(default_factory=list)
     duckdb_path: str | None = None
     dbt_artifacts: dict[str, str] = field(default_factory=dict)
     bi_row_counts: dict[str, int] = field(default_factory=dict)
@@ -653,6 +654,7 @@ def write_run_summary(
     failed_stage: str | None = None,
     error_message: str | None = None,
     validation_result_path: Path | ValidationOutput | None = None,
+    manifest_artifact_uris: list[str] | None = None,
     dbt_artifacts: dict[str, str] | None = None,
     bi_row_counts: dict[str, int] | None = None,
     export_paths: list[str] | None = None,
@@ -673,6 +675,7 @@ def write_run_summary(
         finished_at_utc=utc_now_iso(),
         validation_result_path=_validation_output_local_path(validation_result_path),
         validation_result_uri=_validation_output_uri(validation_result_path),
+        manifest_artifact_uris=manifest_artifact_uris or [],
         duckdb_path=str(context.duckdb_path),
         dbt_artifacts=dbt_artifacts or {},
         bi_row_counts=bi_row_counts or {},
@@ -728,6 +731,7 @@ def lending_pipeline_flow(
     completed_stages.append("initialize_run")
 
     validation_result_path: ValidationOutput | None = None
+    manifest_artifact_uris: list[str] = []
     dbt_artifacts: dict[str, str] = {}
     bi_row_counts: dict[str, int] = {}
     export_paths: list[str] = []
@@ -744,6 +748,9 @@ def lending_pipeline_flow(
             completed_stages.append("require_cloud_mode_config")
 
         extraction_paths = extract_sources(context, project_config)
+        manifest_artifact_uris = [
+            location.artifact_uri for location in extraction_paths.manifest_locations
+        ]
         completed_stages.extend(["extract_sources", "write_manifests"])
 
         validation_result_path = validate_raw_outputs(
@@ -800,6 +807,7 @@ def lending_pipeline_flow(
             status="success",
             completed_stages=completed_stages + ["write_run_summary"],
             validation_result_path=validation_result_path,
+            manifest_artifact_uris=manifest_artifact_uris,
             dbt_artifacts=dbt_artifacts,
             bi_row_counts=bi_row_counts,
             export_paths=export_paths,
@@ -821,6 +829,7 @@ def lending_pipeline_flow(
             failed_stage=failed_stage,
             error_message=str(exc),
             validation_result_path=validation_result_path,
+            manifest_artifact_uris=manifest_artifact_uris,
             dbt_artifacts=dbt_artifacts,
             bi_row_counts=bi_row_counts,
             export_paths=export_paths,

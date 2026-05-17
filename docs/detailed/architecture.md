@@ -91,10 +91,10 @@ The full architecture follows this sequence.
 2. Load environment configuration
 3. Resolve source resources and API parameters
 4. Extract SBA, Census, and BLS data with Python requests/pandas
-5. Write raw extracts to local data/raw mirror
+5. Write raw extracts to local storage or AWS S3 based on route
 6. Run raw validation checks
-7. Upload raw extracts to AWS S3
-8. Write ingestion manifests and validation results
+7. Write ingestion manifests locally or to S3 based on route
+8. Write validation results locally or to S3 based on route
 9. Load raw extracts into DuckDB for local development or Snowflake for final warehouse
 10. Run dbt seeds for reference data
 11. Run dbt staging models
@@ -198,14 +198,14 @@ audit
 
 ## Mode 2: Final Warehouse Mode
 
-Final mode uses AWS S3 for raw storage and Snowflake for warehouse execution.
+Cloud mode uses AWS S3 for durable pipeline artifacts and Snowflake for warehouse execution. The MVP still uses the local CLI/Prefect runner to orchestrate the run, so temporary runner files may exist during execution, but S3 and Snowflake are the durable cloud handoff.
 
 ```text
 Public sources
     ↓
 Python extractors
     ↓
-AWS S3 raw landing zone
+AWS S3 raw payloads, manifests, and validation outputs
     ↓
 Snowflake raw schema
     ↓
@@ -219,6 +219,7 @@ Power BI dashboard
 Final mode is used to demonstrate:
 
 - cloud object storage with S3;
+- cloud-backed manifests, validation outputs, and reloadable raw payloads;
 - warehouse loading into Snowflake;
 - dbt transformations on a cloud warehouse;
 - final dashboard consumption from modeled warehouse tables;
@@ -420,6 +421,14 @@ Recommended manifest fields:
 | `validation_messages` | Validation messages |
 
 Manifests feed the `dim_source_file`, source freshness marts, and pipeline health dashboard.
+
+Cloud manifest path pattern:
+
+```text
+manifests/<source_system>/<dataset_name>/<resource_name>/ingestion_date=YYYY-MM-DD/pipeline_run_id=<run_id>/<manifest-file>
+```
+
+Local runs keep manifests under `data/manifests/...`. Cloud runs write manifests to S3 and may keep local compatibility copies for the MVP runner. Run summaries record manifest artifact URIs and the durable validation result URI when cloud artifacts are present.
 
 ---
 

@@ -64,7 +64,7 @@ The pipeline has two intentional execution routes.
 | Local | Fast development, debugging, tests, and Power BI prototyping on one machine | Local raw files and DuckDB | Local BI export CSVs |
 | Cloud | Production-style portfolio run that shows cloud raw landing and warehouse modeling | AWS S3 and Snowflake | Snowflake BI schema |
 
-DuckDB and Snowflake play the same warehouse role in different environments. S3 owns durable cloud raw storage. dbt owns the transformation graph, tests, documentation, and lineage for both routes.
+DuckDB and Snowflake play the same warehouse role in different environments. S3 owns durable cloud raw payloads, manifests, validation outputs, and dbt artifacts. dbt owns the transformation graph, tests, documentation, and lineage for both routes.
 
 Use the local route while developing or auditing the model logic. Use the cloud route when you want recruiter-visible evidence of S3 raw storage, Snowflake raw/BI schemas, and dbt running against the cloud warehouse.
 
@@ -216,10 +216,14 @@ scripts/run_cloud_pipeline.sh --extract-mode fixture
 
 Cloud route output:
 
-- raw source artifacts, manifests, validation results, and dbt artifacts in S3;
+- raw source artifacts in `s3://<bucket>/raw/...`;
+- source manifests in `s3://<bucket>/manifests/...`;
+- raw validation results and dbt artifacts in `s3://<bucket>/validation/...`;
 - Snowflake `RAW`, `STAGING`, `INTERMEDIATE`, `MARTS`, `BI`, and `AUDIT` schemas;
 - dbt models built with target `prod_snowflake`;
 - Power BI connects to Snowflake BI tables, not raw files.
+
+The cloud route is still launched by the local CLI/Prefect runner for the MVP. Temporary runner files may exist while a task runs, but the durable cloud handoff is S3 object identity plus Snowflake tables. Run summaries record the local compatibility validation path, the durable validation URI, and manifest artifact URIs when cloud artifacts are present.
 
 ## Data Quality Strategy
 

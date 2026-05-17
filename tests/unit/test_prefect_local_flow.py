@@ -128,6 +128,9 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
             "raw_schema": "RAW",
             "table_row_counts": {"RAW.RAW_SBA_7A_FOIA": 1},
         },
+        manifest_artifact_uris=[
+            "s3://unit-test-bucket/manifests/sba/manifest.json"
+        ],
     )
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
@@ -135,6 +138,9 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
     assert summary["route"] == "cloud"
     assert summary["dbt_target"] == "prod_snowflake"
     assert summary["s3_upload_summary"]["bucket"] == "unit-test-bucket"
+    assert summary["manifest_artifact_uris"] == [
+        "s3://unit-test-bucket/manifests/sba/manifest.json"
+    ]
     assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
         "RAW.RAW_SBA_7A_FOIA": 1
     }
