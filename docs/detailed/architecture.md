@@ -841,7 +841,7 @@ small-business-lending-pipeline/
 │   │
 │   ├── validation/
 │   │   ├── raw_checks.py
-│   │   ├── schema_checks.py
+│   │   ├── source_payload_checks.py
 │   │   ├── row_count_checks.py
 │   │   └── freshness_checks.py
 │   │

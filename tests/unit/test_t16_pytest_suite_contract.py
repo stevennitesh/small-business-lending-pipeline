@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 from pipelines.extract.census_bds_extract import validate_bds_response
-from pipelines.validation.schema_checks import (
+from pipelines.validation.source_payload_checks import (
     check_bls_laus_payload,
     check_census_bds_payload,
     check_sba_required_resources,

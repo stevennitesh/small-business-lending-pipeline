@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from typing import Any, BinaryIO, Literal, Protocol
 
+from pipelines.utils.hashing import hash_bytes
 from pipelines.utils.paths import (
     build_local_raw_path,
     build_partitioned_artifact_key,
@@ -49,6 +50,13 @@ class S3RawArtifactReference:
 
 
 @dataclass(frozen=True)
+class RawArtifactInspection:
+    exists: bool
+    size_bytes: int
+    sha256_checksum: str | None
+
+
+@dataclass(frozen=True)
 class ArtifactLocation:
     storage_backend: StorageBackend
     artifact_uri: str
@@ -70,26 +78,29 @@ class RawArtifactReader:
     def __init__(self, *, s3_client: S3ObjectClientProtocol | None = None):
         self.s3_client = s3_client
 
-    def exists(self, manifest: dict[str, Any]) -> bool:
+    def inspect(self, manifest: dict[str, Any]) -> RawArtifactInspection:
         try:
-            self.read_bytes(manifest)
+            payload = self.read_bytes(manifest)
         except Exception:
-            return False
-        return True
+            return RawArtifactInspection(
+                exists=False,
+                size_bytes=0,
+                sha256_checksum=None,
+            )
+        return RawArtifactInspection(
+            exists=True,
+            size_bytes=len(payload),
+            sha256_checksum=hash_bytes(payload),
+        )
+
+    def exists(self, manifest: dict[str, Any]) -> bool:
+        return self.inspect(manifest).exists
 
     def size_bytes(self, manifest: dict[str, Any]) -> int:
-        try:
-            return len(self.read_bytes(manifest))
-        except Exception:
-            return 0
+        return self.inspect(manifest).size_bytes
 
     def sha256(self, manifest: dict[str, Any]) -> str | None:
-        try:
-            from pipelines.utils.hashing import hash_bytes
-
-            return hash_bytes(self.read_bytes(manifest))
-        except Exception:
-            return None
+        return self.inspect(manifest).sha256_checksum
 
     def read_text(self, manifest: dict[str, Any], encoding: str = "utf-8") -> str:
         return self.read_bytes(manifest).decode(encoding)

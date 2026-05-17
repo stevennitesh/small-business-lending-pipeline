@@ -428,6 +428,82 @@ def test_raw_validation_blocks_missing_expected_manifest_resource(tmp_path):
         local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
 
 
+def test_raw_validation_writes_results_for_missing_manifest_reference(tmp_path):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="missing-manifest-reference-run",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    missing_manifest = extraction_paths.census_bds_manifest_paths[0]
+    missing_manifest.unlink()
+
+    with pytest.raises(ValidationFailedError, match="RAW_004"):
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+    validation_payload = json.loads(
+        (context.run_validation_dir / "validation_results.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    failed_ids = {
+        record["validation_check_id"]
+        for record in validation_payload
+        if record["status"] == "failed"
+    }
+
+    assert "RAW_004" in failed_ids
+    assert "RAW_009" in {
+        record["validation_check_id"]
+        for record in validation_payload
+    }
+
+
+def test_raw_validation_writes_results_for_malformed_manifest_json(tmp_path):
+    project_config = local_flow.load_config.fn()
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="malformed-manifest-run",
+    )
+    extraction_paths = local_flow.extract_sources.fn(context, project_config)
+    malformed_manifest = extraction_paths.census_bds_manifest_paths[0]
+    malformed_manifest.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(ValidationFailedError, match="RAW_014"):
+        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
+
+    validation_payload = json.loads(
+        (context.run_validation_dir / "validation_results.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    failed_ids = {
+        record["validation_check_id"]
+        for record in validation_payload
+        if record["status"] == "failed"
+    }
+
+    assert "RAW_014" in failed_ids
+    assert "RAW_009" in {
+        record["validation_check_id"]
+        for record in validation_payload
+    }
+
+
 def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
     project_config = local_flow.load_config.fn()
     context = local_flow.initialize_run.fn(

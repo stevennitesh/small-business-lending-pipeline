@@ -19,7 +19,7 @@ from pipelines.validation.raw_checks import (
 )
 from pipelines.validation.freshness_checks import check_latest_observation_not_future
 from pipelines.validation.row_count_checks import check_row_count_captured
-from pipelines.validation.schema_checks import (
+from pipelines.validation.source_payload_checks import (
     check_bls_laus_payload,
     check_census_bds_payload,
     check_sba_required_resources,
@@ -64,8 +64,10 @@ class FakeBody:
 class FakeS3ObjectClient:
     def __init__(self, objects: dict[tuple[str, str], bytes]) -> None:
         self.objects = objects
+        self.get_calls: list[tuple[str, str]] = []
 
     def get_object(self, *, Bucket: str, Key: str):
+        self.get_calls.append((Bucket, Key))
         return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 
@@ -136,6 +138,15 @@ def test_raw_manifest_checks_pass_for_complete_manifest(tmp_path):
     assert all(result.status == "passed" for result in results)
 
 
+def test_raw_manifest_checks_report_missing_manifest_as_raw_004(tmp_path):
+    results = check_raw_manifest(tmp_path / "missing-manifest.json")
+
+    assert len(results) == 1
+    assert results[0].validation_check_id == "RAW_004"
+    assert results[0].check_name == "Manifest created"
+    assert results[0].status == "failed"
+
+
 def test_raw_manifest_checks_fail_for_missing_file(tmp_path):
     missing_file = tmp_path / "missing.json"
     placeholder_file = tmp_path / "placeholder.json"
@@ -178,16 +189,16 @@ def test_raw_manifest_checks_pass_for_s3_backed_file(tmp_path):
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
+    s3_client = FakeS3ObjectClient(
+        {("bucket", "raw/census/bds/file.json"): raw_payload}
+    )
     results = check_raw_manifest(
         manifest_path,
-        artifact_reader=RawArtifactReader(
-            s3_client=FakeS3ObjectClient(
-                {("bucket", "raw/census/bds/file.json"): raw_payload}
-            )
-        ),
+        artifact_reader=RawArtifactReader(s3_client=s3_client),
     )
 
     assert all(result.status == "passed" for result in results)
+    assert s3_client.get_calls == [("bucket", "raw/census/bds/file.json")]
 
 
 def test_raw_manifest_checks_manifest_artifact_from_s3(tmp_path):

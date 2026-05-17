@@ -9,7 +9,12 @@ from pipelines.utils.manifest import (
     REQUIRED_MANIFEST_FIELDS,
     normalize_manifest_storage_fields,
 )
-from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader, RawArtifactReader
+from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    ArtifactReader,
+    RawArtifactInspection,
+    RawArtifactReader,
+)
 from pipelines.validation.validation_result import (
     ValidationResult,
     make_validation_result,
@@ -30,7 +35,7 @@ def check_raw_manifest(
         return [
             _result(
                 manifest={},
-                validation_check_id="RAW_005",
+                validation_check_id="RAW_004",
                 check_name="Manifest created",
                 check_type="lineage",
                 severity="fail",
@@ -41,10 +46,11 @@ def check_raw_manifest(
             )
         ]
 
+    inspection = reader.inspect(manifest)
     results = [
-        _check_raw_file_exists(manifest, reader),
-        _check_raw_file_size(manifest, reader),
-        _check_checksum(manifest, reader),
+        _check_raw_file_exists(manifest, inspection),
+        _check_raw_file_size(manifest, inspection),
+        _check_checksum(manifest, inspection),
         _check_manifest_created(manifest, manifest_reference, manifest_reader),
         _check_required_metadata(manifest),
         _check_row_count(manifest),
@@ -170,7 +176,7 @@ def check_manifest_raw_uri_required(manifest: dict[str, Any]) -> ValidationResul
 
 def _check_raw_file_exists(
     manifest: dict[str, Any],
-    artifact_reader: RawArtifactReader,
+    inspection: RawArtifactInspection,
 ) -> ValidationResult:
     raw_uri = _raw_artifact_uri(manifest)
     return _result(
@@ -179,7 +185,7 @@ def _check_raw_file_exists(
         check_name="Raw file exists",
         check_type="completeness",
         severity="fail",
-        passed=artifact_reader.exists(manifest),
+        passed=inspection.exists,
         expected_value="file exists",
         observed_value=raw_uri,
         failed_message="Raw file is missing.",
@@ -188,9 +194,9 @@ def _check_raw_file_exists(
 
 def _check_raw_file_size(
     manifest: dict[str, Any],
-    artifact_reader: RawArtifactReader,
+    inspection: RawArtifactInspection,
 ) -> ValidationResult:
-    observed_size = artifact_reader.size_bytes(manifest)
+    observed_size = inspection.size_bytes
     return _result(
         manifest=manifest,
         validation_check_id="RAW_002",
@@ -206,10 +212,10 @@ def _check_raw_file_size(
 
 def _check_checksum(
     manifest: dict[str, Any],
-    artifact_reader: RawArtifactReader,
+    inspection: RawArtifactInspection,
 ) -> ValidationResult:
     expected_checksum = str(manifest.get("sha256_checksum", ""))
-    observed_checksum = artifact_reader.sha256(manifest)
+    observed_checksum = inspection.sha256_checksum
     return _result(
         manifest=manifest,
         validation_check_id="RAW_003",

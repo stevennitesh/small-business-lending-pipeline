@@ -71,7 +71,7 @@ from pipelines.validation.raw_checks import (
     check_required_manifest_resource,
     check_validation_output_created,
 )
-from pipelines.validation.schema_checks import (
+from pipelines.validation.source_payload_checks import (
     check_bls_laus_payload,
     check_census_bds_payload,
     check_sba_required_resources,
@@ -80,6 +80,7 @@ from pipelines.validation.validation_result import (
     ValidationFailedError,
     ValidationResult,
     assert_no_blocking_failures,
+    make_validation_result,
     validation_results_to_json_bytes,
     write_validation_results,
 )
@@ -184,6 +185,15 @@ class ExtractionPaths:
     bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
     manifest_locations: tuple[ArtifactLocation, ...] = ()
 
+    def manifest_references_for_validation(
+        self,
+        *,
+        cloud_route: bool,
+    ) -> tuple[Path | ArtifactLocation, ...]:
+        if cloud_route and self.manifest_locations:
+            return self.manifest_locations
+        return self.manifest_paths
+
 
 @dataclass(frozen=True)
 class ValidationOutput:
@@ -193,6 +203,12 @@ class ValidationOutput:
     @property
     def durable_reference(self) -> Path | ArtifactLocation:
         return self.artifact_location or self.local_path
+
+
+@dataclass(frozen=True)
+class LoadedManifestReference:
+    reference: Path | ArtifactLocation
+    manifest: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -332,16 +348,19 @@ def validate_raw_outputs(
     validation_results: list[ValidationResult] = []
     manifest_references = _manifest_references_for_validation(context, extraction_paths)
     manifest_artifact_reader = _artifact_reader(context)
-    manifests = [
-        json.loads(_read_artifact_text(reference, manifest_artifact_reader))
-        for reference in manifest_references
-    ]
+    loaded_manifest_references, manifest_load_results = _load_manifests_for_validation(
+        context,
+        manifest_references,
+        manifest_artifact_reader,
+    )
+    validation_results.extend(manifest_load_results)
+    manifests = [loaded.manifest for loaded in loaded_manifest_references]
     artifact_reader = _raw_artifact_reader(context)
 
-    for manifest_reference in manifest_references:
+    for loaded_manifest in loaded_manifest_references:
         validation_results.extend(
             check_raw_manifest(
-                manifest_reference,
+                loaded_manifest.reference,
                 artifact_reader=artifact_reader,
                 manifest_artifact_reader=manifest_artifact_reader,
             )
@@ -352,7 +371,10 @@ def validate_raw_outputs(
             check_manifest_source_identity(
                 manifest,
                 expected_identity=project_config.source_identity(
-                    _source_name_for_resource(str(manifest["resource_name"]))
+                    _source_name_for_resource(
+                        str(manifest["resource_name"]),
+                        project_config,
+                    )
                 ),
             )
         )
@@ -424,34 +446,13 @@ def validate_raw_outputs(
 
     validation_path = context.run_validation_dir / "validation_results.json"
     validation_location = _validation_artifact_location(context, manifests)
-    write_validation_results(validation_results, validation_path)
-    if validation_location is not None:
-        _artifact_store(
-            context,
-            _s3_bucket(context) or "local-validation",
-        ).write_bytes(
-            validation_location,
-            validation_results_to_json_bytes(validation_results),
-        )
-    validation_results.append(
-        check_validation_output_created(
-            validation_location or validation_path,
-            pipeline_run_id=context.pipeline_run_id,
-            source_system="pipeline",
-            source_dataset="raw_validation",
-            source_resource_name="validation_results",
-            artifact_reader=manifest_artifact_reader,
-        )
+    _write_validation_output_with_self_check(
+        context,
+        validation_results,
+        validation_path=validation_path,
+        validation_location=validation_location,
+        artifact_reader=manifest_artifact_reader,
     )
-    write_validation_results(validation_results, validation_path)
-    if validation_location is not None:
-        _artifact_store(
-            context,
-            _s3_bucket(context) or "local-validation",
-        ).write_bytes(
-            validation_location,
-            validation_results_to_json_bytes(validation_results),
-        )
     assert_no_blocking_failures(validation_results)
     return ValidationOutput(
         local_path=validation_path,
@@ -1022,9 +1023,9 @@ def _manifest_references_for_validation(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
 ) -> tuple[Path | ArtifactLocation, ...]:
-    if context.is_cloud_route and extraction_paths.manifest_locations:
-        return extraction_paths.manifest_locations
-    return extraction_paths.manifest_paths
+    return extraction_paths.manifest_references_for_validation(
+        cloud_route=context.is_cloud_route,
+    )
 
 
 def _read_artifact_text(
@@ -1034,6 +1035,81 @@ def _read_artifact_text(
     if isinstance(reference, ArtifactLocation):
         return artifact_reader.read_text(reference)
     return reference.read_text(encoding="utf-8")
+
+
+def _manifest_reference_uri(reference: Path | ArtifactLocation) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return reference.artifact_uri
+    return str(reference)
+
+
+def _load_manifests_for_validation(
+    context: LocalRunContext,
+    manifest_references: tuple[Path | ArtifactLocation, ...],
+    manifest_artifact_reader: ArtifactReader,
+) -> tuple[list[LoadedManifestReference], list[ValidationResult]]:
+    loaded_manifest_references: list[LoadedManifestReference] = []
+    validation_results: list[ValidationResult] = []
+    for reference in manifest_references:
+        try:
+            manifest_text = _read_artifact_text(reference, manifest_artifact_reader)
+        except Exception:
+            validation_results.append(
+                _manifest_reference_failure(
+                    context,
+                    reference,
+                    validation_check_id="RAW_004",
+                    check_name="Manifest created",
+                    expected_value="manifest file exists",
+                    failed_message="Manifest file is missing.",
+                )
+            )
+            continue
+        try:
+            manifest = json.loads(manifest_text)
+        except json.JSONDecodeError:
+            validation_results.append(
+                _manifest_reference_failure(
+                    context,
+                    reference,
+                    validation_check_id="RAW_014",
+                    check_name="Manifest readable JSON",
+                    expected_value="manifest file contains valid JSON",
+                    failed_message="Manifest file is not valid JSON.",
+                )
+            )
+            continue
+        loaded_manifest_references.append(
+            LoadedManifestReference(reference=reference, manifest=manifest)
+        )
+    return loaded_manifest_references, validation_results
+
+
+def _manifest_reference_failure(
+    context: LocalRunContext,
+    reference: Path | ArtifactLocation,
+    *,
+    validation_check_id: str,
+    check_name: str,
+    expected_value: str,
+    failed_message: str,
+) -> ValidationResult:
+    return make_validation_result(
+        pipeline_run_id=context.pipeline_run_id,
+        validation_check_id=validation_check_id,
+        validation_scope="raw",
+        source_system="pipeline",
+        source_dataset="raw_validation",
+        source_resource_name="manifest_reference",
+        check_name=check_name,
+        check_type="lineage",
+        severity="fail",
+        passed=False,
+        expected_value=expected_value,
+        observed_value=_manifest_reference_uri(reference),
+        passed_message=f"{check_name} check passed.",
+        failed_message=failed_message,
+    )
 
 
 def _validation_artifact_location(
@@ -1058,6 +1134,57 @@ def _validation_artifact_location(
         ingestion_date=ingestion_date,
         pipeline_run_id=context.pipeline_run_id,
         filename="validation_results.json",
+    )
+
+
+def _write_validation_output(
+    context: LocalRunContext,
+    validation_results: list[ValidationResult],
+    *,
+    validation_path: Path,
+    validation_location: ArtifactLocation | None,
+) -> None:
+    write_validation_results(validation_results, validation_path)
+    if validation_location is None:
+        return
+    _artifact_store(
+        context,
+        _s3_bucket(context) or "local-validation",
+    ).write_bytes(
+        validation_location,
+        validation_results_to_json_bytes(validation_results),
+    )
+
+
+def _write_validation_output_with_self_check(
+    context: LocalRunContext,
+    validation_results: list[ValidationResult],
+    *,
+    validation_path: Path,
+    validation_location: ArtifactLocation | None,
+    artifact_reader: ArtifactReader,
+) -> None:
+    _write_validation_output(
+        context,
+        validation_results,
+        validation_path=validation_path,
+        validation_location=validation_location,
+    )
+    validation_results.append(
+        check_validation_output_created(
+            validation_location or validation_path,
+            pipeline_run_id=context.pipeline_run_id,
+            source_system="pipeline",
+            source_dataset="raw_validation",
+            source_resource_name="validation_results",
+            artifact_reader=artifact_reader,
+        )
+    )
+    _write_validation_output(
+        context,
+        validation_results,
+        validation_path=validation_path,
+        validation_location=validation_location,
     )
 
 
@@ -1162,7 +1289,7 @@ def _write_local_fixture_extracts(
             file_format=file_format,
             schema_fields=schema_fields,
             source_identity=project_config.source_identity(
-                _source_name_for_resource(resource_name)
+                _source_name_for_resource(resource_name, project_config)
             ),
         )
         for resource_name, (
@@ -1579,14 +1706,15 @@ def _bls_row(
     }
 
 
-def _source_name_for_resource(resource_name: str) -> str:
-    if resource_name.startswith("sba_"):
+def _source_name_for_resource(resource_name: str, project_config: ProjectConfig) -> str:
+    sba_resource_names = {spec.logical_name for spec in project_config.sba.resources}
+    if resource_name in sba_resource_names:
         return "sba_foia"
     if resource_name == "bds_state_year":
         return "census_bds"
     if resource_name == "laus_state_month":
         return "bls_laus"
-    raise ValueError(f"Unsupported fixture resource: {resource_name}")
+    raise ValueError(f"Unsupported raw resource: {resource_name}")
 
 
 def _ensure_dbt_profile(context: LocalRunContext) -> None:
