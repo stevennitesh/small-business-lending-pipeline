@@ -81,7 +81,7 @@ This cleanup is small and touches overlapping dbt model/test/docs files, so it s
   - `.venv/bin/python -m pytest tests/unit/test_dbt_marts_models.py`
 - Review focus: confirm the expression is exactly the prior fallback rule.
 - Risk/rollback: low; remove the field and related tests if dbt compile fails.
-- Status: pending
+- Status: completed in #68 (`876b507`)
 
 ### Task 2: Reuse canonical approval_year in lending marts and tests
 
@@ -101,7 +101,7 @@ This cleanup is small and touches overlapping dbt model/test/docs files, so it s
   - `.venv/bin/python -m pytest tests/unit/test_dbt_lending_marts.py`
 - Review focus: annual totals still reconcile to facts.
 - Risk/rollback: medium-low; duplicated expression can be restored if compile or reconciliation behavior changes unexpectedly.
-- Status: pending
+- Status: completed in #69
 
 ### Task 3: Add top-1 lender concentration alongside top-5
 

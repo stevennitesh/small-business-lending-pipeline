@@ -82,6 +82,27 @@ def test_state_lending_marts_exclude_unmapped_project_states():
         assert "project_state_key is not null" in model_sql
 
 
+def test_annual_lending_marts_reuse_fact_approval_year():
+    annual_mart_paths = [
+        LENDING_MARTS["mart_lending_annual_state"],
+        LENDING_MARTS["mart_lending_lender_state_period"],
+        LENDING_MARTS["mart_lending_industry_state_period"],
+        LENDING_MARTS["mart_lending_program_state_period"],
+    ]
+
+    for model_path in annual_mart_paths:
+        model_sql = model_path.read_text(encoding="utf-8")
+
+        assert "coalesce(extract(year from" not in model_sql
+        assert "approval_year is not null" in model_sql
+
+    reconciliation_sql = Path(
+        "dbt/tests/assert_mart_lending_annual_state_reconciles.sql"
+    ).read_text(encoding="utf-8")
+    assert "coalesce(extract(year from" not in reconciliation_sql
+    assert "approval_year is not null" in reconciliation_sql
+
+
 def _test_names(data_tests: list) -> set[str]:
     names = set()
     for test in data_tests:

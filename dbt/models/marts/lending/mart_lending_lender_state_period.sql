@@ -1,13 +1,13 @@
 with lender_period as (
     select
         fact.project_state_key as state_key,
-        coalesce(extract(year from fact.approval_date)::integer, fact.approval_fiscal_year) as approval_year,
+        fact.approval_year,
         fact.lender_key,
         sum(fact.gross_approval_amount) as total_approved_loan_amount,
         count(*) as loan_count
     from {{ ref('fact_sba_loans') }} as fact
     where fact.project_state_key is not null
-      and coalesce(extract(year from fact.approval_date)::integer, fact.approval_fiscal_year) is not null
+      and fact.approval_year is not null
     group by 1, 2, 3
 ),
 
