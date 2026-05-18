@@ -22,6 +22,10 @@ select
     source_file.source_file_key,
     {{ date_key('approval_date') }} as approval_date_key,
     approval_date,
+    coalesce(
+        extract(year from approval_date)::integer,
+        approval_fiscal_year
+    ) as approval_year,
     approval_fiscal_year,
     first_disbursement_date,
     source_loan_id,

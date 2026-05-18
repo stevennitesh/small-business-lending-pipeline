@@ -63,6 +63,9 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
     assert "relationships" in _test_names(
         _column(fact_sba, "loan_program_key")["data_tests"]
     )
+    assert "approval date is available" in _column(
+        fact_sba, "approval_year"
+    )["description"]
 
     singular_tests = {
         path.name
@@ -109,6 +112,16 @@ def test_fact_models_join_source_file_dimension_by_raw_uri():
         assert "source_file.source_file_key" in model_sql
         assert "ref('dim_source_file')" in model_sql
         assert ".raw_uri = source_file.raw_uri" in model_sql
+
+
+def test_fact_sba_loans_exposes_canonical_approval_year():
+    model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
+
+    assert "approval_date," in model_sql
+    assert "approval_fiscal_year" in model_sql
+    assert "coalesce(" in model_sql
+    assert "extract(year from approval_date)::integer" in model_sql
+    assert ") as approval_year" in model_sql
 
 
 def _column(model: dict, name: str) -> dict:

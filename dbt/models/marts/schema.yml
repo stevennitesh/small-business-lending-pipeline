@@ -152,6 +152,8 @@ models:
               arguments:
                 to: ref('dim_date')
                 field: date_key
+      - name: approval_year
+        description: Approval calendar year when approval date is available, otherwise approval fiscal year.
 
   - name: fact_laus_state_month
     description: Monthly state LAUS unemployment-rate fact table.
