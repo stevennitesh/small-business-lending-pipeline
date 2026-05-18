@@ -50,13 +50,29 @@ def test_context_schema_declares_grains_kpis_and_context_tests():
     }
     assert {
         "annual_average_unemployment_rate",
+        "unemployment_rate_yoy_change_pp",
         "establishment_count",
         "establishment_entry_rate",
         "establishment_exit_rate",
         "loans_per_1000_establishments",
         "approved_loan_dollars_per_establishment",
+        "has_lending_data",
+        "has_laus_data",
+        "has_business_dynamics_data",
         "context_join_status",
     } <= set(regional_columns)
+    assert "decimal ratio" in regional_columns[
+        "annual_average_unemployment_rate"
+    ]["description"]
+    assert "decimal-point change" in regional_columns[
+        "unemployment_rate_yoy_change_pp"
+    ]["description"]
+    for flag_column in (
+        "has_lending_data",
+        "has_laus_data",
+        "has_business_dynamics_data",
+    ):
+        assert regional_columns[flag_column]["description"].startswith("True when")
 
     singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {

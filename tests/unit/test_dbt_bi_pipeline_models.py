@@ -119,16 +119,25 @@ def test_pipeline_schema_declares_health_columns():
         "mart_pipeline_source_freshness": {
             "freshness_status",
             "is_latest_successful_snapshot",
+            "latest_row_count",
+            "observed_snapshot_count",
         },
         "mart_pipeline_validation_summary": {
             "validation_status",
             "failed_check_count",
             "warning_check_count",
+            "passed_check_count",
         },
         "mart_pipeline_run_summary": {
             "latest_run_status",
             "loaded_at_utc",
             "validation_status",
+            "failed_check_count",
+            "warning_check_count",
+            "passed_check_count",
+            "source_resource_count",
+            "current_source_resource_count",
+            "stale_or_unknown_source_resource_count",
         },
     }
     for model_name, expected_columns in expected.items():

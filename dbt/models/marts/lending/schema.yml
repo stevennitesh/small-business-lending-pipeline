@@ -25,6 +25,12 @@ models:
         description: Total gross approval amount in the state-month.
         data_tests:
           - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan in the state-month.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved-dollar growth as a decimal ratio.
+      - name: loan_count_yoy_growth_pct
+        description: Year-over-year loan-count growth as a decimal ratio.
 
   - name: mart_lending_annual_state
     description: Annual state-level lending KPI mart.
@@ -50,6 +56,12 @@ models:
         description: Total gross approval amount in the state-year.
         data_tests:
           - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan in the state-year.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved-dollar growth as a decimal ratio.
+      - name: loan_count_yoy_growth_pct
+        description: Year-over-year loan-count growth as a decimal ratio.
 
   - name: mart_lending_lender_state_period
     description: Annual state-lender lending KPI mart.
@@ -75,6 +87,8 @@ models:
         description: Total gross approval amount for the lender in the state-year.
         data_tests:
           - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan for the lender in the state-year.
       - name: lender_approved_amount_share
         description: Lender share of approved dollars within the state-year.
         data_tests:
@@ -105,6 +119,12 @@ models:
           - non_negative
       - name: total_approved_loan_amount
         description: Total gross approval amount in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan in the state-year.
+      - name: lender_count
+        description: Number of active lenders in the state-year.
         data_tests:
           - non_negative
       - name: top_1_approved_loan_amount
@@ -154,6 +174,8 @@ models:
         description: Total gross approval amount for the industry in the state-year.
         data_tests:
           - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan for the industry in the state-year.
       - name: industry_approved_amount_share
         description: Industry share of approved dollars within the state-year.
         data_tests:
@@ -186,6 +208,8 @@ models:
         description: Total gross approval amount for the program in the state-year.
         data_tests:
           - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan for the program in the state-year.
       - name: program_approved_amount_share
         description: Program share of approved dollars within the state-year.
         data_tests:

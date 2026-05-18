@@ -13,6 +13,14 @@ models:
     columns:
       - name: freshness_status
         description: Freshness health status for the source resource.
+      - name: latest_row_count
+        description: Latest observed raw row count for the source resource.
+        data_tests:
+          - non_negative
+      - name: observed_snapshot_count
+        description: Number of manifest snapshots observed for the source resource.
+        data_tests:
+          - non_negative
       - name: is_latest_successful_snapshot
         description: Whether the source resource has a latest successful manifest.
 
@@ -36,6 +44,10 @@ models:
         description: Number of warning validation checks.
         data_tests:
           - non_negative
+      - name: passed_check_count
+        description: Number of passed validation checks.
+        data_tests:
+          - non_negative
 
   - name: mart_pipeline_run_summary
     description: Pipeline run health summary for dashboard use.
@@ -50,3 +62,27 @@ models:
         description: UTC timestamp when raw loading completed.
       - name: validation_status
         description: Overall validation status from the raw load summary.
+      - name: failed_check_count
+        description: Number of failed validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: warning_check_count
+        description: Number of warning validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: passed_check_count
+        description: Number of passed validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: source_resource_count
+        description: Number of source resources represented in the freshness rollup.
+        data_tests:
+          - non_negative
+      - name: current_source_resource_count
+        description: Number of source resources with current freshness status.
+        data_tests:
+          - non_negative
+      - name: stale_or_unknown_source_resource_count
+        description: Number of source resources with stale or unknown freshness status.
+        data_tests:
+          - non_negative

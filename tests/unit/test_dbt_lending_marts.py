@@ -42,12 +42,23 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         assert any("unique_combination_of_columns" in test for test in model["data_tests"])
 
         columns = {column["name"]: column for column in model["columns"]}
+        assert "average_loan_size" in columns
+        assert columns["average_loan_size"]["description"]
         if "loan_count" in columns:
             assert "non_negative" in _test_names(columns["loan_count"]["data_tests"])
         if "total_approved_loan_amount" in columns:
             assert "non_negative" in _test_names(
                 columns["total_approved_loan_amount"]["data_tests"]
             )
+
+    for model_name in ("mart_lending_monthly_state", "mart_lending_annual_state"):
+        columns = {column["name"]: column for column in models[model_name]["columns"]}
+        for growth_column in (
+            "approved_loan_amount_yoy_growth_pct",
+            "loan_count_yoy_growth_pct",
+        ):
+            assert growth_column in columns
+            assert "decimal ratio" in columns[growth_column]["description"]
 
     share_columns = {
         "mart_lending_lender_state_period": "lender_approved_amount_share",
@@ -66,10 +77,12 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         assert "accepted_range" in _test_names(
             concentration_columns[share_column]["data_tests"]
         )
+        assert "approved dollars" in concentration_columns[share_column]["description"]
     for amount_column in ("top_1_approved_loan_amount", "top_5_approved_loan_amount"):
         assert "non_negative" in _test_names(
             concentration_columns[amount_column]["data_tests"]
         )
+    assert "non_negative" in _test_names(concentration_columns["lender_count"]["data_tests"])
 
     singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {

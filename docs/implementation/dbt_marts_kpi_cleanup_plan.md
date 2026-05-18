@@ -143,7 +143,7 @@ This cleanup is small and touches overlapping dbt model/test/docs files, so it s
   - `.venv/bin/python -m pytest tests/unit/test_dbt_lending_marts.py tests/unit/test_dbt_context_marts.py tests/unit/test_dbt_bi_pipeline_models.py`
 - Review focus: documentation matches actual SQL columns and does not promise unsupported metrics.
 - Risk/rollback: low; docs-only changes are easy to revert.
-- Status: pending
+- Status: completed in #71
 
 ## Final Verification
 
