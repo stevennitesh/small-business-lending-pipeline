@@ -205,8 +205,6 @@ python -m pipelines.flows.lending_pipeline_flow \
   --dbt-target prod_snowflake
 ```
 
-`make run-final` remains available as a compatibility alias for the same cloud route.
-
 For a small cloud smoke that does not replace the main Snowflake schemas, run the
 cloud fixture route with isolated schemas:
 

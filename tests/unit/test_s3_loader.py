@@ -166,38 +166,6 @@ def test_upload_run_artifacts_applies_local_and_cloud_mode_policy(tmp_path):
         )
 
 
-def test_upload_run_artifacts_keeps_final_mode_as_compatibility_alias(tmp_path):
-    raw_path = tmp_path / "raw.csv"
-    raw_path.write_text("a,b\n1,2\n", encoding="utf-8")
-    validation_path = tmp_path / "validation_results.json"
-    validation_path.write_text("[]", encoding="utf-8")
-    manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "pipeline_run_id": "run-123",
-                "source_system": "sba",
-                "dataset_name": "7a_foia",
-                "resource_name": "source_period=fy2020_present",
-                "ingestion_date": "2026-05-07",
-                "local_raw_path": str(raw_path),
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(S3UploadRequiredError, match="S3 upload skipped"):
-        upload_run_artifacts_to_s3(
-            manifest_paths=[manifest_path],
-            validation_result_path=validation_path,
-            bucket=None,
-            run_mode="final",
-            s3_client=AlwaysFailingS3Client(),
-            max_attempts=1,
-            base_delay_seconds=0,
-        )
-
-
 def test_upload_run_artifacts_skips_raw_upload_for_s3_backed_manifest(tmp_path):
     validation_path = tmp_path / "validation_results.json"
     validation_path.write_text("[]", encoding="utf-8")

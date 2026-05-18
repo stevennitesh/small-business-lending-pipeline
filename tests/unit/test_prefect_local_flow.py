@@ -43,7 +43,6 @@ def test_cloud_flow_declares_expected_stage_order():
         "validate_bi_tables",
         "write_run_summary",
     )
-    assert local_flow.FINAL_FLOW_STAGES == local_flow.CLOUD_FLOW_STAGES
     assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
         local_flow.CLOUD_FLOW_STAGES.index("record_raw_artifact_locations")
     )
@@ -53,23 +52,6 @@ def test_cloud_flow_declares_expected_stage_order():
     assert local_flow.CLOUD_FLOW_STAGES.index("run_dbt_build") < (
         local_flow.CLOUD_FLOW_STAGES.index("validate_bi_tables")
     )
-
-
-def test_final_mode_alias_normalizes_to_cloud_route(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="final",
-        extract_mode="fixture",
-        dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket="unit-test-bucket",
-        pipeline_run_id="legacy-final-run",
-    )
-
-    assert context.run_mode == "cloud"
-    assert context.stage_order == local_flow.CLOUD_FLOW_STAGES
 
 
 def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):

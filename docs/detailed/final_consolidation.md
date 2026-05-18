@@ -149,9 +149,8 @@ small-business-lending-pipeline/
 │
 └── scripts/
     ├── run_local_pipeline.sh
-    ├── run_final_pipeline.sh
+    ├── run_cloud_pipeline.sh
     ├── run_dbt_local.sh
-    ├── run_dbt_final.sh
     ├── export_powerbi_tables.py
     └── reset_local_duckdb.sh
 ```

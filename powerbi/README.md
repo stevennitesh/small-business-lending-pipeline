@@ -10,7 +10,7 @@ The target desktop artifact is `powerbi/lending_dashboard.pbix`, but PBIX creati
 
 ## Build In Power BI Desktop
 
-1. Run `make run-local` or `make run-final` to refresh `data/exports/powerbi/*.csv`.
+1. Run `make run-local` to refresh `data/exports/powerbi/*.csv`, or use `make run-cloud` to refresh Snowflake BI tables.
 2. Open Power BI Desktop on Windows.
 3. Load the CSV tables listed in `powerbi/lending_dashboard_model.json`, or connect to the matching Snowflake BI tables.
 4. Create dimensions and relationships exactly as listed in `powerbi/lending_dashboard_model.json`.

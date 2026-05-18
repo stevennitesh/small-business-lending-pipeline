@@ -15,7 +15,7 @@ After this cleanup, Snowflake raw loading should mean the cloud S3-stage path. T
 - Do not remove DuckDB local loading.
 - Do not change raw table schemas.
 - Do not change dbt models, Power BI contracts, or cloud storage integration setup.
-- Do not remove `run-final` or the `final` alias in this slice.
+- Do not remove cloud-route aliases in this slice.
 - Do not remove the local-to-S3 artifact upload helper unless it is directly tied to the local-file Snowflake loader.
 
 ## Constraints

@@ -11,7 +11,7 @@ The recruiter-facing story should be simple: the pipeline is proven locally firs
 
 ## Current Reality
 
-The repo now has active local and cloud route stage lists in `pipelines/flows/lending_pipeline_flow.py`. The older `final` run-mode name remains only as a compatibility alias for callers and scripts that predate the cloud naming.
+The repo now has active local and cloud route stage lists in `pipelines/flows/lending_pipeline_flow.py`. The older `final` run-mode alias and wrapper script have been removed; `cloud` is the public cloud route name.
 
 Local mode currently does this:
 
@@ -89,7 +89,7 @@ Outcome: the code and docs explain local versus cloud ownership clearly.
 Changes:
 
 - Use `cloud` as the public cloud run mode.
-- Keep `final` as a backward-compatible alias until the later deletion phase.
+- Use `cloud` as the only public cloud run mode.
 - Add a `make run-cloud` command and `scripts/run_cloud_pipeline.sh`.
 - Keep `make run-local` as the default development command.
 - Update README architecture and run instructions to show the two routes side by side.
@@ -98,7 +98,6 @@ Likely files:
 
 - `Makefile`
 - `scripts/run_cloud_pipeline.sh`
-- `scripts/run_final_pipeline.sh`
 - `pipelines/flows/lending_pipeline_flow.py`
 - `README.md`
 - `docs/detailed/architecture.md`

@@ -88,7 +88,6 @@ from pipelines.validation.validation_result import (
 RUN_MODE_ALIASES = {
     "local": "local",
     "cloud": "cloud",
-    "final": "cloud",
 }
 
 LOCAL_FLOW_STAGES = (
@@ -121,9 +120,6 @@ CLOUD_FLOW_STAGES = (
     "write_run_summary",
 )
 
-# Compatibility alias for older final-mode callers; active route code should use
-# CLOUD_FLOW_STAGES.
-FINAL_FLOW_STAGES = CLOUD_FLOW_STAGES
 FLOW_STAGES = LOCAL_FLOW_STAGES
 
 BI_TABLES = (
@@ -321,9 +317,6 @@ def require_cloud_mode_config(context: LocalRunContext) -> str:
             "Missing cloud mode configuration: " + ", ".join(sorted(missing))
         )
     return bucket
-
-
-require_final_mode_config = require_cloud_mode_config
 
 
 @task

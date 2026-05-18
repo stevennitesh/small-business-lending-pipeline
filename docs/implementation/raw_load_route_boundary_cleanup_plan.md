@@ -14,7 +14,7 @@ The intended story should stay simple:
 
 - Do not change the raw table schemas.
 - Do not remove DuckDB, Snowflake, S3, dbt, or Prefect.
-- Do not remove `run-final` or the `final` alias in this cleanup.
+- Do not remove cloud-route aliases in this cleanup.
 - Do not require live AWS or Snowflake credentials for default tests.
 - Do not change Power BI contracts.
 

@@ -273,7 +273,7 @@ The Prefect flow should accept runtime parameters so the same flow can run in di
 
 | Parameter | Type | Default | Purpose |
 |---|---|---|---|
-| `run_mode` | string | `local` | `local` or `final` |
+| `run_mode` | string | `local` | `local` or `cloud` |
 | `dbt_target` | string | `dev_duckdb` | dbt target profile |
 | `ingestion_date` | date/string | current date | Raw partition date |
 | `start_year` | integer | `2010` | Start year for Census/BLS extracts |
@@ -526,21 +526,21 @@ Equivalent script:
 bash scripts/run_local_pipeline.sh
 ```
 
-Recommended final-mode command:
+Recommended cloud-mode command:
 
 ```bash
-make run-final
+make run-cloud
 ```
 
 Equivalent script:
 
 ```bash
-bash scripts/run_final_pipeline.sh
+bash scripts/run_cloud_pipeline.sh
 ```
 
 ## Scheduled Runs
 
-After manual local and final runs work, create a Prefect schedule.
+After manual local and cloud runs work, create a Prefect schedule.
 
 Recommended MVP schedule:
 
@@ -901,7 +901,7 @@ Use `make` or shell scripts to make the project easy to run.
 ## Recommended `Makefile`
 
 ```makefile
-.PHONY: install test run-local run-final dbt-local dbt-final clean
+.PHONY: install test run-local run-cloud dbt-local clean
 
 install:
 	pip install -r requirements.txt
@@ -912,14 +912,11 @@ test:
 run-local:
 	python -m pipelines.flows.lending_pipeline_flow --run-mode local --dbt-target dev_duckdb
 
-run-final:
-	python -m pipelines.flows.lending_pipeline_flow --run-mode final --dbt-target prod_snowflake
+run-cloud:
+	python -m pipelines.flows.lending_pipeline_flow --run-mode cloud --dbt-target prod_snowflake
 
 dbt-local:
 	cd dbt && dbt build --target dev_duckdb
-
-dbt-final:
-	cd dbt && dbt build --target prod_snowflake
 
 clean:
 	rm -rf data/warehouse/*.duckdb data/exports/powerbi/*
@@ -930,9 +927,8 @@ clean:
 ```text
 scripts/
 ├── run_local_pipeline.sh
-├── run_final_pipeline.sh
+├── run_cloud_pipeline.sh
 ├── run_dbt_local.sh
-├── run_dbt_final.sh
 ├── export_powerbi_tables.py
 └── reset_local_duckdb.sh
 ```
@@ -957,19 +953,19 @@ python -m pipelines.flows.lending_pipeline_flow \
 
 ---
 
-## Final Pipeline Script
+## Cloud Pipeline Script
 
-Recommended `scripts/run_final_pipeline.sh`:
+Recommended `scripts/run_cloud_pipeline.sh`:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-export ENVIRONMENT=final
+export ENVIRONMENT=cloud
 export DBT_TARGET=prod_snowflake
 
 python -m pipelines.flows.lending_pipeline_flow \
-  --run-mode final \
+  --run-mode cloud \
   --dbt-target prod_snowflake
 ```
 
@@ -1018,7 +1014,7 @@ def lending_pipeline_flow(
     write_ingestion_manifests(extraction_results, config, pipeline_run_id)
     write_validation_results(extraction_results, config, pipeline_run_id)
 
-    if run_mode == "final":
+    if run_mode == "cloud":
         upload_raw_to_s3(extraction_results, config)
         load_raw_to_snowflake(extraction_results, config)
     else:
@@ -1209,7 +1205,7 @@ Each run should produce a run summary record.
 |---|---|
 | `pipeline_run_id` | Unique run ID |
 | `pipeline_name` | Flow name |
-| `run_mode` | `local` or `final` |
+| `run_mode` | `local` or `cloud` |
 | `dbt_target` | dbt target used |
 | `run_started_at_utc` | Start timestamp |
 | `run_completed_at_utc` | Completion timestamp |

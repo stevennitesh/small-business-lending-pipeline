@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local run-cloud run-final dbt-local dbt-compile-local dbt-build-local-full dbt-seed-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
+.PHONY: install test runtime-smoke run-local run-cloud dbt-local dbt-compile-local dbt-build-local-full dbt-seed-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -31,9 +31,6 @@ run-local: $(PREFECT_HOME)
 
 run-cloud: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_cloud_pipeline.sh
-
-run-final: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
-	scripts/run_final_pipeline.sh
 
 dbt-local: dbt-compile-local
 

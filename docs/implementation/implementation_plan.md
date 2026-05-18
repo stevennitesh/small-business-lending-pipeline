@@ -1066,17 +1066,17 @@ Required:
 
 ---
 
-## Task T22 — Prefect Final Mode
+## Task T22 — Prefect Cloud Mode
 
 ### Goal
 
-Extend the Prefect flow to run final mode: extraction, raw validation, S3 upload, Snowflake load, dbt Snowflake build, BI validation, and run summary.
+Extend the Prefect flow to run cloud mode: extraction, raw validation, S3 artifact recording, Snowflake load, dbt Snowflake build, BI validation, and run summary.
 
 ### Deliverables
 
 ```text
-make run-final
-scripts/run_final_pipeline.sh
+make run-cloud
+scripts/run_cloud_pipeline.sh
 ```
 
 ### Non-Goals
@@ -1087,14 +1087,14 @@ scripts/run_final_pipeline.sh
 
 ### Test Criteria
 
-- Final mode requires AWS and Snowflake config.
+- Cloud mode requires AWS and Snowflake config.
 - Raw validation happens before S3/Snowflake loading.
 - dbt tests must pass before BI tables are considered dashboard-ready.
-- Run summary records final-mode status.
+- Run summary records cloud-mode status.
 
 ### Acceptance Criteria
 
-- `make run-final` completes successfully.
+- `make run-cloud` completes successfully.
 - S3 and Snowflake artifacts are created.
 - Final BI tables are available for Power BI.
 
@@ -1420,6 +1420,6 @@ Use this order during implementation:
 5. T15-T16: dbt tests and pytest suite
 6. T17-T18: Prefect local flow and Power BI exports
 7. T23-T24: Local Power BI prototype
-8. T19-T22: S3/Snowflake final-mode promotion
+8. T19-T22: S3/Snowflake cloud promotion
 9. T25-T27: README, documentation, recruiter evidence pack
 ```

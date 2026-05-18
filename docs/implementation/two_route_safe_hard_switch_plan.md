@@ -1,19 +1,19 @@
-# Plan: Safe Hard Switch To Local And Cloud Routes
+# Plan: Safe Switch To Local And Cloud Routes
 
 ## Goal
 
-Make the current local/cloud route design self-sufficient before deleting old final-mode compatibility paths.
+Make the current local/cloud route design self-sufficient before deleting old cloud-route compatibility paths.
 
 The target runtime shape is:
 
 - `local`: source extracts -> local raw artifacts -> raw validation -> DuckDB raw tables -> dbt `dev_duckdb` -> local Power BI CSV exports.
 - `cloud`: source extracts -> S3 raw artifacts -> raw validation from S3 -> Snowflake raw tables -> dbt `prod_snowflake` -> Snowflake BI schema.
 
-This plan prepares the repo so the new method works without depending on the old local-file-to-Snowflake fallback. After this plan is implemented and verified, the next cleanup can remove old public aliases and compatibility files.
+This plan prepares the repo so the new method works without depending on the old local-file-to-Snowflake fallback. The old public cloud-route aliases and compatibility files have since been removed.
 
 ## Non-goals
 
-- Do not remove `run-final`, `final` run-mode alias, or old compatibility tests in this slice.
+- Do not remove compatibility paths in this slice.
 - Do not change KPI definitions or BI table semantics.
 - Do not remove DuckDB; it remains the local warehouse.
 - Do not require live AWS or Snowflake credentials for default unit tests.
@@ -41,8 +41,7 @@ Parallel groups:
 - Working tree: clean on `master` before this plan was written.
 - Current route behavior:
   - `local` and `cloud` are canonical run modes.
-  - `final` is still accepted as an alias for `cloud`.
-  - `run_cloud_pipeline.sh` and `run_final_pipeline.sh` currently execute the same cloud command.
+  - `cloud` is the canonical cloud route.
 - Current hidden dependency:
   - dbt staging models still join raw source rows to manifests with `raw.raw_file_path = manifest.local_raw_path`.
   - `dim_source_file` keys source files by `local_raw_path`.
@@ -63,7 +62,7 @@ Parallel groups:
 - Cloud route tests prove raw artifacts are S3-backed and Snowflake raw loading does not use local raw paths.
 - Snowflake loader tests prove a fresh fake Snowflake warehouse can create/load required raw tables from S3-oriented inputs.
 - Run summaries and docs clearly identify `local` and `cloud` routes.
-- Old final-mode alias may still exist, but active implementation paths no longer depend on final-mode naming or local files as Snowflake inputs.
+- Active implementation paths no longer depend on old cloud-route aliases or local files as Snowflake inputs.
 
 ## Tasks
 
@@ -77,18 +76,17 @@ Parallel groups:
 
 ### Task 1: Make Route Vocabulary Internally Cloud-Named
 
-- Outcome: Internal code uses `cloud` naming for the cloud route, while the old `final` alias remains only as a compatibility input.
+- Outcome: Internal code uses `cloud` naming for the cloud route.
 - Builds on or must preserve: `RUN_MODE_ALIASES`, `CLOUD_FLOW_STAGES`, `make run-cloud`.
-- Existing logic to reuse or extend: `LocalRunContext.is_cloud_route`, `context.stage_order`, `require_final_mode_config`.
-- Public contract or state/data change: no public removal yet; `final` still normalizes to `cloud`.
+- Existing logic to reuse or extend: `LocalRunContext.is_cloud_route` and `context.stage_order`.
+- Public contract or state/data change: `cloud` is the only accepted cloud route name.
 - Depends on: none.
 - Likely files/modules:
   - `pipelines/flows/lending_pipeline_flow.py`
   - `tests/unit/test_prefect_local_flow.py`
   - `README.md`
 - Change boundary:
-  - Rename internal cloud checks and stage names from final-mode language where safe.
-  - Keep a compatibility alias and tests that show `final` still maps to `cloud`.
+  - Rename internal cloud checks and stage names from old cloud-route language where safe.
 - Verification command:
   - `.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py`
 - Review focus:
@@ -97,7 +95,7 @@ Parallel groups:
 - Risk/rollback:
   - Low risk; revert renames if tests show stage-order drift.
 - Stop/ask if:
-  - The implementation requires removing `final` as an accepted input.
+  - A current user-facing command still depends on an old cloud-route alias.
 - Status: pending.
 
 ### Task 2: Promote `raw_uri` To The Active Raw Identity
@@ -227,7 +225,7 @@ Parallel groups:
 - Outcome: Old paths remain available for rollback, but tests and docs show they are no longer the active implementation path.
 - Builds on or must preserve:
   - The user wants deletion to happen later after the safe switch works.
-  - `run-final` may remain as a compatibility command for now.
+  - Old cloud-route wrappers may remain as compatibility commands for now.
 - Existing logic to reuse or extend:
   - README runtime route section.
   - implementation docs.
@@ -281,11 +279,7 @@ The live cloud check is stronger evidence than fake Snowflake/S3 tests, but it s
 
 Only after this plan passes:
 
-- Remove `final` from `RUN_MODE_ALIASES`.
-- Delete `FINAL_FLOW_STAGES`.
-- Delete `scripts/run_final_pipeline.sh`.
-- Remove `make run-final`.
-- Remove tests that assert final-mode compatibility.
+- Completed separately: remove old cloud-route aliases, wrapper scripts, and compatibility tests.
 - Completed separately: remove the old local-file Snowflake loader if no tests or rollback docs still require it.
 - Remove legacy `raw_file_path` / `local_raw_path` dependencies from dbt outputs if Power BI and docs no longer need them.
 
