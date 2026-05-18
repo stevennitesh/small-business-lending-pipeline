@@ -12,6 +12,26 @@ models:
         description: SBA loan program identifier.
       - name: gross_approval_amount
         description: Gross SBA approval amount from the FOIA source.
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw source row.
+        data_tests:
+          - not_null: {}
+      - name: source_resource_name
+        description: SBA source resource represented by the raw row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join staged rows back to ingestion manifests.
+        data_tests:
+          - not_null: {}
+      - name: raw_file_path
+        description: Local raw file lineage when present; not used as staged row identity.
+      - name: sha256_checksum
+        description: SHA-256 checksum for the raw artifact represented by the staged row.
 
   - name: stg_sba_504_loans
     description: Canonical staged SBA 504 loan records from the latest successful FOIA snapshots.
@@ -24,6 +44,26 @@ models:
         description: SBA loan program identifier.
       - name: gross_approval_amount
         description: Gross SBA approval amount from the FOIA source.
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw source row.
+        data_tests:
+          - not_null: {}
+      - name: source_resource_name
+        description: SBA source resource represented by the raw row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join staged rows back to ingestion manifests.
+        data_tests:
+          - not_null: {}
+      - name: raw_file_path
+        description: Local raw file lineage when present; not used as staged row identity.
+      - name: sha256_checksum
+        description: SHA-256 checksum for the raw artifact represented by the staged row.
 
   - name: stg_sba_loans
     description: Combined canonical SBA loan staging model for 7(a) and 504 records.
@@ -57,6 +97,26 @@ models:
           - accepted_values:
               arguments:
                 values: ["mapped", "unmapped", "missing"]
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw source row.
+        data_tests:
+          - not_null: {}
+      - name: source_resource_name
+        description: SBA source resource represented by the raw row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join staged rows back to ingestion manifests.
+        data_tests:
+          - not_null: {}
+      - name: raw_file_path
+        description: Local raw file lineage when present; not used as staged row identity.
+      - name: sha256_checksum
+        description: SHA-256 checksum for the raw artifact represented by the staged row.
 
   - name: stg_census_bds_state_year
     description: Canonical Census BDS state-year staging model from the latest successful snapshot.
@@ -82,6 +142,26 @@ models:
           - accepted_values:
               arguments:
                 values: ["mapped", "unmapped", "missing"]
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw source row.
+        data_tests:
+          - not_null: {}
+      - name: source_resource_name
+        description: Census BDS source resource represented by the raw row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join staged rows back to ingestion manifests.
+        data_tests:
+          - not_null: {}
+      - name: raw_file_path
+        description: Local raw file lineage when present; not used as staged row identity.
+      - name: sha256_checksum
+        description: SHA-256 checksum for the raw artifact represented by the staged row.
 
   - name: stg_bls_laus_state_month
     description: Canonical BLS LAUS state-month unemployment-rate staging model from the latest successful snapshot.
@@ -112,6 +192,26 @@ models:
           - accepted_values:
               arguments:
                 values: ["mapped", "unmapped", "missing"]
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw source row.
+        data_tests:
+          - not_null: {}
+      - name: source_resource_name
+        description: BLS LAUS source resource represented by the raw row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join staged rows back to ingestion manifests.
+        data_tests:
+          - not_null: {}
+      - name: raw_file_path
+        description: Local raw file lineage when present; not used as staged row identity.
+      - name: sha256_checksum
+        description: SHA-256 checksum for the raw artifact represented by the staged row.
 
   - name: stg_ingestion_manifest
     description: Staged ingestion manifests with latest-successful snapshot flag.
@@ -120,6 +220,32 @@ models:
     columns:
       - name: pipeline_run_id
         description: Pipeline run identifier.
+        data_tests:
+          - not_null: {}
+      - name: source_system
+        description: Source system that produced the raw artifact, such as sba, census, or bls.
+        data_tests:
+          - not_null: {}
+      - name: dataset_name
+        description: Source dataset represented by the manifest row.
+        data_tests:
+          - not_null: {}
+      - name: resource_name
+        description: Source resource represented by the manifest row.
+        data_tests:
+          - not_null: {}
+      - name: storage_backend
+        description: Durable raw artifact backend for the selected route, such as local or s3.
+        data_tests:
+          - not_null: {}
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join manifests to staged rows.
+        data_tests:
+          - not_null: {}
+      - name: local_raw_path
+        description: Local raw artifact lineage when present; not used as the cross-route identity.
+      - name: s3_raw_uri
+        description: S3 raw artifact lineage when present; not required for local route runs.
       - name: is_latest_successful_snapshot
         description: True when the manifest is the latest successful snapshot for its source resource.
 

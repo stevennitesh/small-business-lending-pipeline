@@ -31,7 +31,7 @@ def test_dbt_target_names_match_runtime_config():
 def test_raw_sources_are_documented():
     sources_yml = yaml.safe_load(Path("dbt/models/sources/sources.yml").read_text())
     raw_source = sources_yml["sources"][0]
-    raw_tables = {table["name"] for table in raw_source["tables"]}
+    raw_tables = {table["name"]: table for table in raw_source["tables"]}
 
     assert raw_source["name"] == "raw"
     assert raw_source["schema"] == (
@@ -45,4 +45,5 @@ def test_raw_sources_are_documented():
         "raw_ingestion_manifest",
         "raw_validation_result",
         "raw_pipeline_run_summary",
-    } <= raw_tables
+    } <= set(raw_tables)
+    assert "local DuckDB" not in raw_tables["raw_pipeline_run_summary"]["description"]

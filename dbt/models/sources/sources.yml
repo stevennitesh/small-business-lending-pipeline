@@ -92,11 +92,11 @@ sources:
             description: Validation status, usually passed, warning, or failed.
 
       - name: raw_pipeline_run_summary
-        description: Pipeline-level raw loading summary for local DuckDB runs.
+        description: Pipeline-level raw loading summary for raw warehouse load runs.
         columns:
           - name: pipeline_run_ids
             description: Comma-separated run identifiers represented by the raw load.
           - name: loaded_at_utc
-            description: UTC timestamp when the local raw load completed.
+            description: UTC timestamp when the raw warehouse load completed.
           - name: validation_status
             description: Overall validation status at raw load time.
