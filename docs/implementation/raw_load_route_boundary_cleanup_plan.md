@@ -8,7 +8,7 @@ The intended story should stay simple:
 
 - Local route: local raw files, local manifests and validation JSON, DuckDB, dbt `dev_duckdb`, local BI exports.
 - Cloud route: S3 raw payloads, S3 manifests and validation output, Snowflake S3-stage raw load, dbt `prod_snowflake`, Snowflake BI schema.
-- Testing/compatibility helpers: local-to-S3 upload and local-file Snowflake connector checks used only for smoke tests, fallback verification, and debugging.
+- Testing/compatibility helpers: local-to-S3 upload checks used only for smoke tests, fallback verification, and debugging.
 
 ## Non-goals
 
@@ -49,7 +49,7 @@ Parallel groups:
 - `CLOUD_FLOW_STAGES` includes `record_raw_artifact_locations`.
 - `record_raw_artifact_locations(...)` either summarizes cloud artifact URIs or runs the legacy local-to-S3 upload helper.
   - `load_raw_extracts_to_snowflake_from_s3(...)` is the active cloud raw-load path.
-- `load_local_raw_extracts_to_snowflake_for_testing(...)` is the local-file Snowflake testing/compatibility path.
+- The local-file Snowflake testing/compatibility path has been removed.
 - `raw_load_common.load_local_source_frame(...)` reads local raw files.
 - Relevant source/tests/fixtures:
   - `pipelines/flows/lending_pipeline_flow.py`
@@ -103,32 +103,29 @@ Parallel groups:
 
 ### Task 2: Make Local-File Snowflake Loading Explicitly Test-Only In The Public API
 
-- Outcome: the Snowflake local-file loader remains callable for tests/manual smoke checks, but the production-style public path points to the S3-stage loader.
+- Outcome: superseded by the later removal cleanup; the production-style public path points to the S3-stage loader.
 - Builds on or must preserve:
-  - Existing unit tests around local-file Snowflake loading.
-  - Existing CLI behavior if it is still useful as a manual smoke tool.
+  - Existing unit tests around the S3-stage Snowflake loader.
 - Existing logic to reuse or extend:
-  - `load_local_raw_extracts_to_snowflake_for_testing(...)`
   - `load_raw_extracts_to_snowflake_from_s3(...)`
   - `tests/unit/test_snowflake_loader.py`
 - Public contract or state/data change:
-  - Prefer naming or wrapper changes that make the helper's testing/compatibility role visible.
-  - Avoid breaking tests without providing a compatibility alias or clear migration.
+  - The local-file helper was removed in the follow-up cleanup.
 - Depends on: Task 1.
 - Likely files/modules:
   - `pipelines/load/snowflake_loader.py`
   - `tests/unit/test_snowflake_loader.py`
   - `README.md`
 - First command/check:
-  - `rg -n "load_raw_extracts_to_snowflake\\(" pipelines tests docs README.md`
+  - `rg -n "load_raw_extracts_to_snowflake_from_s3" pipelines tests docs README.md`
 - Change boundary:
   - Do not alter Snowflake loading semantics or table schemas.
 - Verification command:
   - `.venv/bin/python -m pytest tests/unit/test_snowflake_loader.py`
 - Review focus:
-  - A reader should not confuse the Python connector local-file helper with the cloud route.
+  - A reader should see the S3-stage loader as the Snowflake raw-load route.
 - Risk/rollback:
-  - If renaming churn is too broad, keep the function name and strengthen docs/tests around the helper's intended use.
+  - If removal was too broad, restore from the previous commit.
 - Stop/ask if:
   - A public command or recruiter demo intentionally uses local files to populate Snowflake as the main cloud story.
 - Status: completed
@@ -143,7 +140,7 @@ Parallel groups:
 - Existing logic to reuse or extend:
   - `raw_load_common.load_local_source_frame(...)`
   - `duckdb_loader.load_raw_extracts(...)`
-  - local-file Snowflake helper.
+  - S3-stage Snowflake loader.
 - Public contract or state/data change:
   - Internal helper rename only.
 - Depends on: Task 2.
@@ -186,7 +183,7 @@ Parallel groups:
   - `docs/implementation/two_route_safe_hard_switch_plan.md`
   - this plan document, if task statuses are updated during execution.
 - First command/check:
-  - `rg -n "record_raw_artifact_locations|local-file Snowflake|python_connector_fallback|load_local_source_frame" README.md docs pipelines tests`
+  - `rg -n "record_raw_artifact_locations|load_local_source_frame" README.md docs pipelines tests`
 - Change boundary:
   - Update docs only for names/contracts changed in this cleanup.
 - Verification command:
@@ -218,4 +215,4 @@ make test
 ## Open Questions
 
 - Resolved: new run summaries report `record_raw_artifact_locations`; the old stage string is not kept as an active cloud stage.
-- Resolved: the preferred local-file Snowflake helper is `load_local_raw_extracts_to_snowflake_for_testing(...)`; the old function name remains as a compatibility alias.
+- Superseded: the local-file Snowflake helper and compatibility alias were removed in the follow-up cleanup.

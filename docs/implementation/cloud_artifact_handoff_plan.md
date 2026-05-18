@@ -189,7 +189,7 @@ This should be issue-driven implementation. Each task should become one GitHub i
   - `pipelines/flows/lending_pipeline_flow.py`
   - `tests/unit/test_snowflake_loader.py`
 - Change boundary:
-  - Leave the compatibility local-file Snowflake loader untouched unless a narrow adapter is required.
+- Preserve the S3-stage Snowflake loader as the only Snowflake raw-load path.
   - Do not change Snowflake table schemas except if an artifact URI field is already expected by current metadata contracts.
 - Verification command:
 

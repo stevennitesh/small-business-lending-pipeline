@@ -63,7 +63,7 @@ Parallel groups:
 - Cloud route tests prove raw artifacts are S3-backed and Snowflake raw loading does not use local raw paths.
 - Snowflake loader tests prove a fresh fake Snowflake warehouse can create/load required raw tables from S3-oriented inputs.
 - Run summaries and docs clearly identify `local` and `cloud` routes.
-- Old final-mode alias may still exist, but active implementation paths no longer depend on final-mode naming or local-file Snowflake loading.
+- Old final-mode alias may still exist, but active implementation paths no longer depend on final-mode naming or local files as Snowflake inputs.
 
 ## Tasks
 
@@ -149,7 +149,7 @@ Parallel groups:
 
 ### Task 3: Make Snowflake Cloud Raw Load Self-Sufficient
 
-- Outcome: The cloud route can create/load Snowflake raw tables from S3-backed artifacts without using local raw files or the old Python connector fallback.
+- Outcome: The cloud route can create/load Snowflake raw tables from S3-backed artifacts.
 - Builds on or must preserve:
   - `load_raw_extracts_to_snowflake_from_s3`
   - `RawArtifactLocation.storage_backend == "s3"`
@@ -169,7 +169,7 @@ Parallel groups:
   - `tests/unit/test_snowflake_loader.py`
   - `tests/unit/test_prefect_local_flow.py`
 - Change boundary:
-  - Replace any active cloud dependence on `load_raw_extracts_to_snowflake(...)`.
+  - Keep active cloud loading on the S3-stage Snowflake loader.
   - Add explicit Snowflake raw table setup for S3 loads.
   - For CSV and JSON source artifacts, choose one consistent cloud load strategy:
     - create typed/variant landing tables and insert enriched rows into final raw tables; or
@@ -250,7 +250,7 @@ Parallel groups:
 - Verification command:
   - `.venv/bin/python -m pytest tests/test_repository_skeleton.py tests/unit/test_s3_loader.py tests/unit/test_snowflake_loader.py`
 - Review focus:
-  - No active code path points users toward the old final/local-file Snowflake path.
+  - No active code path points users toward local files as Snowflake inputs.
   - Compatibility is still intact until explicitly removed.
 - Risk/rollback:
   - Low risk.
@@ -286,7 +286,7 @@ Only after this plan passes:
 - Delete `scripts/run_final_pipeline.sh`.
 - Remove `make run-final`.
 - Remove tests that assert final-mode compatibility.
-- Delete `load_local_raw_extracts_to_snowflake_for_testing(...)` and its compatibility alias if no tests or rollback docs still require local-file Snowflake loading.
+- Completed separately: remove the old local-file Snowflake loader if no tests or rollback docs still require it.
 - Remove legacy `raw_file_path` / `local_raw_path` dependencies from dbt outputs if Power BI and docs no longer need them.
 
 ## Open Questions

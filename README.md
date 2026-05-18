@@ -68,7 +68,7 @@ DuckDB and Snowflake play the same warehouse role in different environments. S3 
 
 Use the local route while developing or auditing the model logic. Use the cloud route when you want recruiter-visible evidence of S3 raw storage, Snowflake raw/BI schemas, and dbt running against the cloud warehouse.
 
-Compatibility/testing helpers still exist for narrow checks, such as uploading local artifacts to S3 or loading local raw files into Snowflake through the Python connector with `load_local_raw_extracts_to_snowflake_for_testing(...)`. Those helpers are for smoke tests, fallback verification, and debugging only. The intended route ownership is:
+Compatibility/testing helpers still exist for narrow checks, such as uploading local artifacts to S3 for smoke tests, fallback verification, and debugging. Snowflake raw loading now belongs to the cloud route and reads S3-backed artifacts through the Snowflake stage loader. The intended route ownership is:
 
 - Local only: local raw files, local manifests and validation JSON, DuckDB, and local BI exports.
 - Cloud only: S3 raw payloads, S3 manifests and validation output, Snowflake raw/BI schemas, and dbt against Snowflake.

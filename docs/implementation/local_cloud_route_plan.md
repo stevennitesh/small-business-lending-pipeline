@@ -26,7 +26,7 @@ source extracts -> S3 raw landing zone -> raw validation -> Snowflake raw load f
              -> dbt prod_snowflake -> Snowflake BI tables
 ```
 
-The local-file Snowflake loader remains available as `load_local_raw_extracts_to_snowflake_for_testing(...)`, a testing/compatibility helper, but it is not the active cloud route. It exists for unit tests, manual smoke checks, and fallback verification where local files are intentionally pushed through the Snowflake connector. The active cloud route makes S3 the cloud raw landing owner and makes Snowflake load from S3-backed manifests.
+The active cloud route makes S3 the cloud raw landing owner and makes Snowflake load from S3-backed manifests. The older local-file Snowflake connector path has been removed so Snowflake raw loading now means S3-stage cloud loading.
 
 ## Target Architecture
 
@@ -224,7 +224,7 @@ Changes:
 - Add Snowflake stage setup for the configured S3 raw landing zone.
 - Add file-format definitions for CSV and JSON.
 - Prefer `COPY INTO` from S3 stage into Snowflake raw tables.
-- Keep the Python connector fallback only as a testing/compatibility path, not the main cloud story.
+- Use the S3-stage loader as the only Snowflake raw-load path.
 - Record the raw load pattern in `raw_pipeline_run_summary`.
 - Reconcile Snowflake row counts against manifests after load.
 

@@ -881,7 +881,6 @@ small-business-lending-pipeline/
 └── scripts/
     ├── run_local_pipeline.sh
     ├── run_dbt_local.sh
-    ├── load_snowflake.sh
     └── export_powerbi_tables.py
 ```
 

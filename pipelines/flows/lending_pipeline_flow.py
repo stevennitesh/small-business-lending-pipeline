@@ -43,7 +43,6 @@ from pipelines.load.snowflake_loader import (
     SnowflakeRawLoadSummary,
     connect_to_snowflake,
     load_raw_extracts_to_snowflake_from_s3,
-    load_raw_extracts_to_snowflake,
 )
 from pipelines.storage.raw_artifacts import (
     ArtifactLocation,

@@ -991,7 +991,6 @@ Load raw source data and pipeline metadata into Snowflake raw/audit schemas.
 
 ```text
 pipelines/load/snowflake_loader.py
-scripts/load_snowflake.sh
 Snowflake schemas: RAW, STAGING, INTERMEDIATE, MARTS, BI, AUDIT
 ```
 
@@ -1424,4 +1423,3 @@ Use this order during implementation:
 8. T19-T22: S3/Snowflake final-mode promotion
 9. T25-T27: README, documentation, recruiter evidence pack
 ```
-

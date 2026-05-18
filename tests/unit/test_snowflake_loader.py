@@ -12,8 +12,6 @@ from pipelines.load.snowflake_loader import (
     SnowflakeConfig,
     SnowflakeRawLoadError,
     _snowflake_csv_columns,
-    load_local_raw_extracts_to_snowflake_for_testing,
-    load_raw_extracts_to_snowflake,
     load_raw_extracts_to_snowflake_from_s3,
 )
 from pipelines.storage.raw_artifacts import ArtifactLocation
@@ -22,76 +20,6 @@ from pipelines.validation.validation_result import (
     ValidationResult,
     write_validation_results,
 )
-
-
-def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
-    validation_path = write_validation_results(
-        [_validation_result()],
-        tmp_path / "validation" / "validation_results.json",
-    )
-    connection = FakeSnowflakeConnection()
-    writer = FakeSnowflakeWriter()
-
-    summary = load_local_raw_extracts_to_snowflake_for_testing(
-        connection=connection,
-        database="SMALL_BUSINESS_LENDING",
-        raw_schema="RAW",
-        audit_schema="AUDIT",
-        sba_7a_manifest_paths=manifests["sba_7a"],
-        sba_504_manifest_paths=manifests["sba_504"],
-        census_bds_manifest_paths=manifests["census"],
-        bls_laus_manifest_paths=manifests["bls"],
-        validation_result_paths=[validation_path],
-        write_pandas_func=writer,
-    )
-
-    for schema_name in REQUIRED_SCHEMAS:
-        assert f"create schema if not exists {schema_name}" in connection.sql_statements
-
-    assert set(SNOWFLAKE_RAW_TABLES.values()) <= set(writer.written_frames)
-    assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 2
-    assert summary.table_row_counts["RAW.RAW_SBA_504_FOIA"] == 1
-    assert summary.table_row_counts["RAW.RAW_CENSUS_BDS_STATE_YEAR"] == 1
-    assert summary.table_row_counts["RAW.RAW_BLS_LAUS_STATE_MONTH"] == 2
-    assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 4
-    assert summary.table_row_counts["RAW.RAW_VALIDATION_RESULT"] == 1
-    assert summary.table_row_counts["RAW.RAW_PIPELINE_RUN_SUMMARY"] == 1
-    assert summary.pipeline_run_ids == ("run-123",)
-
-    loaded_sba = writer.written_frames["RAW_SBA_7A_FOIA"]
-    assert {
-        "PIPELINE_RUN_ID",
-        "SOURCE_SYSTEM",
-        "SOURCE_DATASET",
-        "SOURCE_RESOURCE_NAME",
-        "INGESTION_DATE",
-        "STORAGE_BACKEND",
-        "RAW_URI",
-        "RAW_FILE_PATH",
-        "S3_RAW_URI",
-        "SHA256_CHECKSUM",
-    } <= set(loaded_sba.columns)
-    sba_manifest = json.loads(manifests["sba_7a"][0].read_text(encoding="utf-8"))
-    assert loaded_sba["PIPELINE_RUN_ID"].tolist() == ["run-123", "run-123"]
-    assert loaded_sba["STORAGE_BACKEND"].tolist() == ["local", "local"]
-    assert loaded_sba["RAW_URI"].tolist() == [
-        sba_manifest["local_raw_path"],
-        sba_manifest["local_raw_path"],
-    ]
-    assert loaded_sba["S3_RAW_URI"].tolist() == [
-        "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
-        "s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",
-    ]
-    validation_frame = writer.written_frames["RAW_VALIDATION_RESULT"]
-    assert validation_frame["EXPECTED_VALUE"].tolist() == ["1"]
-    assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
-    loaded_bls = writer.written_frames["RAW_BLS_LAUS_STATE_MONTH"]
-    assert loaded_bls["FOOTNOTES"].tolist() == ["[]", "[]"]
-
-
-def test_local_file_snowflake_loader_keeps_compatibility_alias():
-    assert load_raw_extracts_to_snowflake is load_local_raw_extracts_to_snowflake_for_testing
 
 
 def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
@@ -163,6 +91,8 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     )
 
     sql = " ".join(connection.sql_statements)
+    for schema_name in REQUIRED_SCHEMAS:
+        assert f"create schema if not exists {schema_name}" in connection.sql_statements
     assert "create or replace file format RAW.RAW_CSV_LOAD_FORMAT" in sql
     assert "create or replace file format RAW.RAW_JSON_FORMAT" in sql
     assert "create or replace stage RAW.RAW_S3_STAGE" in sql
@@ -197,7 +127,19 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
         for statement in connection.sql_statements
     )
     assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 3
+    assert summary.table_row_counts["RAW.RAW_SBA_504_FOIA"] == 1
+    assert summary.table_row_counts["RAW.RAW_CENSUS_BDS_STATE_YEAR"] == 1
+    assert summary.table_row_counts["RAW.RAW_BLS_LAUS_STATE_MONTH"] == 2
     assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 5
+    assert summary.table_row_counts["RAW.RAW_VALIDATION_RESULT"] == 1
+    assert summary.table_row_counts["RAW.RAW_PIPELINE_RUN_SUMMARY"] == 1
+    assert summary.pipeline_run_ids == ("run-123",)
+    assert set(SNOWFLAKE_RAW_TABLES.values()) - {
+        "RAW_SBA_7A_FOIA",
+        "RAW_SBA_504_FOIA",
+        "RAW_CENSUS_BDS_STATE_YEAR",
+        "RAW_BLS_LAUS_STATE_MONTH",
+    } <= set(writer.written_frames)
     summary_frame = writer.written_frames["RAW_PIPELINE_RUN_SUMMARY"]
     assert summary_frame["LOAD_PATTERN"].tolist() == ["s3_stage_copy"]
 
@@ -293,7 +235,7 @@ def test_snowflake_loader_blocks_failed_validation(tmp_path):
     )
 
     with pytest.raises(SnowflakeRawLoadError, match="Critical raw validation failures"):
-        load_local_raw_extracts_to_snowflake_for_testing(
+        load_raw_extracts_to_snowflake_from_s3(
             connection=FakeSnowflakeConnection(),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",
@@ -304,6 +246,7 @@ def test_snowflake_loader_blocks_failed_validation(tmp_path):
             bls_laus_manifest_paths=manifests["bls"],
             validation_result_paths=[validation_path],
             write_pandas_func=FakeSnowflakeWriter(),
+            s3_client=FakeS3Client({}),
         )
 
 
@@ -315,7 +258,7 @@ def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
     )
 
     with pytest.raises(SnowflakeRawLoadError, match="Required manifest group is empty"):
-        load_local_raw_extracts_to_snowflake_for_testing(
+        load_raw_extracts_to_snowflake_from_s3(
             connection=FakeSnowflakeConnection(),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",
@@ -326,23 +269,23 @@ def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
             bls_laus_manifest_paths=manifests["bls"],
             validation_result_paths=[validation_path],
             write_pandas_func=FakeSnowflakeWriter(),
+            s3_client=FakeS3Client({}),
         )
 
 
 def test_snowflake_loader_rejects_row_count_mismatch(tmp_path):
     manifests = _build_fixture_manifests(tmp_path)
+    _make_manifests_s3_backed(manifests)
     validation_path = write_validation_results(
         [_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
-    manifest_path = manifests["sba_7a"][0]
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["row_count"] = 999
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     with pytest.raises(SnowflakeRawLoadError, match="Row count mismatch"):
-        load_local_raw_extracts_to_snowflake_for_testing(
-            connection=FakeSnowflakeConnection(),
+        load_raw_extracts_to_snowflake_from_s3(
+            connection=FakeSnowflakeConnection(
+                table_counts={"RAW.RAW_SBA_7A_FOIA": 999}
+            ),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",
             audit_schema="AUDIT",
@@ -352,6 +295,9 @@ def test_snowflake_loader_rejects_row_count_mismatch(tmp_path):
             bls_laus_manifest_paths=manifests["bls"],
             validation_result_paths=[validation_path],
             write_pandas_func=FakeSnowflakeWriter(),
+            s3_client=FakeS3Client(
+                {"raw/sba/7a_504_foia/sba_7a.csv": "LoanNumber,GrossApproval\n"}
+            ),
         )
 
 

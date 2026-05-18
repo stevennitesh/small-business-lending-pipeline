@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import csv
 import io
 import json
@@ -17,10 +16,8 @@ from dotenv import load_dotenv
 from snowflake.connector.pandas_tools import write_pandas
 
 from pipelines.load.raw_load_common import (
-    ManifestReference,
     assert_validation_passed,
     flatten_manifest_groups,
-    load_local_source_frame,
     load_manifests,
     load_validation_results,
     normalize_records,
@@ -180,151 +177,6 @@ WritePandasFunc = Callable[..., tuple[bool, int, int, list[Any]]]
 
 def connect_to_snowflake(config: SnowflakeConfig):
     return snowflake.connector.connect(**config.connect_kwargs())
-
-
-def load_local_raw_extracts_to_snowflake_for_testing(
-    *,
-    connection,
-    database: str,
-    raw_schema: str = "RAW",
-    audit_schema: str = "AUDIT",
-    sba_7a_manifest_paths: Iterable[ManifestReference],
-    sba_504_manifest_paths: Iterable[ManifestReference],
-    census_bds_manifest_paths: Iterable[ManifestReference],
-    bls_laus_manifest_paths: Iterable[ManifestReference],
-    validation_result_paths: Iterable[ManifestReference],
-    write_pandas_func: WritePandasFunc = write_pandas,
-) -> SnowflakeRawLoadSummary:
-    """Testing/compatibility local-file loader for Snowflake smoke checks.
-
-    This helper uploads local raw files through the Python connector so unit
-    tests and manual cloud-connectivity checks can exercise Snowflake without an
-    S3 stage. It is not the production-style cloud route. The cloud route uses
-    ``load_raw_extracts_to_snowflake_from_s3`` with S3-backed manifests.
-    """
-
-    validation_results = load_validation_results(
-        validation_result_paths,
-        error_cls=SnowflakeRawLoadError,
-        missing_message="At least one validation result file is required.",
-    )
-    assert_validation_passed(validation_results, error_cls=SnowflakeRawLoadError)
-
-    manifest_groups = {
-        "raw_sba_7a_foia": load_manifests(sba_7a_manifest_paths),
-        "raw_sba_504_foia": load_manifests(sba_504_manifest_paths),
-        "raw_census_bds_state_year": load_manifests(census_bds_manifest_paths),
-        "raw_bls_laus_state_month": load_manifests(bls_laus_manifest_paths),
-    }
-    require_manifest_groups(manifest_groups, error_cls=SnowflakeRawLoadError)
-    pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
-    _create_required_schemas(
-        connection,
-        raw_schema=raw_schema,
-        audit_schema=audit_schema,
-    )
-
-    table_row_counts: dict[str, int] = {}
-    for source_table, manifests in manifest_groups.items():
-        frame = _snowflake_frame(
-            load_local_source_frame(
-                source_table,
-                manifests,
-                error_cls=SnowflakeRawLoadError,
-            )
-        )
-        table_name = SNOWFLAKE_RAW_TABLES[source_table]
-        _write_frame(
-            connection=connection,
-            frame=frame,
-            database=database,
-            schema=raw_schema,
-            table_name=table_name,
-            write_pandas_func=write_pandas_func,
-        )
-        row_count = len(frame)
-        expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
-        if row_count != expected_row_count:
-            raise SnowflakeRawLoadError(
-                f"Row count mismatch for {raw_schema}.{table_name}: "
-                f"loaded {row_count}, expected {expected_row_count}"
-            )
-        table_row_counts[f"{raw_schema}.{table_name}"] = row_count
-
-    manifest_frame = _snowflake_frame(
-        normalize_records(flatten_manifest_groups(manifest_groups))
-    )
-    _write_frame(
-        connection=connection,
-        frame=manifest_frame,
-        database=database,
-        schema=raw_schema,
-        table_name=SNOWFLAKE_RAW_TABLES["raw_ingestion_manifest"],
-        write_pandas_func=write_pandas_func,
-    )
-    table_row_counts[f"{raw_schema}.{SNOWFLAKE_RAW_TABLES['raw_ingestion_manifest']}"] = len(
-        manifest_frame
-    )
-
-    validation_frame = normalize_records(
-        [result.to_dict() for result in validation_results]
-    )
-    for column_name in ("expected_value", "observed_value"):
-        validation_frame[column_name] = validation_frame[column_name].map(
-            _snowflake_cell_value
-        )
-    validation_frame = _snowflake_frame(validation_frame)
-    _write_frame(
-        connection=connection,
-        frame=validation_frame,
-        database=database,
-        schema=raw_schema,
-        table_name=SNOWFLAKE_RAW_TABLES["raw_validation_result"],
-        write_pandas_func=write_pandas_func,
-    )
-    table_row_counts[f"{raw_schema}.{SNOWFLAKE_RAW_TABLES['raw_validation_result']}"] = len(
-        validation_frame
-    )
-
-    loaded_at_utc = utc_now_iso()
-    summary_frame = _snowflake_frame(
-        pd.DataFrame(
-            [
-                {
-                    "pipeline_run_ids": ",".join(pipeline_run_ids),
-                    "loaded_at_utc": loaded_at_utc,
-                    "raw_table_count": len(SOURCE_TABLES),
-                    "validation_status": "passed",
-                    "load_pattern": "python_connector_fallback",
-                }
-            ]
-        )
-    )
-    _write_frame(
-        connection=connection,
-        frame=summary_frame,
-        database=database,
-        schema=raw_schema,
-        table_name=SNOWFLAKE_RAW_TABLES["raw_pipeline_run_summary"],
-        write_pandas_func=write_pandas_func,
-    )
-    table_row_counts[
-        f"{raw_schema}.{SNOWFLAKE_RAW_TABLES['raw_pipeline_run_summary']}"
-    ] = len(summary_frame)
-
-    return SnowflakeRawLoadSummary(
-        database=database,
-        raw_schema=raw_schema,
-        audit_schema=audit_schema,
-        table_row_counts=table_row_counts,
-        pipeline_run_ids=pipeline_run_ids,
-        loaded_at_utc=loaded_at_utc,
-    )
-
-
-# Compatibility alias for older manual smoke checks. New tests and examples
-# should use the explicit testing helper name above.
-load_raw_extracts_to_snowflake = load_local_raw_extracts_to_snowflake_for_testing
 
 
 def load_raw_extracts_to_snowflake_from_s3(
@@ -1004,40 +856,3 @@ def _snowflake_cell_value(value: Any) -> str | None:
     if pd.isna(value):
         return None
     return str(value)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Testing/compatibility Snowflake loader for local raw files. "
-            "Use the Prefect cloud route for S3-stage production-style loads."
-        )
-    )
-    parser.add_argument("--sba-7a-manifest-path", action="append", required=True)
-    parser.add_argument("--sba-504-manifest-path", action="append", required=True)
-    parser.add_argument("--census-bds-manifest-path", action="append", required=True)
-    parser.add_argument("--bls-laus-manifest-path", action="append", required=True)
-    parser.add_argument("--validation-result-path", action="append", required=True)
-    args = parser.parse_args()
-
-    config = SnowflakeConfig.from_env()
-    connection = connect_to_snowflake(config)
-    try:
-        summary = load_local_raw_extracts_to_snowflake_for_testing(
-            connection=connection,
-            database=config.database,
-            raw_schema=config.raw_schema,
-            audit_schema=config.audit_schema,
-            sba_7a_manifest_paths=args.sba_7a_manifest_path,
-            sba_504_manifest_paths=args.sba_504_manifest_path,
-            census_bds_manifest_paths=args.census_bds_manifest_path,
-            bls_laus_manifest_paths=args.bls_laus_manifest_path,
-            validation_result_paths=args.validation_result_path,
-        )
-    finally:
-        connection.close()
-    print(json.dumps(summary.to_dict(), indent=2, sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()
