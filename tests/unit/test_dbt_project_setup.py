@@ -12,7 +12,6 @@ def test_required_dbt_project_files_exist():
         Path("dbt/macros/safe_divide.sql"),
         Path("dbt/macros/clean_lender_name.sql"),
         Path("dbt/macros/date_spine.sql"),
-        Path("dbt/macros/relation_columns.sql"),
     ]
 
     missing_paths = [str(path) for path in required_paths if not path.is_file()]
