@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: raw
     description: Raw warehouse tables loaded from validated source extracts and pipeline audit files in either the local DuckDB route or the cloud Snowflake route.
-    schema: "{{ env_var('SNOWFLAKE_RAW_SCHEMA', 'raw') }}"
+    schema: "{{ env_var('RAW_SCHEMA', env_var('SNOWFLAKE_RAW_SCHEMA', 'raw')) }}"
     tables:
       - name: raw_sba_7a_foia
         description: Source-native SBA 7(a) FOIA loan records with ingestion metadata.
@@ -17,7 +17,7 @@ sources:
           - name: raw_uri
             description: Canonical route-neutral URI for the durable raw artifact.
           - name: raw_file_path
-            description: Legacy local raw file path used for local-route compatibility.
+            description: Local raw file path lineage when the raw artifact is locally backed.
 
       - name: raw_sba_504_foia
         description: Source-native SBA 504 FOIA loan records with ingestion metadata.
@@ -31,7 +31,7 @@ sources:
           - name: raw_uri
             description: Canonical route-neutral URI for the durable raw artifact.
           - name: raw_file_path
-            description: Legacy local raw file path used for local-route compatibility.
+            description: Local raw file path lineage when the raw artifact is locally backed.
 
       - name: raw_census_bds_state_year
         description: Census BDS state-year business dynamics rows with ingestion metadata.

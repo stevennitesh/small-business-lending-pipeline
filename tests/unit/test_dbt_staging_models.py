@@ -84,3 +84,26 @@ def test_sba_staging_models_null_out_negative_approval_amounts():
         assert "gross_approval_amount" in model_sql
         assert "else null" in model_sql
         assert ">= 0" in model_sql
+
+
+def test_staging_models_require_route_neutral_raw_identity():
+    staging_paths = [
+        STAGING_MODELS["stg_ingestion_manifest"],
+        STAGING_MODELS["stg_sba_7a_loans"],
+        STAGING_MODELS["stg_sba_504_loans"],
+        STAGING_MODELS["stg_census_bds_state_year"],
+        STAGING_MODELS["stg_bls_laus_state_month"],
+    ]
+
+    for model_path in staging_paths:
+        model_sql = model_path.read_text(encoding="utf-8")
+
+        assert "relation_has_column" not in model_sql
+        assert "raw_file_path as artifact_raw_uri" not in model_sql
+        assert "'local' as artifact_storage_backend" not in model_sql
+
+    for model_path in staging_paths[1:]:
+        model_sql = model_path.read_text(encoding="utf-8")
+
+        assert "raw.raw_uri as artifact_raw_uri" in model_sql
+        assert "raw.storage_backend as artifact_storage_backend" in model_sql

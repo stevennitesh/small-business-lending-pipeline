@@ -1,6 +1,4 @@
 {% set raw_ingestion_manifest = source('raw', 'raw_ingestion_manifest') %}
-{% set has_storage_backend = relation_has_column(raw_ingestion_manifest, 'storage_backend') %}
-{% set has_raw_uri = relation_has_column(raw_ingestion_manifest, 'raw_uri') %}
 
 with manifests as (
     select
@@ -21,21 +19,8 @@ select
     source_url,
     extracted_at_utc,
     ingestion_date,
-    {%- if has_storage_backend %}
     storage_backend,
-    {%- else %}
-    case
-        when nullif(s3_raw_uri, '') is not null
-            and nullif(local_raw_path, '') is null
-            then 's3'
-        else 'local'
-    end as storage_backend,
-    {%- endif %}
-    {%- if has_raw_uri %}
     raw_uri,
-    {%- else %}
-    coalesce(nullif(local_raw_path, ''), nullif(s3_raw_uri, '')) as raw_uri,
-    {%- endif %}
     local_raw_path,
     s3_raw_uri,
     file_format,

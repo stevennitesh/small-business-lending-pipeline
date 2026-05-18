@@ -39,6 +39,22 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
     assert config.storage_integration is None
 
 
+def test_snowflake_config_prefers_route_neutral_raw_schema(monkeypatch):
+    monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct")
+    monkeypatch.setenv("SNOWFLAKE_USER", "user")
+    monkeypatch.setenv("SNOWFLAKE_PASSWORD", "password")
+    monkeypatch.setenv("SNOWFLAKE_ROLE", "role")
+    monkeypatch.setenv("SNOWFLAKE_WAREHOUSE", "warehouse")
+    monkeypatch.setenv("SNOWFLAKE_DATABASE", "database")
+    monkeypatch.setenv("SNOWFLAKE_SCHEMA", "RAW")
+    monkeypatch.setenv("SNOWFLAKE_RAW_SCHEMA", "SMOKE_RAW")
+    monkeypatch.setenv("RAW_SCHEMA", "ROUTE_RAW")
+
+    config = SnowflakeConfig.from_env()
+
+    assert config.raw_schema == "ROUTE_RAW"
+
+
 def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     manifests = _build_fixture_manifests(tmp_path)
     sba_7a_part2 = tmp_path / "raw" / "sba_7a_part2.csv"

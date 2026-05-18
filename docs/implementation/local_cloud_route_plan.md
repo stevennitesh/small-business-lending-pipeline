@@ -243,6 +243,12 @@ Verification:
 
 Outcome: dbt is clearly the same modeling layer running against either DuckDB or Snowflake.
 
+Current handoff contract: dbt staging is shared across local and cloud routes.
+Raw source rows and manifests must provide `raw_uri` and `storage_backend`;
+staging joins raw rows to latest successful manifests by `pipeline_run_id`,
+source resource, and `raw_uri`. dbt reads the raw source schema from
+`RAW_SCHEMA`, with `SNOWFLAKE_RAW_SCHEMA` retained as a transition fallback.
+
 Changes:
 
 - Document:

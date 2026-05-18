@@ -1,6 +1,4 @@
 {% set raw_census_bds_state_year = source('raw', 'raw_census_bds_state_year') %}
-{% set has_raw_uri = relation_has_column(raw_census_bds_state_year, 'raw_uri') %}
-{% set has_storage_backend = relation_has_column(raw_census_bds_state_year, 'storage_backend') %}
 
 with latest_successful_manifests as (
     select *
@@ -15,16 +13,8 @@ with latest_successful_manifests as (
 raw_rows as (
     select
         raw.*,
-        {% if has_raw_uri -%}
-        raw.raw_uri
-        {%- else -%}
-        raw.raw_file_path
-        {%- endif %} as artifact_raw_uri,
-        {% if has_storage_backend -%}
-        raw.storage_backend
-        {%- else -%}
-        'local'
-        {%- endif %} as artifact_storage_backend
+        raw.raw_uri as artifact_raw_uri,
+        raw.storage_backend as artifact_storage_backend
     from {{ raw_census_bds_state_year }} as raw
 )
 
