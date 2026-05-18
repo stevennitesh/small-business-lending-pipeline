@@ -76,6 +76,8 @@ models:
               arguments:
                 to: ref('dim_state')
                 field: state_key
+      - name: top_1_lender_share
+        description: Top lender share of approved dollars.
       - name: top_5_lender_share
         description: Top-five lender share of approved dollars.
       - name: lender_count

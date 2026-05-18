@@ -64,7 +64,11 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "loan_count",
             "approved_loan_amount_yoy_growth_pct",
         },
-        "bi_lender_concentration": {"top_5_lender_share", "lender_count"},
+        "bi_lender_concentration": {
+            "top_1_lender_share",
+            "top_5_lender_share",
+            "lender_count",
+        },
         "bi_industry_mix": {"industry_approved_amount_share"},
         "bi_program_mix": {"program_approved_amount_share"},
         "bi_regional_business_health": {

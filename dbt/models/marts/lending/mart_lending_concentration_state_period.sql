@@ -7,6 +7,7 @@ concentration as (
     select
         state_key,
         approval_year,
+        sum(case when lender_rank = 1 then total_approved_loan_amount else 0 end) as top_1_approved_loan_amount,
         sum(case when lender_rank <= 5 then total_approved_loan_amount else 0 end) as top_5_approved_loan_amount,
         sum(total_approved_loan_amount) as total_approved_loan_amount,
         sum(loan_count) as loan_count,
@@ -26,6 +27,11 @@ select
         'concentration.loan_count'
     ) }} as average_loan_size,
     concentration.lender_count,
+    concentration.top_1_approved_loan_amount,
+    {{ safe_divide(
+        'concentration.top_1_approved_loan_amount',
+        'concentration.total_approved_loan_amount'
+    ) }} as top_1_lender_share,
     concentration.top_5_approved_loan_amount,
     {{ safe_divide(
         'concentration.top_5_approved_loan_amount',

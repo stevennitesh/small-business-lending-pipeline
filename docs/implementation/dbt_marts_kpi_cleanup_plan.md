@@ -123,7 +123,7 @@ This cleanup is small and touches overlapping dbt model/test/docs files, so it s
   - `.venv/bin/python -m pytest tests/unit/test_dbt_lending_marts.py tests/unit/test_dbt_bi_pipeline_models.py`
 - Review focus: `top_1_lender_share <= top_5_lender_share` and both shares remain between 0 and 1.
 - Risk/rollback: low; remove the added top-1 columns/tests if the dashboard contract should stay top-5 only.
-- Status: pending
+- Status: completed in #70
 
 ### Task 4: Strengthen marts KPI documentation and static tests
 

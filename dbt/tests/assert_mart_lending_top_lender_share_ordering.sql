@@ -20,6 +20,7 @@ expected_concentration as (
     select
         state_key,
         approval_year,
+        sum(case when lender_rank = 1 then total_approved_loan_amount else 0 end) as expected_top_1_approved_loan_amount,
         sum(case when lender_rank <= 5 then total_approved_loan_amount else 0 end) as expected_top_5_approved_loan_amount,
         sum(total_approved_loan_amount) as expected_total_approved_loan_amount
     from {{ ref('mart_lending_lender_state_period') }}
@@ -41,6 +42,8 @@ concentration_failures as (
     select
         concentration.state_key,
         concentration.approval_year,
+        concentration.top_1_approved_loan_amount,
+        expected_concentration.expected_top_1_approved_loan_amount,
         concentration.top_5_approved_loan_amount,
         expected_concentration.expected_top_5_approved_loan_amount,
         concentration.total_approved_loan_amount,
@@ -50,6 +53,10 @@ concentration_failures as (
         on concentration.state_key = expected_concentration.state_key
        and concentration.approval_year = expected_concentration.approval_year
     where abs(
+        concentration.top_1_approved_loan_amount
+        - expected_concentration.expected_top_1_approved_loan_amount
+    ) > 0.01
+       or abs(
         concentration.top_5_approved_loan_amount
         - expected_concentration.expected_top_5_approved_loan_amount
     ) > 0.01
@@ -57,6 +64,7 @@ concentration_failures as (
            concentration.total_approved_loan_amount
            - expected_concentration.expected_total_approved_loan_amount
        ) > 0.01
+       or concentration.top_1_approved_loan_amount > concentration.top_5_approved_loan_amount
 )
 
 select

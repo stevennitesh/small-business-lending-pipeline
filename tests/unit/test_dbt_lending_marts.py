@@ -51,13 +51,25 @@ def test_lending_schema_declares_grains_and_kpi_tests():
 
     share_columns = {
         "mart_lending_lender_state_period": "lender_approved_amount_share",
-        "mart_lending_concentration_state_period": "top_5_lender_share",
         "mart_lending_industry_state_period": "industry_approved_amount_share",
         "mart_lending_program_state_period": "program_approved_amount_share",
     }
     for model_name, share_column in share_columns.items():
         columns = {column["name"]: column for column in models[model_name]["columns"]}
         assert "accepted_range" in _test_names(columns[share_column]["data_tests"])
+
+    concentration_columns = {
+        column["name"]: column
+        for column in models["mart_lending_concentration_state_period"]["columns"]
+    }
+    for share_column in ("top_1_lender_share", "top_5_lender_share"):
+        assert "accepted_range" in _test_names(
+            concentration_columns[share_column]["data_tests"]
+        )
+    for amount_column in ("top_1_approved_loan_amount", "top_5_approved_loan_amount"):
+        assert "non_negative" in _test_names(
+            concentration_columns[amount_column]["data_tests"]
+        )
 
     singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {
@@ -101,6 +113,25 @@ def test_annual_lending_marts_reuse_fact_approval_year():
     ).read_text(encoding="utf-8")
     assert "coalesce(extract(year from" not in reconciliation_sql
     assert "approval_year is not null" in reconciliation_sql
+
+
+def test_lender_concentration_exposes_top_1_and_top_5_metrics():
+    concentration_sql = LENDING_MARTS[
+        "mart_lending_concentration_state_period"
+    ].read_text(encoding="utf-8")
+    concentration_test_sql = Path(
+        "dbt/tests/assert_mart_lending_top_lender_share_ordering.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "top_1_approved_loan_amount" in concentration_sql
+    assert "top_1_lender_share" in concentration_sql
+    assert "top_5_approved_loan_amount" in concentration_sql
+    assert "top_5_lender_share" in concentration_sql
+    assert "lender_rank = 1" in concentration_sql
+    assert "lender_rank <= 5" in concentration_sql
+    assert "top_1_approved_loan_amount > concentration.top_5_approved_loan_amount" in (
+        concentration_test_sql
+    )
 
 
 def _test_names(data_tests: list) -> set[str]:

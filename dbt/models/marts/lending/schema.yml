@@ -107,6 +107,21 @@ models:
         description: Total gross approval amount in the state-year.
         data_tests:
           - non_negative
+      - name: top_1_approved_loan_amount
+        description: Approved dollars from the top-ranked lender in the state-year.
+        data_tests:
+          - non_negative
+      - name: top_1_lender_share
+        description: Share of approved dollars from the top-ranked lender in the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: top_5_approved_loan_amount
+        description: Approved dollars from the top five lenders in the state-year.
+        data_tests:
+          - non_negative
       - name: top_5_lender_share
         description: Share of approved dollars from the top five lenders in the state-year.
         data_tests:
