@@ -34,9 +34,7 @@ def test_raw_sources_are_documented():
     raw_tables = {table["name"]: table for table in raw_source["tables"]}
 
     assert raw_source["name"] == "raw"
-    assert raw_source["schema"] == (
-        "{{ env_var('RAW_SCHEMA', env_var('SNOWFLAKE_RAW_SCHEMA', 'raw')) }}"
-    )
+    assert raw_source["schema"] == "{{ env_var('RAW_SCHEMA', 'raw') }}"
     assert {
         "raw_sba_7a_foia",
         "raw_sba_504_foia",

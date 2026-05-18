@@ -210,7 +210,6 @@ cloud fixture route with isolated schemas:
 
 ```bash
 RAW_SCHEMA=SMOKE_RAW \
-SNOWFLAKE_RAW_SCHEMA=SMOKE_RAW \
 SNOWFLAKE_AUDIT_SCHEMA=SMOKE_AUDIT \
 SNOWFLAKE_SCHEMA=SMOKE \
 DBT_SCHEMA_PREFIX=SMOKE \
@@ -227,9 +226,7 @@ Cloud route output:
 - dbt models built with target `prod_snowflake`;
 - Power BI connects to Snowflake BI tables, not raw files.
 
-dbt reads raw sources from `RAW_SCHEMA`, falling back to
-`SNOWFLAKE_RAW_SCHEMA` when `RAW_SCHEMA` is not set. Keep both values aligned
-for now during cloud smoke runs.
+dbt and Snowflake raw loading both use `RAW_SCHEMA` for the raw warehouse schema.
 
 The cloud route is still launched by the local CLI/Prefect runner for the MVP. Temporary runner files may exist while a task runs, but the durable cloud handoff is S3 object identity plus Snowflake tables. Run summaries record the local compatibility validation path, the durable validation URI, and manifest artifact URIs when cloud artifacts are present.
 

@@ -26,7 +26,7 @@ This pass should make that contract obvious in `schema.yml` and enforce the most
 
 - The working tree has an unrelated user-owned `powerbi/lending_dashboard.pbix` change; do not stage or modify it.
 - The previous cleanup removed fallback identity logic from staging models and deleted the unused `relation_has_column` macro.
-- `RAW_SCHEMA` is the preferred dbt raw schema setting, with `SNOWFLAKE_RAW_SCHEMA` retained as a transition fallback.
+- `RAW_SCHEMA` is the dbt and Snowflake raw schema setting.
 - The WSL-safe dbt verification path is `make dbt-local`, which compiles the local dbt graph.
 
 ## Execution Mode
@@ -170,4 +170,4 @@ Optional if recent local raw data is available and WSL has memory headroom:
 ## Open Questions
 
 - Should route-neutral lineage eventually be exposed to Power BI as `raw_uri` only, or should `raw_file_path` remain visible for local troubleshooting?
-- Should the `SNOWFLAKE_RAW_SCHEMA` fallback be removed in a later cleanup after the `.env` and cloud smoke path have settled?
+- Completed in the hard-switch cleanup: `RAW_SCHEMA` is the only raw schema setting.

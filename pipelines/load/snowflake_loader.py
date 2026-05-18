@@ -113,13 +113,7 @@ class SnowflakeConfig:
             "role": os.getenv("SNOWFLAKE_ROLE"),
             "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
             "database": os.getenv("SNOWFLAKE_DATABASE"),
-            "raw_schema": os.getenv(
-                "RAW_SCHEMA",
-                os.getenv(
-                    "SNOWFLAKE_RAW_SCHEMA",
-                    os.getenv("SNOWFLAKE_SCHEMA", "RAW"),
-                ),
-            ),
+            "raw_schema": os.getenv("RAW_SCHEMA", "RAW"),
             "audit_schema": os.getenv("SNOWFLAKE_AUDIT_SCHEMA", "AUDIT"),
             "storage_integration": os.getenv("SNOWFLAKE_STORAGE_INTEGRATION"),
         }

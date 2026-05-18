@@ -30,7 +30,7 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_WAREHOUSE", "warehouse")
     monkeypatch.setenv("SNOWFLAKE_DATABASE", "database")
     monkeypatch.setenv("SNOWFLAKE_SCHEMA", "RAW")
-    monkeypatch.setenv("SNOWFLAKE_RAW_SCHEMA", "SMOKE_RAW")
+    monkeypatch.setenv("RAW_SCHEMA", "SMOKE_RAW")
     monkeypatch.setenv("SNOWFLAKE_STORAGE_INTEGRATION", "")
 
     config = SnowflakeConfig.from_env()
@@ -39,7 +39,7 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
     assert config.storage_integration is None
 
 
-def test_snowflake_config_prefers_route_neutral_raw_schema(monkeypatch):
+def test_snowflake_config_ignores_warehouse_default_schema_for_raw_schema(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct")
     monkeypatch.setenv("SNOWFLAKE_USER", "user")
     monkeypatch.setenv("SNOWFLAKE_PASSWORD", "password")
@@ -47,7 +47,6 @@ def test_snowflake_config_prefers_route_neutral_raw_schema(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_WAREHOUSE", "warehouse")
     monkeypatch.setenv("SNOWFLAKE_DATABASE", "database")
     monkeypatch.setenv("SNOWFLAKE_SCHEMA", "RAW")
-    monkeypatch.setenv("SNOWFLAKE_RAW_SCHEMA", "SMOKE_RAW")
     monkeypatch.setenv("RAW_SCHEMA", "ROUTE_RAW")
 
     config = SnowflakeConfig.from_env()

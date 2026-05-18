@@ -36,7 +36,7 @@ Parallel groups:
 ## Acceptance Checks
 
 - dbt raw source schema configuration uses route-neutral vocabulary rather than a Snowflake-specific env var for both routes.
-- Existing cloud smoke variables continue to work during a transition, or docs call out the required env var change clearly.
+- Cloud smoke variables use the same `RAW_SCHEMA` setting as dbt and Snowflake raw loading.
 - Staging models require `raw_uri` and `storage_backend` from raw tables instead of silently falling back to local-only identity fields.
 - Manifest staging continues to expose `local_raw_path`, `s3_raw_uri`, `raw_uri`, and `storage_backend` as lineage fields.
 - Staging source rows still join only to latest successful manifests.
@@ -47,7 +47,7 @@ Parallel groups:
 - Working tree:
   - `powerbi/lending_dashboard.pbix` is modified and should be treated as user-owned.
 - Current behavior:
-  - `dbt/models/sources/sources.yml` uses `SNOWFLAKE_RAW_SCHEMA` with default `raw` for the raw source schema.
+  - `dbt/models/sources/sources.yml` uses `RAW_SCHEMA` with default `raw` for the raw source schema.
   - `stg_ingestion_manifest` checks whether `storage_backend` and `raw_uri` columns exist, then falls back to deriving them from legacy manifest path fields.
   - SBA, Census, and BLS staging models check whether source raw tables have `raw_uri` and `storage_backend`, then fall back to `raw_file_path` and `'local'`.
   - Staging rows join to `stg_ingestion_manifest` using `pipeline_run_id`, source resource, and `raw_uri`.
@@ -79,7 +79,7 @@ Parallel groups:
   - `pipelines/load/snowflake_loader.py` raw schema env behavior
 - Public contract or state/data change:
   - Prefer `RAW_SCHEMA` for dbt source configuration.
-  - Keep `SNOWFLAKE_RAW_SCHEMA` as a documented fallback if needed to avoid breaking existing `.env` files immediately.
+  - Use `RAW_SCHEMA` as the single dbt-facing raw schema setting.
 - Depends on: None.
 - Likely files/modules:
   - `dbt/models/sources/sources.yml`
@@ -87,7 +87,7 @@ Parallel groups:
   - `.env.example`
   - tests that assert dbt profile or source configuration, if present.
 - First command/check:
-  - `rg -n "SNOWFLAKE_RAW_SCHEMA|RAW_SCHEMA" dbt README.md .env.example tests pipelines`
+  - `rg -n "RAW_SCHEMA" dbt README.md .env.example tests pipelines`
 - Change boundary:
   - Rename or add the dbt-facing env var only; do not change Snowflake loader schema creation semantics unless needed for consistency.
 - Verification command:
@@ -95,11 +95,11 @@ Parallel groups:
   - `.venv/bin/python -m pytest tests/unit/test_dbt_project_setup.py tests/unit/test_dbt_staging_models.py`
 - Review focus:
   - Local route should not require a Snowflake-named env var.
-  - Existing cloud setup should have a clear migration path.
+  - Existing cloud setup should use `RAW_SCHEMA`.
 - Risk/rollback:
-  - Main risk is breaking existing `.env` cloud smoke examples. Keep fallback support or update docs/tests in the same slice.
+  - Main risk is breaking existing `.env` cloud smoke examples. Update docs/tests in the same slice.
 - Stop/ask if:
-  - The user wants to preserve `SNOWFLAKE_RAW_SCHEMA` as the only public env var for Snowflake demos.
+  - The user wants to preserve a Snowflake-specific raw schema variable for demos.
 - Status: completed
 
 ### Task 2: Make Manifest Staging Require Active Identity Columns
@@ -191,7 +191,7 @@ Parallel groups:
   - `docs/implementation/local_cloud_route_plan.md`
   - `docs/implementation/dbt_staging_handoff_cleanup_plan.md`
 - First command/check:
-  - `rg -n "raw_uri|storage_backend|SNOWFLAKE_RAW_SCHEMA|RAW_SCHEMA|dbt target" README.md docs/implementation`
+  - `rg -n "raw_uri|storage_backend|RAW_SCHEMA|dbt target" README.md docs/implementation`
 - Change boundary:
   - Keep docs short; do not rewrite historical plans except to add a concise current-state note if needed.
 - Verification command:
@@ -217,5 +217,5 @@ Parallel groups:
 
 ## Decisions
 
-- `SNOWFLAKE_RAW_SCHEMA` remains as a transition fallback, while `RAW_SCHEMA` is the preferred dbt-facing raw schema setting.
+- `RAW_SCHEMA` is the only raw schema setting for dbt and Snowflake raw loading.
 - `raw_file_path` remains visible as local lineage, but `raw_uri` is the active route-neutral artifact identity.
