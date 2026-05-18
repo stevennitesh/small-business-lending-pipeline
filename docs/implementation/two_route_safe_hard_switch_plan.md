@@ -286,7 +286,7 @@ Only after this plan passes:
 - Delete `scripts/run_final_pipeline.sh`.
 - Remove `make run-final`.
 - Remove tests that assert final-mode compatibility.
-- Delete the old local-file Snowflake loader if no tests or rollback docs still require it.
+- Delete `load_local_raw_extracts_to_snowflake_for_testing(...)` and its compatibility alias if no tests or rollback docs still require local-file Snowflake loading.
 - Remove legacy `raw_file_path` / `local_raw_path` dependencies from dbt outputs if Power BI and docs no longer need them.
 
 ## Open Questions

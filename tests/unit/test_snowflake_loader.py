@@ -12,8 +12,9 @@ from pipelines.load.snowflake_loader import (
     SnowflakeConfig,
     SnowflakeRawLoadError,
     _snowflake_csv_columns,
-    load_raw_extracts_to_snowflake_from_s3,
+    load_local_raw_extracts_to_snowflake_for_testing,
     load_raw_extracts_to_snowflake,
+    load_raw_extracts_to_snowflake_from_s3,
 )
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.utils.hashing import calculate_sha256, hash_schema
@@ -32,7 +33,7 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
     connection = FakeSnowflakeConnection()
     writer = FakeSnowflakeWriter()
 
-    summary = load_raw_extracts_to_snowflake(
+    summary = load_local_raw_extracts_to_snowflake_for_testing(
         connection=connection,
         database="SMALL_BUSINESS_LENDING",
         raw_schema="RAW",
@@ -87,6 +88,10 @@ def test_snowflake_loader_creates_schemas_tables_and_reconciles_counts(tmp_path)
     assert validation_frame["OBSERVED_VALUE"].tolist() == ['{"status": "passed"}']
     loaded_bls = writer.written_frames["RAW_BLS_LAUS_STATE_MONTH"]
     assert loaded_bls["FOOTNOTES"].tolist() == ["[]", "[]"]
+
+
+def test_local_file_snowflake_loader_keeps_compatibility_alias():
+    assert load_raw_extracts_to_snowflake is load_local_raw_extracts_to_snowflake_for_testing
 
 
 def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
@@ -288,7 +293,7 @@ def test_snowflake_loader_blocks_failed_validation(tmp_path):
     )
 
     with pytest.raises(SnowflakeRawLoadError, match="Critical raw validation failures"):
-        load_raw_extracts_to_snowflake(
+        load_local_raw_extracts_to_snowflake_for_testing(
             connection=FakeSnowflakeConnection(),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",
@@ -310,7 +315,7 @@ def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
     )
 
     with pytest.raises(SnowflakeRawLoadError, match="Required manifest group is empty"):
-        load_raw_extracts_to_snowflake(
+        load_local_raw_extracts_to_snowflake_for_testing(
             connection=FakeSnowflakeConnection(),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",
@@ -336,7 +341,7 @@ def test_snowflake_loader_rejects_row_count_mismatch(tmp_path):
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     with pytest.raises(SnowflakeRawLoadError, match="Row count mismatch"):
-        load_raw_extracts_to_snowflake(
+        load_local_raw_extracts_to_snowflake_for_testing(
             connection=FakeSnowflakeConnection(),
             database="SMALL_BUSINESS_LENDING",
             raw_schema="RAW",

@@ -113,7 +113,7 @@ CLOUD_FLOW_STAGES = (
     "extract_sources",
     "write_manifests",
     "validate_raw_outputs",
-    "upload_raw_artifacts_to_s3",
+    "record_raw_artifact_locations",
     "load_snowflake_raw_tables",
     "run_dbt_build",
     "collect_dbt_artifacts",
@@ -481,11 +481,13 @@ def load_duckdb_raw_tables(
 
 
 @task
-def upload_raw_artifacts_to_s3(
+def record_raw_artifact_locations(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
     validation_output: ValidationOutput,
 ) -> S3UploadSummary:
+    """Record cloud artifact locations or run the legacy local-to-S3 test path."""
+
     if context.is_cloud_route and validation_output.artifact_location is not None:
         uploaded_objects = [
             *(location.artifact_uri for location in extraction_paths.manifest_locations),
@@ -509,6 +511,13 @@ def load_snowflake_raw_tables(
     extraction_paths: ExtractionPaths,
     validation_output: ValidationOutput,
 ) -> SnowflakeRawLoadSummary:
+    """Load the cloud route from S3-backed artifacts into Snowflake.
+
+    The local path fallbacks below are compatibility/testing hooks for manual
+    Snowflake connector checks. They are not the intended cloud route contract.
+    Production-style cloud runs should pass S3 artifact locations.
+    """
+
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
     try:
@@ -766,13 +775,13 @@ def lending_pipeline_flow(
         completed_stages.append("validate_raw_outputs")
 
         if context.is_cloud_route:
-            raw_s3_summary = upload_raw_artifacts_to_s3(
+            raw_s3_summary = record_raw_artifact_locations(
                 context,
                 extraction_paths,
                 validation_result_path,
             )
             s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
-            completed_stages.append("upload_raw_artifacts_to_s3")
+            completed_stages.append("record_raw_artifact_locations")
 
             snowflake_summary = load_snowflake_raw_tables(
                 context,

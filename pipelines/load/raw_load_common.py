@@ -108,12 +108,14 @@ def flatten_manifest_groups(
     ]
 
 
-def load_source_frame(
+def load_local_source_frame(
     table_name: str,
     manifests: list[dict[str, Any]],
     *,
     error_cls: type[Exception],
 ) -> pd.DataFrame:
+    """Read local raw files referenced by manifests into a source-shaped frame."""
+
     table_key = _table_key(table_name)
     table_kind = SOURCE_TABLE_KINDS.get(table_key)
     if table_kind is None:

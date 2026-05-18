@@ -10,8 +10,8 @@ import pandas as pd
 from pipelines.load.raw_load_common import (
     assert_validation_passed,
     flatten_manifest_groups,
+    load_local_source_frame,
     load_manifests,
-    load_source_frame,
     load_validation_results,
     normalize_records,
     pipeline_run_ids_from_manifest_groups,
@@ -82,7 +82,11 @@ def load_raw_extracts(
         table_row_counts: dict[str, int] = {}
 
         for table_name, manifests in manifest_groups.items():
-            frame = load_source_frame(table_name, manifests, error_cls=RawLoadError)
+            frame = load_local_source_frame(
+                table_name,
+                manifests,
+                error_cls=RawLoadError,
+            )
             _create_or_replace_table(connection, table_name, frame)
             row_count = _table_count(connection, table_name)
             expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)

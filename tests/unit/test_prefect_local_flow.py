@@ -35,7 +35,7 @@ def test_cloud_flow_declares_expected_stage_order():
         "extract_sources",
         "write_manifests",
         "validate_raw_outputs",
-        "upload_raw_artifacts_to_s3",
+        "record_raw_artifact_locations",
         "load_snowflake_raw_tables",
         "run_dbt_build",
         "collect_dbt_artifacts",
@@ -45,7 +45,7 @@ def test_cloud_flow_declares_expected_stage_order():
     )
     assert local_flow.FINAL_FLOW_STAGES == local_flow.CLOUD_FLOW_STAGES
     assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
-        local_flow.CLOUD_FLOW_STAGES.index("upload_raw_artifacts_to_s3")
+        local_flow.CLOUD_FLOW_STAGES.index("record_raw_artifact_locations")
     )
     assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
         local_flow.CLOUD_FLOW_STAGES.index("load_snowflake_raw_tables")

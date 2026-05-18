@@ -20,8 +20,8 @@ from pipelines.load.raw_load_common import (
     ManifestReference,
     assert_validation_passed,
     flatten_manifest_groups,
+    load_local_source_frame,
     load_manifests,
-    load_source_frame,
     load_validation_results,
     normalize_records,
     pipeline_run_ids_from_manifest_groups,
@@ -182,7 +182,7 @@ def connect_to_snowflake(config: SnowflakeConfig):
     return snowflake.connector.connect(**config.connect_kwargs())
 
 
-def load_raw_extracts_to_snowflake(
+def load_local_raw_extracts_to_snowflake_for_testing(
     *,
     connection,
     database: str,
@@ -195,7 +195,13 @@ def load_raw_extracts_to_snowflake(
     validation_result_paths: Iterable[ManifestReference],
     write_pandas_func: WritePandasFunc = write_pandas,
 ) -> SnowflakeRawLoadSummary:
-    """Compatibility local-file loader; cloud flow uses the S3 loader."""
+    """Testing/compatibility local-file loader for Snowflake smoke checks.
+
+    This helper uploads local raw files through the Python connector so unit
+    tests and manual cloud-connectivity checks can exercise Snowflake without an
+    S3 stage. It is not the production-style cloud route. The cloud route uses
+    ``load_raw_extracts_to_snowflake_from_s3`` with S3-backed manifests.
+    """
 
     validation_results = load_validation_results(
         validation_result_paths,
@@ -221,7 +227,7 @@ def load_raw_extracts_to_snowflake(
     table_row_counts: dict[str, int] = {}
     for source_table, manifests in manifest_groups.items():
         frame = _snowflake_frame(
-            load_source_frame(
+            load_local_source_frame(
                 source_table,
                 manifests,
                 error_cls=SnowflakeRawLoadError,
@@ -316,6 +322,11 @@ def load_raw_extracts_to_snowflake(
     )
 
 
+# Compatibility alias for older manual smoke checks. New tests and examples
+# should use the explicit testing helper name above.
+load_raw_extracts_to_snowflake = load_local_raw_extracts_to_snowflake_for_testing
+
+
 def load_raw_extracts_to_snowflake_from_s3(
     *,
     connection,
@@ -332,6 +343,8 @@ def load_raw_extracts_to_snowflake_from_s3(
     storage_integration: str | None = None,
     s3_client: Any | None = None,
 ) -> SnowflakeRawLoadSummary:
+    """Production-style cloud raw load from S3-backed artifacts."""
+
     artifact_reader = ArtifactReader(s3_client=s3_client)
     validation_results = load_validation_results(
         validation_result_paths,
@@ -994,7 +1007,12 @@ def _snowflake_cell_value(value: Any) -> str | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Load validated raw artifacts into Snowflake.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Testing/compatibility Snowflake loader for local raw files. "
+            "Use the Prefect cloud route for S3-stage production-style loads."
+        )
+    )
     parser.add_argument("--sba-7a-manifest-path", action="append", required=True)
     parser.add_argument("--sba-504-manifest-path", action="append", required=True)
     parser.add_argument("--census-bds-manifest-path", action="append", required=True)
@@ -1005,7 +1023,7 @@ def main() -> None:
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
     try:
-        summary = load_raw_extracts_to_snowflake(
+        summary = load_local_raw_extracts_to_snowflake_for_testing(
             connection=connection,
             database=config.database,
             raw_schema=config.raw_schema,

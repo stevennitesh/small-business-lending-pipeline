@@ -265,4 +265,4 @@ Compare the resulting Snowflake BI outputs against the local route for the core 
 - Should cloud validation results also be written into a Snowflake audit table before raw load, or is loading them during raw load enough for MVP?
 - Should cloud manifests be loaded into Snowflake directly from S3 JSON, or should Python continue writing `RAW_INGESTION_MANIFEST` rows after reading S3 manifests?
 - Should local temporary mirrors be allowed under `.tmp/` during cloud runs, or should tests enforce no local artifact files at all outside logs?
-- Should the old `upload_raw_artifacts_to_s3` step be renamed once cloud extraction writes manifests and validation directly to S3?
+- Resolved: the active cloud stage is `record_raw_artifact_locations`; the local-to-S3 upload behavior remains a testing/compatibility helper.
