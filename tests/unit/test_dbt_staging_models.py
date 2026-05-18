@@ -19,6 +19,9 @@ STAGING_MODELS = {
     "stg_validation_result": Path(
         "dbt/models/staging/audit/stg_validation_result.sql"
     ),
+    "stg_pipeline_run_summary": Path(
+        "dbt/models/staging/audit/stg_pipeline_run_summary.sql"
+    ),
 }
 
 
@@ -108,6 +111,13 @@ def test_staging_schema_declares_issue_acceptance_tests():
         {"accepted_range": {"arguments": {"min_value": 0, "max_value": 1}}}
     ]
 
+    pipeline_summary = models["stg_pipeline_run_summary"]
+    pipeline_columns = {
+        column["name"]: column for column in pipeline_summary["columns"]
+    }
+    assert pipeline_summary["data_tests"] == ["not_empty"]
+    assert pipeline_columns["raw_table_count"]["data_tests"] == ["non_negative"]
+
 
 def test_staging_schema_documents_and_tests_source_identity_contract():
     schema_yml = yaml.safe_load(Path("dbt/models/staging/schema.yml").read_text())
@@ -170,3 +180,10 @@ def test_staging_models_require_route_neutral_raw_identity():
 
         assert "raw.raw_uri as artifact_raw_uri" in model_sql
         assert "raw.storage_backend as artifact_storage_backend" in model_sql
+
+
+def test_pipeline_run_summary_has_staged_raw_source_contract():
+    model_sql = STAGING_MODELS["stg_pipeline_run_summary"].read_text(encoding="utf-8")
+
+    assert "source('raw', 'raw_pipeline_run_summary')" in model_sql
+    assert "try_cast(raw_table_count as integer) as raw_table_count" in model_sql

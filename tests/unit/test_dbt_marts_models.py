@@ -76,6 +76,40 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
         "assert_fact_bds_state_year_latest_sources.sql",
     } <= singular_tests
 
+    dim_source_file = models["dim_source_file"]
+    dim_source_file_columns = {
+        column["name"]: column for column in dim_source_file["columns"]
+    }
+    assert "raw_uri" in dim_source_file_columns
+    assert "storage_backend" in dim_source_file_columns
+    assert "pipeline_run_id" in dim_source_file_columns
+    assert "source_resource_name" in dim_source_file_columns
+    assert "route-neutral raw_uri" in dim_source_file_columns[
+        "source_file_key"
+    ]["description"]
+    assert "route-neutral raw artifact identity" in dim_source_file_columns[
+        "raw_uri"
+    ]["description"].lower()
+    assert "not used as mart identity" in dim_source_file_columns[
+        "raw_file_path"
+    ]["description"]
+
+
+def test_source_file_dimension_uses_raw_uri_as_identity():
+    model_sql = DIMENSION_MODELS["dim_source_file"].read_text(encoding="utf-8")
+
+    assert '{{ generate_surrogate_key(["raw_uri"]) }} as source_file_key' in model_sql
+    assert "sha256_checksum" in model_sql
+
+
+def test_fact_models_join_source_file_dimension_by_raw_uri():
+    for model_path in FACT_MODELS.values():
+        model_sql = model_path.read_text(encoding="utf-8")
+
+        assert "source_file.source_file_key" in model_sql
+        assert "ref('dim_source_file')" in model_sql
+        assert ".raw_uri = source_file.raw_uri" in model_sql
+
 
 def _column(model: dict, name: str) -> dict:
     return next(column for column in model["columns"] if column["name"] == name)

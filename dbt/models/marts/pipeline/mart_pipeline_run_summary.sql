@@ -1,10 +1,10 @@
-with raw_runs as (
+with pipeline_runs as (
     select
         pipeline_run_ids,
         loaded_at_utc,
-        try_cast(raw_table_count as integer) as raw_table_count,
+        raw_table_count,
         validation_status
-    from {{ source('raw', 'raw_pipeline_run_summary') }}
+    from {{ ref('stg_pipeline_run_summary') }}
 ),
 
 validation_rollup as (
@@ -25,10 +25,10 @@ source_rollup as (
 )
 
 select
-    raw_runs.pipeline_run_ids,
-    raw_runs.loaded_at_utc,
-    raw_runs.raw_table_count,
-    raw_runs.validation_status,
+    pipeline_runs.pipeline_run_ids,
+    pipeline_runs.loaded_at_utc,
+    pipeline_runs.raw_table_count,
+    pipeline_runs.validation_status,
     validation_rollup.failed_check_count,
     validation_rollup.warning_check_count,
     validation_rollup.passed_check_count,
@@ -37,7 +37,7 @@ select
     source_rollup.current_source_resource_count,
     source_rollup.stale_or_unknown_source_resource_count,
     case
-        when raw_runs.validation_status = 'passed'
+        when pipeline_runs.validation_status = 'passed'
          and coalesce(validation_rollup.failed_check_count, 0) = 0
          and coalesce(source_rollup.stale_or_unknown_source_resource_count, 0) = 0
             then 'success'
@@ -45,6 +45,6 @@ select
             then 'failed'
         else 'warning'
     end as latest_run_status
-from raw_runs
+from pipeline_runs
 cross join validation_rollup
 cross join source_rollup

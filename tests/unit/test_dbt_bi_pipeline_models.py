@@ -135,6 +135,15 @@ def test_pipeline_schema_declares_health_columns():
         assert expected_columns <= column_names
 
 
+def test_pipeline_run_summary_mart_uses_staging_contract():
+    model_sql = PIPELINE_MARTS["mart_pipeline_run_summary"].read_text(
+        encoding="utf-8"
+    )
+
+    assert "ref('stg_pipeline_run_summary')" in model_sql
+    assert "source('raw', 'raw_pipeline_run_summary')" not in model_sql
+
+
 def _test_names(data_tests: list) -> set[str]:
     names = set()
     for test in data_tests:

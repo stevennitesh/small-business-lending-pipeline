@@ -258,3 +258,21 @@ models:
         description: Stable validation check identifier.
       - name: status
         description: Validation status.
+
+  - name: stg_pipeline_run_summary
+    description: Staged pipeline-level raw loading summary.
+    meta:
+      grain: one row per raw warehouse load summary
+    data_tests:
+      - not_empty
+    columns:
+      - name: pipeline_run_ids
+        description: Comma-separated pipeline run identifiers represented by the raw load.
+      - name: loaded_at_utc
+        description: UTC timestamp when raw loading completed.
+      - name: raw_table_count
+        description: Number of raw tables loaded into the selected warehouse route.
+        data_tests:
+          - non_negative
+      - name: validation_status
+        description: Overall validation status from the raw load summary.

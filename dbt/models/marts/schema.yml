@@ -62,10 +62,31 @@ models:
       grain: one row per canonical raw artifact URI
     columns:
       - name: source_file_key
-        description: Surrogate key for a raw file and checksum pair.
+        description: Surrogate key generated from the route-neutral raw_uri artifact identity.
         data_tests:
           - not_null
           - unique
+      - name: pipeline_run_id
+        description: Pipeline run identifier that loaded the raw artifact.
+        data_tests:
+          - not_null
+      - name: source_resource_name
+        description: Source resource represented by the raw artifact.
+        data_tests:
+          - not_null
+      - name: storage_backend
+        description: Local or cloud storage backend that holds the raw artifact.
+        data_tests:
+          - not_null
+      - name: raw_uri
+        description: Route-neutral raw artifact identity used to join modeled facts back to source lineage.
+        data_tests:
+          - not_null
+          - unique
+      - name: raw_file_path
+        description: Optional local raw artifact lineage when present; not used as mart identity.
+      - name: s3_raw_uri
+        description: Optional S3 raw artifact lineage when present; not required for local route runs.
 
   - name: fact_sba_loans
     description: Loan-level SBA fact table for aggregation by downstream marts.
