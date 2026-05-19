@@ -161,21 +161,17 @@ def export_powerbi_tables(
     resolved_export_dir.mkdir(parents=True, exist_ok=True)
 
     export_paths: dict[str, str] = {}
-    row_counts: dict[str, int] = {}
     with duckdb.connect(str(resolved_duckdb_path)) as connection:
-        for table_name in BI_EXPORT_TABLES:
-            validate_powerbi_table_contract(connection, table_name)
-            row_count = _row_count(connection, table_name)
-            if row_count <= 0:
-                raise ValueError(f"BI export table {table_name} has no rows.")
+        row_counts = _validate_powerbi_export_tables(connection)
+        _remove_stale_csv_exports(resolved_export_dir)
 
+        for table_name in BI_EXPORT_TABLES:
             export_path = resolved_export_dir / f"{table_name}.csv"
             connection.execute(
                 f"copy (select * from {table_name}) to ? (header, delimiter ',')",
                 [str(export_path)],
             )
             export_paths[table_name] = str(export_path)
-            row_counts[table_name] = row_count
 
     return PowerBIExportSummary(
         duckdb_path=str(resolved_duckdb_path),
@@ -183,6 +179,26 @@ def export_powerbi_tables(
         export_paths=export_paths,
         row_counts=row_counts,
     )
+
+
+def _validate_powerbi_export_tables(
+    connection: duckdb.DuckDBPyConnection,
+) -> dict[str, int]:
+    row_counts: dict[str, int] = {}
+    for table_name in BI_EXPORT_TABLES:
+        validate_powerbi_table_contract(connection, table_name)
+        row_count = _row_count(connection, table_name)
+        if row_count <= 0:
+            raise ValueError(f"BI export table {table_name} has no rows.")
+        row_counts[table_name] = row_count
+    return row_counts
+
+
+def _remove_stale_csv_exports(export_dir: Path) -> None:
+    expected_table_names = set(BI_EXPORT_TABLES)
+    for export_path in export_dir.glob("*.csv"):
+        if export_path.is_file() and export_path.stem not in expected_table_names:
+            export_path.unlink()
 
 
 def validate_powerbi_table_contract(

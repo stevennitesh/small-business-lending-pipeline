@@ -39,6 +39,53 @@ def test_export_powerbi_tables_writes_required_csvs(tmp_path):
         assert not (PROHIBITED_EXPORT_FIELDS & set(reader.fieldnames or []))
 
 
+def test_export_powerbi_tables_removes_stale_contract_csvs_only(tmp_path):
+    duckdb_path = tmp_path / "warehouse.duckdb"
+    export_dir = tmp_path / "powerbi"
+    export_dir.mkdir()
+    _create_bi_fixture_warehouse(duckdb_path)
+
+    stale_csv = export_dir / "dim_lender.csv"
+    stale_csv.write_text("legacy\n", encoding="utf-8")
+    unrelated_note = export_dir / "README.txt"
+    unrelated_note.write_text("keep me\n", encoding="utf-8")
+
+    export_powerbi_tables(
+        duckdb_path=duckdb_path,
+        export_dir=export_dir,
+    )
+
+    exported_csv_stems = {path.stem for path in export_dir.glob("*.csv")}
+    assert exported_csv_stems == set(BI_EXPORT_TABLES)
+    assert not stale_csv.exists()
+    assert unrelated_note.read_text(encoding="utf-8") == "keep me\n"
+
+
+def test_export_powerbi_tables_does_not_remove_stale_csvs_when_validation_fails(tmp_path):
+    duckdb_path = tmp_path / "warehouse.duckdb"
+    export_dir = tmp_path / "powerbi"
+    export_dir.mkdir()
+    _create_bi_fixture_warehouse(duckdb_path)
+    stale_csv = export_dir / "dim_lender.csv"
+    stale_csv.write_text("legacy\n", encoding="utf-8")
+
+    with duckdb.connect(str(duckdb_path)) as connection:
+        connection.execute(
+            """
+            create or replace table bi_executive_overview as
+            select * from bi_executive_overview where false
+            """
+        )
+
+    with pytest.raises(ValueError, match="has no rows"):
+        export_powerbi_tables(
+            duckdb_path=duckdb_path,
+            export_dir=export_dir,
+        )
+
+    assert stale_csv.read_text(encoding="utf-8") == "legacy\n"
+
+
 def test_powerbi_export_contract_has_required_columns_for_every_table():
     assert set(REQUIRED_EXPORT_COLUMNS) == set(BI_EXPORT_TABLES)
     assert all(REQUIRED_EXPORT_COLUMNS[table_name] for table_name in BI_EXPORT_TABLES)
