@@ -87,3 +87,8 @@ def test_powerbi_measures_are_display_only():
         "formatting",
         "dynamic_title",
     }
+    measure_expressions = "\n".join(
+        measure["expression"] for measure in model["measures"]
+    )
+    assert "dim_year[" not in measure_expressions
+    assert "dim_state[" not in measure_expressions

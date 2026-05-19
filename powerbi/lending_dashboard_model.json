@@ -256,12 +256,12 @@
     {
       "name": "Selected Year Label",
       "category": "display_logic",
-      "expression": "COALESCE(SELECTEDVALUE(dim_year[year]), \"All years\")"
+      "expression": "COALESCE(SELECTEDVALUE(bi_year_filter[year]), \"All years\")"
     },
     {
       "name": "Selected State Label",
       "category": "display_logic",
-      "expression": "COALESCE(SELECTEDVALUE(dim_state[state_name]), \"All states\")"
+      "expression": "COALESCE(SELECTEDVALUE(bi_state_filter[state_name]), \"All states\")"
     }
   ],
   "filter_coverage": ["year", "state", "region", "program", "industry", "lender"],
