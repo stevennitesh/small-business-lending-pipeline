@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,7 +63,7 @@ def validate_powerbi_model(model_path: Path | str = MODEL_PATH) -> PowerBIModelV
 
     _validate_filter_coverage(model)
     _validate_relationships(model, tables)
-    _validate_measures(model)
+    _validate_measures(model, set(tables))
 
     return PowerBIModelValidation(
         model_path=str(resolved_model_path),
@@ -132,11 +133,30 @@ def _validate_relationships(model: dict, tables: dict[str, dict]) -> None:
             raise ValueError(f"Relationship target table is not declared: {relationship}")
 
 
-def _validate_measures(model: dict) -> None:
+def _validate_measures(model: dict, table_names: set[str]) -> None:
     for measure in model.get("measures", []):
         category = measure.get("category")
         if category not in ALLOWED_MEASURE_CATEGORIES:
             raise ValueError(f"Power BI measure category is not allowed: {category}")
+
+        expression = measure.get("expression", "")
+        referenced_tables = _measure_table_references(expression)
+        undeclared_tables = sorted(referenced_tables - table_names)
+        if undeclared_tables:
+            raise ValueError(
+                f"Power BI measure {measure.get('name')} references undeclared tables: "
+                + ", ".join(undeclared_tables)
+            )
+
+
+def _measure_table_references(expression: str) -> set[str]:
+    return {
+        quoted_table or bare_table
+        for quoted_table, bare_table in re.findall(
+            r"(?:'([^']+)'|([A-Za-z_][A-Za-z0-9_]*))\s*\[",
+            expression,
+        )
+    }
 
 
 def main() -> None:

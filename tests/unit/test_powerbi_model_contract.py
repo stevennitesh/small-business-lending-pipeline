@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from scripts.export_powerbi_tables import BI_EXPORT_TABLES, REQUIRED_EXPORT_COLUMNS
 from scripts.validate_powerbi_model import REQUIRED_FILTERS, validate_powerbi_model
 
@@ -92,3 +94,15 @@ def test_powerbi_measures_are_display_only():
     )
     assert "dim_year[" not in measure_expressions
     assert "dim_state[" not in measure_expressions
+
+
+def test_powerbi_measure_references_must_use_declared_tables(tmp_path):
+    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model["measures"][0]["expression"] = (
+        'COALESCE(SELECTEDVALUE(dim_year[year]), "All years")'
+    )
+    model_path = tmp_path / "model.json"
+    model_path.write_text(json.dumps(model), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="undeclared tables: dim_year"):
+        validate_powerbi_model(model_path)
