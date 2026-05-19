@@ -18,9 +18,10 @@ BI_EXPORT_TABLES = (
     "bi_pipeline_health",
     "bi_lender_mix",
     "bi_state_filter",
-    "dim_loan_program",
-    "dim_naics",
-    "dim_lender",
+    "bi_year_filter",
+    "bi_loan_program_filter",
+    "bi_naics_filter",
+    "bi_lender_filter",
 )
 
 REQUIRED_EXPORT_COLUMNS = {
@@ -103,12 +104,16 @@ REQUIRED_EXPORT_COLUMNS = {
         "census_region",
         "census_division",
     },
-    "dim_loan_program": {
+    "bi_year_filter": {
+        "year",
+        "year_label",
+    },
+    "bi_loan_program_filter": {
         "loan_program_key",
         "loan_program",
         "loan_program_name",
     },
-    "dim_naics": {
+    "bi_naics_filter": {
         "naics_key",
         "naics_sector_code",
         "naics_sector_name",
@@ -116,7 +121,7 @@ REQUIRED_EXPORT_COLUMNS = {
         "is_valid_current_code",
         "is_unknown",
     },
-    "dim_lender": {
+    "bi_lender_filter": {
         "lender_key",
         "lender_name",
         "is_unknown",
@@ -159,7 +164,7 @@ def export_powerbi_tables(
     row_counts: dict[str, int] = {}
     with duckdb.connect(str(resolved_duckdb_path)) as connection:
         for table_name in BI_EXPORT_TABLES:
-            _validate_export_contract(connection, table_name)
+            validate_powerbi_table_contract(connection, table_name)
             row_count = _row_count(connection, table_name)
             if row_count <= 0:
                 raise ValueError(f"BI export table {table_name} has no rows.")
@@ -180,7 +185,7 @@ def export_powerbi_tables(
     )
 
 
-def _validate_export_contract(
+def validate_powerbi_table_contract(
     connection: duckdb.DuckDBPyConnection,
     table_name: str,
 ) -> None:

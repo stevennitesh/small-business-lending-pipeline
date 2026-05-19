@@ -131,7 +131,7 @@ The tasks touch overlapping BI contracts, export code, model JSON, Power Query, 
   - The flat path expected by Power Query is produced by local route.
 - Risk/rollback:
   - Medium: local run summary export path behavior changes from run-specific to stable latest CSVs. Roll back by restoring run-specific export while keeping shared table list.
-- Status: pending
+- Status: completed in #76
 
 ### Task 3: Update Power BI model and Power Query contract
 

@@ -9,6 +9,7 @@ import pytest
 import pipelines.flows.lending_pipeline_flow as local_flow
 from pipelines.storage.raw_artifacts import RawArtifactReader, S3RawArtifactStore
 from pipelines.validation.validation_result import ValidationFailedError
+from scripts.export_powerbi_tables import BI_EXPORT_TABLES
 
 
 def test_local_flow_declares_expected_stage_order():
@@ -52,6 +53,23 @@ def test_cloud_flow_declares_expected_stage_order():
     assert local_flow.CLOUD_FLOW_STAGES.index("run_dbt_build") < (
         local_flow.CLOUD_FLOW_STAGES.index("validate_bi_tables")
     )
+
+
+def test_flow_uses_shared_powerbi_export_contract(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="local-powerbi-contract",
+    )
+
+    assert local_flow.BI_TABLES == BI_EXPORT_TABLES
+    assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
 
 
 def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):

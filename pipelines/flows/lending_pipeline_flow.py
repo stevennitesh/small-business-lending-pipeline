@@ -83,6 +83,11 @@ from pipelines.validation.validation_result import (
     validation_results_to_json_bytes,
     write_validation_results,
 )
+from scripts.export_powerbi_tables import (
+    BI_EXPORT_TABLES,
+    export_powerbi_tables,
+    validate_powerbi_table_contract,
+)
 
 
 RUN_MODE_ALIASES = {
@@ -122,17 +127,7 @@ CLOUD_FLOW_STAGES = (
 
 FLOW_STAGES = LOCAL_FLOW_STAGES
 
-BI_TABLES = (
-    "bi_executive_overview",
-    "bi_state_lending_trends",
-    "bi_lender_concentration",
-    "bi_industry_mix",
-    "bi_program_mix",
-    "bi_regional_business_health",
-    "bi_pipeline_health",
-    "bi_lender_mix",
-    "bi_state_filter",
-)
+BI_TABLES = BI_EXPORT_TABLES
 
 
 @dataclass(frozen=True)
@@ -160,7 +155,7 @@ class LocalRunContext:
 
     @property
     def run_export_dir(self) -> Path:
-        return self.data_root / "exports" / "powerbi" / f"pipeline_run_id={self.pipeline_run_id}"
+        return self.data_root / "exports" / "powerbi"
 
     @property
     def stage_order(self) -> tuple[str, ...]:
@@ -627,6 +622,7 @@ def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
     row_counts: dict[str, int] = {}
     with duckdb.connect(str(context.duckdb_path)) as connection:
         for table_name in BI_TABLES:
+            validate_powerbi_table_contract(connection, table_name)
             row_count = int(
                 connection.execute(f"select count(*) from {table_name}").fetchone()[0]
             )
@@ -638,17 +634,11 @@ def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
 
 @task
 def export_bi_tables(context: LocalRunContext) -> list[str]:
-    context.run_export_dir.mkdir(parents=True, exist_ok=True)
-    export_paths: list[str] = []
-    with duckdb.connect(str(context.duckdb_path)) as connection:
-        for table_name in BI_TABLES:
-            export_path = context.run_export_dir / f"{table_name}.csv"
-            connection.execute(
-                f"copy (select * from {table_name}) to ? (header, delimiter ',')",
-                [str(export_path)],
-            )
-            export_paths.append(str(export_path))
-    return export_paths
+    summary = export_powerbi_tables(
+        duckdb_path=context.duckdb_path,
+        export_dir=context.run_export_dir,
+    )
+    return [summary.export_paths[table_name] for table_name in BI_TABLES]
 
 
 @task

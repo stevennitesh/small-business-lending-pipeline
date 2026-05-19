@@ -39,14 +39,14 @@ def test_export_powerbi_tables_writes_required_csvs(tmp_path):
         assert not (PROHIBITED_EXPORT_FIELDS & set(reader.fieldnames or []))
 
 
-def test_export_powerbi_tables_writes_canonical_dimension_csvs(tmp_path):
+def test_export_powerbi_tables_writes_canonical_filter_csvs(tmp_path):
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     _create_bi_fixture_warehouse(duckdb_path)
     with duckdb.connect(str(duckdb_path)) as connection:
         connection.execute(
             """
-            create or replace table dim_naics as
+            create or replace table bi_naics_filter as
             select
                 '31-33' as naics_key,
                 '31-33' as naics_sector_code,
@@ -70,7 +70,11 @@ def test_export_powerbi_tables_writes_canonical_dimension_csvs(tmp_path):
         export_dir=export_dir,
     )
 
-    with (export_dir / "dim_naics.csv").open("r", encoding="utf-8", newline="") as file:
+    with (export_dir / "bi_naics_filter.csv").open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as file:
         rows = list(csv.DictReader(file))
 
     assert {row["naics_key"] for row in rows} == {"31-33", "44-45"}
