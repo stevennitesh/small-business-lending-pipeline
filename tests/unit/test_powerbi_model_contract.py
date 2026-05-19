@@ -37,6 +37,7 @@ def test_powerbi_model_sources_match_export_contract():
 
 def test_power_query_sources_match_export_contract():
     power_query = POWER_QUERY_PATH.read_text(encoding="utf-8")
+    assert "ExportRoot" in power_query
     loaded_tables = {
         table_name
         for alias, table_name in re.findall(

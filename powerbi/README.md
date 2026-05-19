@@ -12,9 +12,10 @@ The target desktop artifact is `powerbi/lending_dashboard.pbix`, but PBIX creati
 
 1. Run `make run-local` to refresh local CSV tables under `data/exports/powerbi/*.csv`, or use `make run-cloud` to refresh Snowflake BI-schema tables.
 2. Open Power BI Desktop on Windows.
-3. Load the CSV tables listed in `powerbi/lending_dashboard_model.json`, or connect to the matching Snowflake tables in `${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}`.
-4. Create dimensions and relationships exactly as listed in `powerbi/lending_dashboard_model.json`.
-5. Keep DAX measures limited to display labels, formatting, and dynamic titles. Core KPI values come from the BI tables.
-6. Save the report as `powerbi/lending_dashboard.pbix`.
+3. For local CSV mode, paste the queries from `powerbi/power_query/local_csv_queries.pq`. If Power BI Desktop cannot resolve the repo-relative `data/exports/powerbi` path, edit the `ExportRoot` value in the query to the Windows absolute path for this repo's export folder, for example `C:\Users\<you>\code\small-business-lending-pipeline\data\exports\powerbi`.
+4. For cloud mode, connect to the matching Snowflake tables in `${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}`.
+5. Create dimensions and relationships exactly as listed in `powerbi/lending_dashboard_model.json`.
+6. Keep DAX measures limited to display labels, formatting, and dynamic titles. Core KPI values come from the BI tables.
+7. Save the report as `powerbi/lending_dashboard.pbix`.
 
 The model should use dbt-produced BI filter tables, including `bi_state_filter`, `bi_year_filter`, `bi_loan_program_filter`, `bi_naics_filter`, and `bi_lender_filter`. Do not connect to raw files or expose borrower-level fields.

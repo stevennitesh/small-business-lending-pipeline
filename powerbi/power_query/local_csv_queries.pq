@@ -1,4 +1,6 @@
 let
+    // In Power BI Desktop, edit ExportRoot to the Windows absolute path for this
+    // repository's data/exports/powerbi folder if the relative path is not found.
     ExportRoot = "data/exports/powerbi",
     LoadCsv = (tableName as text) as table =>
         Table.PromoteHeaders(
