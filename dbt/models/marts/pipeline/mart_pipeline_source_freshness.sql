@@ -1,15 +1,34 @@
-with latest_by_resource as (
+with ranked_manifest as (
     select
         source_system,
         dataset_name as source_dataset,
         resource_name as source_resource_name,
-        max(extracted_at_utc) as latest_extracted_at_utc,
-        max(ingestion_date) as latest_ingestion_date,
-        max(row_count) as latest_row_count,
-        max(case when is_latest_successful_snapshot then 1 else 0 end) = 1 as is_latest_successful_snapshot,
-        count(*) as observed_snapshot_count
+        extracted_at_utc,
+        ingestion_date,
+        row_count,
+        is_latest_successful_snapshot,
+        row_number() over (
+            partition by source_system, dataset_name, resource_name
+            order by extracted_at_utc desc, ingestion_date desc, pipeline_run_id desc
+        ) as resource_snapshot_rank,
+        count(*) over (
+            partition by source_system, dataset_name, resource_name
+        ) as observed_snapshot_count
     from {{ ref('stg_ingestion_manifest') }}
-    group by 1, 2, 3
+),
+
+latest_by_resource as (
+    select
+        source_system,
+        source_dataset,
+        source_resource_name,
+        extracted_at_utc as latest_extracted_at_utc,
+        ingestion_date as latest_ingestion_date,
+        row_count as latest_row_count,
+        is_latest_successful_snapshot,
+        observed_snapshot_count
+    from ranked_manifest
+    where resource_snapshot_rank = 1
 )
 
 select

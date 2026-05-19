@@ -157,6 +157,17 @@ def test_pipeline_run_summary_mart_uses_staging_contract():
     assert "source('raw', 'raw_pipeline_run_summary')" not in model_sql
 
 
+def test_pipeline_source_freshness_uses_latest_manifest_row_values():
+    model_sql = PIPELINE_MARTS["mart_pipeline_source_freshness"].read_text(
+        encoding="utf-8"
+    )
+
+    assert "row_number() over" in model_sql
+    assert "resource_snapshot_rank = 1" in model_sql
+    assert "row_count as latest_row_count" in model_sql
+    assert "max(row_count)" not in model_sql
+
+
 def test_bi_lender_outputs_document_known_lender_semantics():
     schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
     models = {model["name"]: model for model in schema_yml["models"]}
