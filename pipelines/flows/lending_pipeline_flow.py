@@ -140,6 +140,7 @@ class LocalRunContext:
     dbt_project_dir: Path
     dbt_profiles_dir: Path
     dbt_target: str
+    powerbi_export_dir: Path
     run_started_at_utc: str
     s3_bucket: str | None = None
     source_start_year: int | None = None
@@ -155,7 +156,7 @@ class LocalRunContext:
 
     @property
     def run_export_dir(self) -> Path:
-        return self.data_root / "exports" / "powerbi"
+        return self.powerbi_export_dir
 
     @property
     def stage_order(self) -> tuple[str, ...]:
@@ -254,6 +255,7 @@ def initialize_run(
     duckdb_path: str,
     dbt_project_dir: str,
     dbt_profiles_dir: str,
+    powerbi_export_dir: str | None = None,
     s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
     source_start_year: int | None = None,
@@ -266,15 +268,20 @@ def initialize_run(
         raise ValueError("source_start_year cannot be greater than source_end_year.")
 
     run_id = pipeline_run_id or f"{run_mode}-{uuid.uuid4()}"
+    resolved_data_root = Path(data_root)
     context = LocalRunContext(
         pipeline_run_id=run_id,
         run_mode=run_mode,
         extract_mode=extract_mode,
-        data_root=Path(data_root),
+        data_root=resolved_data_root,
         duckdb_path=Path(duckdb_path),
         dbt_project_dir=Path(dbt_project_dir),
         dbt_profiles_dir=Path(dbt_profiles_dir),
         dbt_target=dbt_target,
+        powerbi_export_dir=_resolve_powerbi_export_dir(
+            resolved_data_root,
+            powerbi_export_dir,
+        ),
         run_started_at_utc=utc_now_iso(),
         s3_bucket=s3_bucket,
         source_start_year=source_start_year,
@@ -704,6 +711,7 @@ def lending_pipeline_flow(
     duckdb_path: str = "data/warehouse/small_business_lending.duckdb",
     dbt_project_dir: str = "dbt",
     dbt_profiles_dir: str = ".tmp/dbt_profiles",
+    powerbi_export_dir: str | None = None,
     s3_bucket: str | None = None,
     pipeline_run_id: str | None = None,
     source_start_year: int | None = None,
@@ -719,6 +727,7 @@ def lending_pipeline_flow(
         duckdb_path=duckdb_path,
         dbt_project_dir=dbt_project_dir,
         dbt_profiles_dir=dbt_profiles_dir,
+        powerbi_export_dir=powerbi_export_dir,
         s3_bucket=s3_bucket,
         pipeline_run_id=pipeline_run_id,
         source_start_year=source_start_year,
@@ -1776,6 +1785,13 @@ def _snowflake_bi_schema() -> str:
     )
 
 
+def _resolve_powerbi_export_dir(data_root: Path, configured_dir: str | None) -> Path:
+    configured = configured_dir or os.getenv("POWERBI_EXPORT_DIR")
+    if configured:
+        return Path(configured)
+    return data_root / "exports" / "powerbi"
+
+
 def _s3_bucket(context: LocalRunContext) -> str | None:
     return context.s3_bucket or os.getenv("S3_BUCKET") or None
 
@@ -1806,6 +1822,7 @@ def main() -> None:
     )
     parser.add_argument("--dbt-project-dir", default="dbt")
     parser.add_argument("--dbt-profiles-dir", default=".tmp/dbt_profiles")
+    parser.add_argument("--powerbi-export-dir")
     parser.add_argument("--s3-bucket")
     parser.add_argument("--pipeline-run-id")
     parser.add_argument("--source-start-year", type=int)
@@ -1820,6 +1837,7 @@ def main() -> None:
         duckdb_path=args.duckdb_path,
         dbt_project_dir=args.dbt_project_dir,
         dbt_profiles_dir=args.dbt_profiles_dir,
+        powerbi_export_dir=args.powerbi_export_dir,
         s3_bucket=args.s3_bucket,
         pipeline_run_id=args.pipeline_run_id,
         source_start_year=args.source_start_year,

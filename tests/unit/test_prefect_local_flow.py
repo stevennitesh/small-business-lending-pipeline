@@ -72,6 +72,47 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path):
     assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
 
 
+def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
+    export_dir = tmp_path / "custom-powerbi"
+    monkeypatch.setenv("POWERBI_EXPORT_DIR", str(export_dir))
+
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="local-powerbi-env-override",
+    )
+
+    assert context.run_export_dir == export_dir
+    assert export_dir.is_dir()
+
+
+def test_flow_powerbi_export_dir_argument_overrides_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("POWERBI_EXPORT_DIR", str(tmp_path / "env-powerbi"))
+    export_dir = tmp_path / "arg-powerbi"
+
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        powerbi_export_dir=str(export_dir),
+        s3_bucket=None,
+        pipeline_run_id="local-powerbi-arg-override",
+    )
+
+    assert context.run_export_dir == export_dir
+    assert export_dir.is_dir()
+
+
 def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
     for variable_name in (
         "S3_BUCKET",
