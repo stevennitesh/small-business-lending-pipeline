@@ -137,7 +137,7 @@ This is a behavior change across overlapping marts/tests/docs, so implement it i
   - BI docs do not imply totals reconcile to all lending volume where unknown lenders exist.
 - Risk/rollback:
   - Low; mostly docs/static tests.
-- Status: pending
+- Status: completed in #74
 
 ## Final Verification
 

@@ -157,6 +157,35 @@ def test_pipeline_run_summary_mart_uses_staging_contract():
     assert "source('raw', 'raw_pipeline_run_summary')" not in model_sql
 
 
+def test_bi_lender_outputs_document_known_lender_semantics():
+    schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    lender_mix_sql = BI_MODELS["bi_lender_mix"].read_text(encoding="utf-8")
+
+    concentration = models["bi_lender_concentration"]
+    concentration_columns = {
+        column["name"]: column for column in concentration["columns"]
+    }
+    lender_mix = models["bi_lender_mix"]
+    lender_mix_columns = {column["name"]: column for column in lender_mix["columns"]}
+
+    assert "known-lender concentration" in concentration["description"]
+    assert "known-lender approved dollars" in concentration_columns[
+        "top_1_lender_share"
+    ]["description"]
+    assert "known-lender approved dollars" in concentration_columns[
+        "top_5_lender_share"
+    ]["description"]
+    assert "Known lender count" in concentration_columns["lender_count"][
+        "description"
+    ]
+    assert "known-lender lending mix" in lender_mix["description"]
+    assert "known-lender approved dollars" in lender_mix_columns[
+        "lender_approved_amount_share"
+    ]["description"]
+    assert "where lender_key != 'UNKNOWN'" in lender_mix_sql
+
+
 def _test_names(data_tests: list) -> set[str]:
     names = set()
     for test in data_tests:

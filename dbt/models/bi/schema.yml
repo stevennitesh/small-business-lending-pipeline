@@ -60,7 +60,7 @@ models:
         description: Year-over-year approved dollar growth percentage.
 
   - name: bi_lender_concentration
-    description: Dashboard-ready state-year lender concentration table.
+    description: Dashboard-ready state-year known-lender concentration table.
     meta:
       grain: one row per state and approval year
     data_tests:
@@ -77,11 +77,11 @@ models:
                 to: ref('dim_state')
                 field: state_key
       - name: top_1_lender_share
-        description: Top lender share of approved dollars.
+        description: Top known lender share of known-lender approved dollars.
       - name: top_5_lender_share
-        description: Top-five lender share of approved dollars.
+        description: Top-five known lender share of known-lender approved dollars.
       - name: lender_count
-        description: Lender count in the state-year.
+        description: Known lender count in the state-year.
 
   - name: bi_industry_mix
     description: Dashboard-ready annual state industry lending mix.
@@ -172,7 +172,7 @@ models:
         description: Overall source freshness status.
 
   - name: bi_lender_mix
-    description: Dashboard-ready annual state-lender lending mix for lender filtering and concentration detail.
+    description: Dashboard-ready annual state known-lender lending mix for lender filtering and concentration detail.
     meta:
       grain: one row per state, approval year, and lender
     data_tests:
@@ -198,9 +198,9 @@ models:
       - name: lender_name
         description: Lender display name.
       - name: lender_approved_amount_share
-        description: Lender share of approved dollars in the state-year.
+        description: Known lender share of known-lender approved dollars in the state-year.
       - name: lender_rank
-        description: Lender rank by approved dollars in the state-year.
+        description: Known lender rank by approved dollars in the state-year.
 
   - name: bi_state_filter
     description: Dashboard-ready state and region filter helper.
