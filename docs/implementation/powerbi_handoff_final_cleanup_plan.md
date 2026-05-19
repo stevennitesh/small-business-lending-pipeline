@@ -96,7 +96,7 @@ These cleanups touch overlapping contract files and tests, so implement them one
   - Measure expressions use declared BI-facing table names.
 - Risk/rollback:
   - Low. Roll back by restoring the previous JSON expressions.
-- Status: pending
+- Status: completed
 
 ### Task 2: Add measure-expression drift validation
 
@@ -125,7 +125,7 @@ These cleanups touch overlapping contract files and tests, so implement them one
   - The guard remains understandable and maintainable.
 - Risk/rollback:
   - Low. Roll back by removing the new validator branch and focused tests.
-- Status: pending
+- Status: completed
 
 ### Task 3: Decide and clean up local export-path configuration
 
@@ -157,7 +157,7 @@ These cleanups touch overlapping contract files and tests, so implement them one
   - The local route still writes to the path Power Query expects by default.
 - Risk/rollback:
   - Low to medium. If configurable paths complicate the desktop workflow, keep the fixed default and remove the unused env var instead.
-- Status: pending
+- Status: completed
 
 ### Task 4: Clarify Power Query local path setup
 
@@ -188,7 +188,7 @@ These cleanups touch overlapping contract files and tests, so implement them one
   - The instructions are practical for WSL plus Windows Power BI Desktop.
 - Risk/rollback:
   - Low. Roll back by restoring the prior query and README text.
-- Status: pending
+- Status: completed
 
 ### Task 5: Clean up BI schema wording for current contract fields
 
@@ -217,7 +217,7 @@ These cleanups touch overlapping contract files and tests, so implement them one
   - No false compatibility language remains in the active BI export surface.
 - Risk/rollback:
   - Low. Roll back by restoring prior descriptions.
-- Status: pending
+- Status: completed
 
 ## Final Verification
 
