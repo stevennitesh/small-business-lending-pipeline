@@ -165,6 +165,16 @@ def test_lender_concentration_exposes_top_1_and_top_5_metrics():
     assert "top_5_lender_share" in concentration_sql
     assert "lender_rank = 1" in concentration_sql
     assert "lender_rank <= 5" in concentration_sql
+    assert "select *" not in concentration_sql
+    assert "from {{ ref('mart_lending_lender_state_period') }}" in concentration_sql
+    for expected_column in (
+        "state_key",
+        "approval_year",
+        "total_approved_loan_amount",
+        "loan_count",
+        "lender_rank",
+    ):
+        assert expected_column in concentration_sql
     assert "top_1_approved_loan_amount > concentration.top_5_approved_loan_amount" in (
         concentration_test_sql
     )

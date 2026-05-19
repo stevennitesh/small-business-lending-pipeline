@@ -98,7 +98,7 @@ models:
                 max_value: 1
 
   - name: mart_lending_concentration_state_period
-    description: Annual state lender-concentration KPI mart.
+    description: Annual state known-lender concentration KPI mart.
     meta:
       grain: one row per project state and approval year
     data_tests:
@@ -114,36 +114,36 @@ models:
                 to: ref('dim_state')
                 field: state_key
       - name: loan_count
-        description: Number of SBA loans approved in the state-year.
+        description: Number of SBA loans approved by known lenders in the state-year.
         data_tests:
           - non_negative
       - name: total_approved_loan_amount
-        description: Total gross approval amount in the state-year.
+        description: Total gross approval amount for known lenders in the state-year.
         data_tests:
           - non_negative
       - name: average_loan_size
-        description: Average gross approval amount per loan in the state-year.
+        description: Average gross approval amount per known-lender loan in the state-year.
       - name: lender_count
-        description: Number of active lenders in the state-year.
+        description: Number of active known lenders in the state-year.
         data_tests:
           - non_negative
       - name: top_1_approved_loan_amount
-        description: Approved dollars from the top-ranked lender in the state-year.
+        description: Approved dollars from the top-ranked known lender in the state-year.
         data_tests:
           - non_negative
       - name: top_1_lender_share
-        description: Share of approved dollars from the top-ranked lender in the state-year.
+        description: Share of known-lender approved dollars from the top-ranked known lender in the state-year.
         data_tests:
           - accepted_range:
               arguments:
                 min_value: 0
                 max_value: 1
       - name: top_5_approved_loan_amount
-        description: Approved dollars from the top five lenders in the state-year.
+        description: Approved dollars from the top five known lenders in the state-year.
         data_tests:
           - non_negative
       - name: top_5_lender_share
-        description: Share of approved dollars from the top five lenders in the state-year.
+        description: Share of known-lender approved dollars from the top five known lenders in the state-year.
         data_tests:
           - accepted_range:
               arguments:

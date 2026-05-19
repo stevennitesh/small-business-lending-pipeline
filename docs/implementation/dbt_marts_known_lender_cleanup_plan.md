@@ -113,7 +113,7 @@ This is a behavior change across overlapping marts/tests/docs, so implement it i
   - `lender_count` means known active lender count.
 - Risk/rollback:
   - Low once Task 1 is correct; concentration already depends on the lender mart.
-- Status: pending
+- Status: completed in #73
 
 ### Task 3: Update BI docs/tests for known-lender semantics
 

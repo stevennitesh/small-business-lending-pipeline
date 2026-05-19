@@ -1,5 +1,10 @@
 with lender_period as (
-    select *
+    select
+        state_key,
+        approval_year,
+        total_approved_loan_amount,
+        loan_count,
+        lender_rank
     from {{ ref('mart_lending_lender_state_period') }}
 ),
 
