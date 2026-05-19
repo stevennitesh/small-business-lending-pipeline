@@ -39,6 +39,13 @@ def test_export_powerbi_tables_writes_required_csvs(tmp_path):
         assert not (PROHIBITED_EXPORT_FIELDS & set(reader.fieldnames or []))
 
 
+def test_powerbi_export_contract_has_required_columns_for_every_table():
+    assert set(REQUIRED_EXPORT_COLUMNS) == set(BI_EXPORT_TABLES)
+    assert all(REQUIRED_EXPORT_COLUMNS[table_name] for table_name in BI_EXPORT_TABLES)
+    for table_name, columns in REQUIRED_EXPORT_COLUMNS.items():
+        assert not (PROHIBITED_EXPORT_FIELDS & columns), table_name
+
+
 def test_export_powerbi_tables_writes_canonical_filter_csvs(tmp_path):
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"

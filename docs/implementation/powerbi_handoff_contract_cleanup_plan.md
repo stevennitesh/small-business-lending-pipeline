@@ -198,7 +198,7 @@ The tasks touch overlapping BI contracts, export code, model JSON, Power Query, 
   - Tests remain fast and WSL-safe.
 - Risk/rollback:
   - Low; test-only hardening around the new contract.
-- Status: pending
+- Status: completed in #78
 
 ## Final Verification
 

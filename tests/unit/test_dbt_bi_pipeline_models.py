@@ -2,6 +2,8 @@ from pathlib import Path
 
 import yaml
 
+from scripts.export_powerbi_tables import BI_EXPORT_TABLES
+
 
 BI_MODELS = {
     "bi_executive_overview": Path("dbt/models/bi/bi_executive_overview.sql"),
@@ -47,6 +49,7 @@ def test_required_bi_and_pipeline_models_exist():
     missing_paths = [str(path) for path in required_paths if not path.is_file()]
 
     assert missing_paths == []
+    assert set(BI_MODELS) == set(BI_EXPORT_TABLES)
 
 
 def test_bi_schema_declares_grain_rows_and_safe_columns():

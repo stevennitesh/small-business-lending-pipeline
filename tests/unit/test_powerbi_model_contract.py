@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from scripts.export_powerbi_tables import BI_EXPORT_TABLES, REQUIRED_EXPORT_COLUMNS
@@ -8,6 +9,7 @@ from scripts.validate_powerbi_model import REQUIRED_FILTERS, validate_powerbi_mo
 
 
 MODEL_PATH = Path("powerbi/lending_dashboard_model.json")
+POWER_QUERY_PATH = Path("powerbi/power_query/local_csv_queries.pq")
 
 
 def test_powerbi_model_contract_validates():
@@ -31,6 +33,20 @@ def test_powerbi_model_sources_match_export_contract():
         assert "${SNOWFLAKE_BI_SCHEMA}" in table["snowflake_table"]
 
 
+def test_power_query_sources_match_export_contract():
+    power_query = POWER_QUERY_PATH.read_text(encoding="utf-8")
+    loaded_tables = {
+        table_name
+        for alias, table_name in re.findall(
+            r"(\w+)\s*=\s*LoadCsv\(\"([^\"]+)\"\)",
+            power_query,
+        )
+        if alias == table_name
+    }
+
+    assert loaded_tables == set(BI_EXPORT_TABLES)
+
+
 def test_powerbi_relationships_are_single_direction_one_to_many():
     model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
 
@@ -51,6 +67,15 @@ def test_powerbi_relationships_are_single_direction_one_to_many():
         "bi_naics_filter",
         "bi_lender_filter",
     }
+
+
+def test_powerbi_dimensions_use_declared_filter_tables():
+    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    tables = {table["name"] for table in model["tables"]}
+
+    for dimension in model["dimensions"]:
+        assert dimension["name"] == dimension["source_table"]
+        assert dimension["source_table"] in tables
 
 
 def test_powerbi_measures_are_display_only():
