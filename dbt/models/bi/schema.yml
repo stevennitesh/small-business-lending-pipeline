@@ -25,15 +25,15 @@ models:
       - name: average_loan_size
         description: Average approved loan size.
       - name: annual_average_unemployment_rate
-        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+        description: Executive-page labor-market context field; use bi_regional_business_health for deeper context analysis.
       - name: establishment_count
-        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+        description: Executive-page business-population context field; use bi_regional_business_health for deeper context analysis.
       - name: loans_per_1000_establishments
-        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+        description: Executive-page lending intensity context field per 1,000 establishments.
       - name: approved_loan_dollars_per_establishment
-        description: Deprecated compatibility field for existing Power BI queries; use bi_regional_business_health for complete context analysis.
+        description: Executive-page approved lending dollars per establishment context field.
       - name: context_join_status
-        description: Context source availability status retained for existing Power BI queries.
+        description: Executive-page context source availability status.
 
   - name: bi_state_lending_trends
     description: Dashboard-ready annual state lending trends.

@@ -53,7 +53,9 @@ def test_required_bi_and_pipeline_models_exist():
 
 
 def test_bi_schema_declares_grain_rows_and_safe_columns():
-    schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
+    schema_text = Path("dbt/models/bi/schema.yml").read_text()
+    assert "Deprecated compatibility field" not in schema_text
+    schema_yml = yaml.safe_load(schema_text)
     models = {model["name"]: model for model in schema_yml["models"]}
 
     assert set(BI_MODELS) <= set(models)
