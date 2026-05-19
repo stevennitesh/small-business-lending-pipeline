@@ -83,6 +83,13 @@ def test_lending_schema_declares_grains_and_kpi_tests():
             concentration_columns[amount_column]["data_tests"]
         )
     assert "non_negative" in _test_names(concentration_columns["lender_count"]["data_tests"])
+    lender_columns = {
+        column["name"]: column
+        for column in models["mart_lending_lender_state_period"]["columns"]
+    }
+    assert "known-lender approved dollars" in lender_columns[
+        "lender_approved_amount_share"
+    ]["description"]
 
     singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {
@@ -126,6 +133,22 @@ def test_annual_lending_marts_reuse_fact_approval_year():
     ).read_text(encoding="utf-8")
     assert "coalesce(extract(year from" not in reconciliation_sql
     assert "approval_year is not null" in reconciliation_sql
+
+
+def test_lender_mart_excludes_unknown_before_share_and_rank():
+    lender_sql = LENDING_MARTS["mart_lending_lender_state_period"].read_text(
+        encoding="utf-8"
+    )
+    reconciliation_sql = Path(
+        "dbt/tests/assert_mart_lending_lender_state_period_reconciles.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "fact.lender_key != 'UNKNOWN'" in lender_sql
+    assert "known_lender_approved_loan_amount" in lender_sql
+    assert "'state_period.known_lender_approved_loan_amount'" in lender_sql
+    assert "annual.total_approved_loan_amount" not in lender_sql
+    assert "lender_key != 'UNKNOWN'" in reconciliation_sql
+    assert "fact_total_approved_loan_amount" in reconciliation_sql
 
 
 def test_lender_concentration_exposes_top_1_and_top_5_metrics():

@@ -64,7 +64,7 @@ models:
         description: Year-over-year loan-count growth as a decimal ratio.
 
   - name: mart_lending_lender_state_period
-    description: Annual state-lender lending KPI mart.
+    description: Annual state-lender lending KPI mart for known lenders only.
     meta:
       grain: one row per project state, approval year, and lender
     data_tests:
@@ -80,17 +80,17 @@ models:
                 to: ref('dim_state')
                 field: state_key
       - name: loan_count
-        description: Number of SBA loans approved for the lender in the state-year.
+        description: Number of SBA loans approved for the known lender in the state-year.
         data_tests:
           - non_negative
       - name: total_approved_loan_amount
-        description: Total gross approval amount for the lender in the state-year.
+        description: Total gross approval amount for the known lender in the state-year.
         data_tests:
           - non_negative
       - name: average_loan_size
-        description: Average gross approval amount per loan for the lender in the state-year.
+        description: Average gross approval amount per loan for the known lender in the state-year.
       - name: lender_approved_amount_share
-        description: Lender share of approved dollars within the state-year.
+        description: Known lender share of known-lender approved dollars within the state-year.
         data_tests:
           - accepted_range:
               arguments:
