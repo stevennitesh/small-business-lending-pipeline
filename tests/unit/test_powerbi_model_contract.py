@@ -28,6 +28,7 @@ def test_powerbi_model_sources_match_export_contract():
         assert table["local_csv"] == f"data/exports/powerbi/{table_name}.csv"
         assert required_columns <= set(table["required_columns"])
         assert "RAW" not in table["snowflake_table"].upper()
+        assert "${SNOWFLAKE_BI_SCHEMA}" in table["snowflake_table"]
 
 
 def test_powerbi_relationships_are_single_direction_one_to_many():
@@ -39,6 +40,16 @@ def test_powerbi_relationships_are_single_direction_one_to_many():
     } == {"one_to_many"}
     assert {relationship["cross_filter"] for relationship in model["relationships"]} == {
         "single"
+    }
+    assert {
+        relationship["from"].split(".", maxsplit=1)[0]
+        for relationship in model["relationships"]
+    } <= {
+        "bi_state_filter",
+        "bi_year_filter",
+        "bi_loan_program_filter",
+        "bi_naics_filter",
+        "bi_lender_filter",
     }
 
 

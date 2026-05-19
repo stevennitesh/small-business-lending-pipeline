@@ -84,6 +84,10 @@ def _validate_table_source(table_name: str, table: dict) -> None:
     snowflake_table = table.get("snowflake_table", "")
     if ".RAW." in snowflake_table.upper():
         raise ValueError(f"Power BI table {table_name} points at a raw Snowflake table.")
+    if "${SNOWFLAKE_BI_SCHEMA}" not in snowflake_table:
+        raise ValueError(
+            f"Power BI table {table_name} must point at the Snowflake BI schema."
+        )
 
 
 def _validate_required_columns(table_name: str, table: dict) -> None:

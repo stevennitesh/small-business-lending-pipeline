@@ -166,7 +166,7 @@ The tasks touch overlapping BI contracts, export code, model JSON, Power Query, 
   - Contract does not point to raw/staging/internal marts tables.
 - Risk/rollback:
   - Medium: manual Power BI relationship setup instructions change. Roll back by restoring old model JSON and Power Query entries.
-- Status: pending
+- Status: completed in #77
 
 ### Task 4: Add cross-contract drift tests
 

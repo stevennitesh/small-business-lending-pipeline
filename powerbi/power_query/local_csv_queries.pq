@@ -18,5 +18,9 @@ in
         bi_regional_business_health = LoadCsv("bi_regional_business_health"),
         bi_pipeline_health = LoadCsv("bi_pipeline_health"),
         bi_lender_mix = LoadCsv("bi_lender_mix"),
-        bi_state_filter = LoadCsv("bi_state_filter")
+        bi_state_filter = LoadCsv("bi_state_filter"),
+        bi_year_filter = LoadCsv("bi_year_filter"),
+        bi_loan_program_filter = LoadCsv("bi_loan_program_filter"),
+        bi_naics_filter = LoadCsv("bi_naics_filter"),
+        bi_lender_filter = LoadCsv("bi_lender_filter")
     ]
