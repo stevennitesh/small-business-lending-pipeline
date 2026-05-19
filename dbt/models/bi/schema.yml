@@ -223,3 +223,79 @@ models:
         description: Census region used for Power BI regional filters.
       - name: census_division
         description: Census division used for Power BI regional filters.
+
+  - name: bi_year_filter
+    description: Dashboard-ready year filter helper built from BI table year fields.
+    meta:
+      grain: one row per report year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["year"]
+    columns:
+      - name: year
+        description: Calendar/report year used for Power BI year filters.
+        data_tests:
+          - unique
+          - not_null
+      - name: year_label
+        description: Year display label.
+
+  - name: bi_loan_program_filter
+    description: Dashboard-ready SBA loan program filter helper.
+    meta:
+      grain: one row per SBA loan program
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["loan_program_key"]
+    columns:
+      - name: loan_program_key
+        description: SBA loan program key.
+        data_tests:
+          - unique
+          - not_null
+      - name: loan_program_name
+        description: SBA loan program display name.
+
+  - name: bi_naics_filter
+    description: Dashboard-ready NAICS sector filter helper.
+    meta:
+      grain: one row per NAICS sector
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["naics_key"]
+    columns:
+      - name: naics_key
+        description: NAICS sector key.
+        data_tests:
+          - unique
+          - not_null
+      - name: naics_sector_name
+        description: NAICS sector display name.
+      - name: is_unknown
+        description: True when the sector is the internal unknown bucket.
+
+  - name: bi_lender_filter
+    description: Dashboard-ready known-lender filter helper.
+    meta:
+      grain: one row per known lender
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["lender_key"]
+    columns:
+      - name: lender_key
+        description: Known lender dimension key.
+        data_tests:
+          - unique
+          - not_null
+      - name: lender_name
+        description: Known lender display name.
+      - name: is_unknown
+        description: Always false for dashboard lender filters; internal unknown lenders remain in dim_lender.

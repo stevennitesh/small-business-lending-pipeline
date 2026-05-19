@@ -15,6 +15,10 @@ BI_MODELS = {
     "bi_pipeline_health": Path("dbt/models/bi/bi_pipeline_health.sql"),
     "bi_lender_mix": Path("dbt/models/bi/bi_lender_mix.sql"),
     "bi_state_filter": Path("dbt/models/bi/bi_state_filter.sql"),
+    "bi_year_filter": Path("dbt/models/bi/bi_year_filter.sql"),
+    "bi_loan_program_filter": Path("dbt/models/bi/bi_loan_program_filter.sql"),
+    "bi_naics_filter": Path("dbt/models/bi/bi_naics_filter.sql"),
+    "bi_lender_filter": Path("dbt/models/bi/bi_lender_filter.sql"),
 }
 
 PIPELINE_MARTS = {
@@ -97,6 +101,24 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "state_name",
             "census_region",
             "census_division",
+        },
+        "bi_year_filter": {
+            "year",
+            "year_label",
+        },
+        "bi_loan_program_filter": {
+            "loan_program_key",
+            "loan_program_name",
+        },
+        "bi_naics_filter": {
+            "naics_key",
+            "naics_sector_name",
+            "is_unknown",
+        },
+        "bi_lender_filter": {
+            "lender_key",
+            "lender_name",
+            "is_unknown",
         },
     }
 
@@ -195,6 +217,29 @@ def test_bi_lender_outputs_document_known_lender_semantics():
         "lender_approved_amount_share"
     ]["description"]
     assert "where lender_key != 'UNKNOWN'" in lender_mix_sql
+
+
+def test_bi_filter_tables_are_built_from_dbt_models():
+    year_sql = BI_MODELS["bi_year_filter"].read_text(encoding="utf-8")
+    program_sql = BI_MODELS["bi_loan_program_filter"].read_text(encoding="utf-8")
+    naics_sql = BI_MODELS["bi_naics_filter"].read_text(encoding="utf-8")
+    lender_sql = BI_MODELS["bi_lender_filter"].read_text(encoding="utf-8")
+
+    for year_source in (
+        "bi_executive_overview",
+        "bi_state_lending_trends",
+        "bi_lender_concentration",
+        "bi_industry_mix",
+        "bi_program_mix",
+        "bi_regional_business_health",
+        "bi_lender_mix",
+    ):
+        assert f"ref('{year_source}')" in year_sql
+    assert "where year is not null" in year_sql
+    assert "ref('dim_loan_program')" in program_sql
+    assert "ref('dim_naics')" in naics_sql
+    assert "ref('dim_lender')" in lender_sql
+    assert "where not is_unknown" in lender_sql
 
 
 def _test_names(data_tests: list) -> set[str]:
