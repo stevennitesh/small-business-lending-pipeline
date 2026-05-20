@@ -346,10 +346,10 @@ Snowflake BI tables -> Power BI Snowflake connection
 Planned change:
 
 - Add BI-facing tables that hide internal mart naming:
-  - `bi_loan_performance`
-  - `bi_loan_status_mix`
-  - `bi_terms_pricing`
-  - `bi_jobs_impact`
+  - `bi_lending_performance`
+  - `bi_lending_status_mix`
+  - `bi_lending_terms_pricing`
+  - `bi_lending_jobs_impact`
   - optional later: `bi_business_segment_mix`
   - optional filter: `bi_loan_status_filter`
 - Update `BI_EXPORT_TABLES`, required columns, and prohibited-field checks.
@@ -454,7 +454,7 @@ and tests. Implement one issue at a time.
   - Medium-low. Roll back by removing added fact columns and status seed.
 - Stop/ask if:
   - Status values cannot be grouped cleanly without a business decision.
-- Status: pending
+- Status: completed in #85 / commit `7e50d53`
 
 ### Task 2: Add Loan Performance And Charge-Off Marts
 
@@ -494,7 +494,7 @@ and tests. Implement one issue at a time.
   - Medium. Status grouping may need label refinements after review.
 - Stop/ask if:
   - A source status appears ambiguous enough to change metric meaning.
-- Status: pending
+- Status: completed in #86 / commit `4856f85`
 
 ### Task 3: Add Guarantee, Terms, Pricing, And Jobs Marts
 
@@ -537,7 +537,7 @@ and tests. Implement one issue at a time.
 - Stop/ask if:
   - The desired BI story requires comparing 7(a) and 504 financing concepts as
     one metric.
-- Status: pending
+- Status: completed in #87 / commit `1837807`
 
 ### Task 4: Add BI Tables And Export Contract
 
@@ -558,10 +558,10 @@ and tests. Implement one issue at a time.
   - Keep local CSV names and Snowflake logical table names equivalent.
 - Depends on: Tasks 2 and 3.
 - Likely files/modules:
-  - `dbt/models/bi/bi_loan_performance.sql`
-  - `dbt/models/bi/bi_loan_status_mix.sql`
-  - `dbt/models/bi/bi_terms_pricing.sql`
-  - `dbt/models/bi/bi_jobs_impact.sql`
+  - `dbt/models/bi/bi_lending_performance.sql`
+  - `dbt/models/bi/bi_lending_status_mix.sql`
+  - `dbt/models/bi/bi_lending_terms_pricing.sql`
+  - `dbt/models/bi/bi_lending_jobs_impact.sql`
   - `dbt/models/bi/schema.yml`
   - `scripts/export_powerbi_tables.py`
   - `scripts/validate_powerbi_model.py`
@@ -587,7 +587,7 @@ and tests. Implement one issue at a time.
 - Stop/ask if:
   - The new table count or Power Query changes should wait for PBIX report-page
     work.
-- Status: pending
+- Status: completed in #88 / commit `bc79e9c`
 
 ### Task 5: Orchestration And End-To-End Route Verification
 
@@ -631,7 +631,7 @@ and tests. Implement one issue at a time.
 - Stop/ask if:
   - Live route verification would require a large refresh or cloud credentials
     are unavailable.
-- Status: pending
+- Status: completed in #89 / commit `d5c5b9c`
 
 ### Task 6: Documentation And Report-Page Handoff
 
@@ -670,7 +670,7 @@ and tests. Implement one issue at a time.
   - Low. Docs can be revised independently.
 - Stop/ask if:
   - The dashboard page sequence or visual design needs user approval.
-- Status: pending
+- Status: completed in #90 / commit `c2739ac`
 
 ## Final Verification
 
