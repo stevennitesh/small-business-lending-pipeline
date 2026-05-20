@@ -22,6 +22,9 @@ FACT_MODELS = {
     "fact_bds_state_year": Path("dbt/models/marts/facts/fact_bds_state_year.sql"),
 }
 
+SEED_SCHEMA = Path("dbt/seeds/schema.yml")
+LOAN_STATUS_SEED = Path("dbt/seeds/ref_loan_status_group.csv")
+
 
 def test_required_mart_models_exist():
     required_paths = [*DIMENSION_MODELS.values(), *FACT_MODELS.values()]
@@ -122,6 +125,69 @@ def test_fact_sba_loans_exposes_canonical_approval_year():
     assert "coalesce(" in model_sql
     assert "extract(year from approval_date)::integer" in model_sql
     assert ") as approval_year" in model_sql
+
+
+def test_fact_sba_loans_exposes_extra_kpi_fields_and_status_group():
+    model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    fact_sba = models["fact_sba_loans"]
+
+    assert "ref('ref_loan_status_group')" in model_sql
+    assert "loans.loan_status_key = status.loan_status_key" in model_sql
+    assert "coalesce(status.loan_status_group, 'unmapped')" in model_sql
+
+    expected_columns = {
+        "loan_status",
+        "loan_status_key",
+        "loan_status_group",
+        "loan_status_group_label",
+        "is_credit_loss_status",
+        "loan_status_sort_order",
+        "paid_in_full_date",
+        "chargeoff_date",
+        "fixed_or_variable_interest_indicator",
+        "third_party_dollars",
+        "business_type",
+        "business_age",
+        "revolver_status",
+        "collateral_indicator",
+        "sold_secondary_market_indicator",
+    }
+    declared_columns = {column["name"] for column in fact_sba["columns"]}
+
+    assert expected_columns <= declared_columns
+
+
+def test_loan_status_group_seed_is_documented_and_conservative():
+    seed_schema = yaml.safe_load(SEED_SCHEMA.read_text())
+    seeds = {seed["name"]: seed for seed in seed_schema["seeds"]}
+    seed_rows = LOAN_STATUS_SEED.read_text(encoding="utf-8").splitlines()
+    header = seed_rows[0].split(",")
+    rows = [dict(zip(header, row.split(","))) for row in seed_rows[1:]]
+    status_keys = {row["loan_status_key"] for row in rows}
+    credit_loss_statuses = {
+        row["loan_status_key"]
+        for row in rows
+        if row["is_credit_loss_status"] == "true"
+    }
+
+    assert "ref_loan_status_group" in seeds
+    assert {"not_null", "unique"} <= _test_names(
+        _column(seeds["ref_loan_status_group"], "loan_status_key")["tests"]
+    )
+    assert {
+        "P I F",
+        "CURR",
+        "CANCLD",
+        "CHGOFF",
+        "CHARGED-OFF",
+        "DELINQ",
+        "PSTDUE",
+        "CLSLN",
+        "UNKNOWN",
+    } <= status_keys
+    assert credit_loss_statuses == {"CHGOFF", "CHARGED-OFF"}
 
 
 def _column(model: dict, name: str) -> dict:

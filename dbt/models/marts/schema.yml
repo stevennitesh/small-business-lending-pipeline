@@ -154,6 +154,36 @@ models:
                 field: date_key
       - name: approval_year
         description: Approval calendar year when approval date is available, otherwise approval fiscal year.
+      - name: loan_status
+        description: Raw SBA loan status value preserved for status-mix auditability.
+      - name: loan_status_key
+        description: Uppercase normalized SBA loan status value used to join status grouping.
+      - name: loan_status_group
+        description: Stable status group used for loan performance KPI calculations.
+      - name: loan_status_group_label
+        description: Display label for the loan status group.
+      - name: is_credit_loss_status
+        description: True when the raw status explicitly represents a charged-off loan.
+      - name: loan_status_sort_order
+        description: Display sort order for grouped loan statuses.
+      - name: paid_in_full_date
+        description: Source-reported paid-in-full date when available.
+      - name: chargeoff_date
+        description: Source-reported charge-off date when available.
+      - name: fixed_or_variable_interest_indicator
+        description: Source-reported fixed or variable interest-rate indicator where available, primarily 7(a).
+      - name: third_party_dollars
+        description: Source-reported 504 third-party financing dollars where available.
+      - name: business_type
+        description: Source-reported SBA business type.
+      - name: business_age
+        description: Source-reported SBA business age category.
+      - name: revolver_status
+        description: Source-reported revolving credit status where available.
+      - name: collateral_indicator
+        description: Source-reported collateral indicator where available.
+      - name: sold_secondary_market_indicator
+        description: Source-reported secondary-market sale indicator where available.
 
   - name: fact_laus_state_month
     description: Monthly state LAUS unemployment-rate fact table.

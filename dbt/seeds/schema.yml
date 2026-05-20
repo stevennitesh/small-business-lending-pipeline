@@ -40,3 +40,28 @@ seeds:
         tests:
           - not_null
           - unique
+
+  - name: ref_loan_status_group
+    description: Route-neutral grouping for raw SBA loan status values used by performance marts.
+    columns:
+      - name: loan_status_key
+        description: Uppercase normalized raw SBA loan status value, or UNKNOWN for missing status.
+        tests:
+          - not_null
+          - unique
+      - name: loan_status_group
+        description: Stable machine-readable status group for KPI calculations.
+        tests:
+          - not_null
+      - name: loan_status_group_label
+        description: Display label for the status group.
+        tests:
+          - not_null
+      - name: is_credit_loss_status
+        description: Boolean flag for raw statuses that explicitly represent charged-off loans.
+        tests:
+          - not_null
+      - name: status_sort_order
+        description: Numeric display sort order for status groups.
+        tests:
+          - not_null

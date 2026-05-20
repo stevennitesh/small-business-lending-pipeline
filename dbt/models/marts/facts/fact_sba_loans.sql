@@ -7,7 +7,11 @@ with loans as (
             when substr(naics_code, 1, 2) in ('44', '45') then '44-45'
             when substr(naics_code, 1, 2) in ('48', '49') then '48-49'
             else substr(naics_code, 1, 2)
-        end as naics_sector_key
+        end as naics_sector_key,
+        coalesce(
+            nullif(upper(trim(cast(loan_status as varchar))), ''),
+            'UNKNOWN'
+        ) as loan_status_key
     from {{ ref('stg_sba_loans') }}
 )
 
@@ -45,6 +49,20 @@ select
     processing_method,
     subprogram,
     loan_status,
+    loans.loan_status_key,
+    coalesce(status.loan_status_group, 'unmapped') as loan_status_group,
+    coalesce(status.loan_status_group_label, 'Unmapped or unknown') as loan_status_group_label,
+    coalesce(status.is_credit_loss_status, false) as is_credit_loss_status,
+    status.status_sort_order as loan_status_sort_order,
+    paid_in_full_date,
+    chargeoff_date,
+    fixed_or_variable_interest_indicator,
+    third_party_dollars,
+    business_type,
+    business_age,
+    revolver_status,
+    collateral_indicator,
+    sold_secondary_market_indicator,
     loans.pipeline_run_id,
     loans.source_resource_name,
     loans.storage_backend,
@@ -56,5 +74,7 @@ left join {{ ref('dim_lender') }} as lender
     on loans.lender_name = lender.lender_name
 left join {{ ref('dim_naics') }} as naics
     on loans.naics_sector_key = naics.naics_key
+left join {{ ref('ref_loan_status_group') }} as status
+    on loans.loan_status_key = status.loan_status_key
 left join {{ ref('dim_source_file') }} as source_file
     on loans.raw_uri = source_file.raw_uri
