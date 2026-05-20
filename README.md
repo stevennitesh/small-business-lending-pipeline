@@ -226,6 +226,12 @@ Cloud route output:
 - dbt models built with target `prod_snowflake`;
 - Power BI connects to Snowflake BI tables, not raw files.
 
+The local and cloud routes build the same dbt BI contract. Local runs export
+`BI_EXPORT_TABLES` as CSV files under `data/exports/powerbi`; cloud runs build
+the same logical BI table names in the configured Snowflake BI schema. The extra
+SBA KPI contract includes `bi_lending_performance`, `bi_lending_status_mix`,
+`bi_lending_terms_pricing`, and `bi_lending_jobs_impact`.
+
 dbt and Snowflake raw loading both use `RAW_SCHEMA` for the raw warehouse schema.
 
 The cloud route is still launched by the local CLI/Prefect runner for the MVP. Temporary runner files may exist while a task runs, but the durable cloud handoff is S3 object identity plus Snowflake tables. Run summaries record the local compatibility validation path, the durable validation URI, and manifest artifact URIs when cloud artifacts are present.
