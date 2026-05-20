@@ -16,6 +16,10 @@ BI_MODELS = {
     ),
     "bi_pipeline_health": Path("dbt/models/bi/bi_pipeline_health.sql"),
     "bi_lender_mix": Path("dbt/models/bi/bi_lender_mix.sql"),
+    "bi_lending_performance": Path("dbt/models/bi/bi_lending_performance.sql"),
+    "bi_lending_status_mix": Path("dbt/models/bi/bi_lending_status_mix.sql"),
+    "bi_lending_terms_pricing": Path("dbt/models/bi/bi_lending_terms_pricing.sql"),
+    "bi_lending_jobs_impact": Path("dbt/models/bi/bi_lending_jobs_impact.sql"),
     "bi_state_filter": Path("dbt/models/bi/bi_state_filter.sql"),
     "bi_year_filter": Path("dbt/models/bi/bi_year_filter.sql"),
     "bi_loan_program_filter": Path("dbt/models/bi/bi_loan_program_filter.sql"),
@@ -100,6 +104,33 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
             "lender_name",
             "lender_approved_amount_share",
             "lender_rank",
+        },
+        "bi_lending_performance": {
+            "gross_chargeoff_amount",
+            "charged_off_loan_count",
+            "chargeoff_amount_rate",
+            "charged_off_loan_count_rate",
+        },
+        "bi_lending_status_mix": {
+            "loan_status_group",
+            "loan_status_group_label",
+            "status_group_approved_amount_share",
+            "status_group_loan_count_share",
+        },
+        "bi_lending_terms_pricing": {
+            "term_coverage_rate",
+            "average_initial_interest_rate",
+            "fixed_interest_loan_share",
+            "variable_interest_loan_share",
+            "seven_a_sba_guarantee_rate",
+            "third_party_dollars",
+        },
+        "bi_lending_jobs_impact": {
+            "jobs_supported_coverage_rate",
+            "total_jobs_supported",
+            "jobs_supported_per_loan",
+            "jobs_supported_per_1m_approved",
+            "approved_loan_dollars_per_job_supported",
         },
         "bi_state_filter": {
             "state_key",
@@ -238,6 +269,10 @@ def test_bi_filter_tables_are_built_from_dbt_models():
         "bi_program_mix",
         "bi_regional_business_health",
         "bi_lender_mix",
+        "bi_lending_performance",
+        "bi_lending_status_mix",
+        "bi_lending_terms_pricing",
+        "bi_lending_jobs_impact",
     ):
         assert f"ref('{year_source}')" in year_sql
     assert "where year is not null" in year_sql

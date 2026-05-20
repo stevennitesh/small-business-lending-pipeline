@@ -188,6 +188,13 @@ def _fixture_expression(column_name: str) -> str:
         return f"1 as {column_name}"
     if column_name.endswith("_amount") or column_name.endswith("_share"):
         return f"1.0 as {column_name}"
+    if (
+        column_name.endswith("_rate")
+        or column_name.endswith("_months")
+        or column_name.endswith("_dollars")
+        or "_per_" in column_name
+    ):
+        return f"1.0 as {column_name}"
     if column_name.endswith("_status"):
         return f"'passed' as {column_name}"
     if column_name.endswith("_year") or column_name == "year":

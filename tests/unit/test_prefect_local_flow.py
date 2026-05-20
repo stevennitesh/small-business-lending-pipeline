@@ -12,6 +12,14 @@ from pipelines.validation.validation_result import ValidationFailedError
 from scripts.export_powerbi_tables import BI_EXPORT_TABLES
 
 
+EXTRA_SBA_KPI_BI_TABLES = {
+    "bi_lending_performance",
+    "bi_lending_status_mix",
+    "bi_lending_terms_pricing",
+    "bi_lending_jobs_impact",
+}
+
+
 def test_local_flow_declares_expected_stage_order():
     assert local_flow.LOCAL_FLOW_STAGES == (
         "initialize_run",
@@ -69,7 +77,42 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path):
     )
 
     assert local_flow.BI_TABLES == BI_EXPORT_TABLES
+    assert EXTRA_SBA_KPI_BI_TABLES <= set(local_flow.BI_TABLES)
     assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
+
+
+def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="expanded-powerbi-contract",
+    )
+    bi_row_counts = {table_name: 1 for table_name in local_flow.BI_TABLES}
+    export_paths = [
+        str(context.run_export_dir / f"{table_name}.csv")
+        for table_name in local_flow.BI_TABLES
+    ]
+
+    summary_path = local_flow.write_run_summary.fn(
+        context,
+        status="success",
+        completed_stages=["validate_bi_tables", "export_bi_tables"],
+        bi_row_counts=bi_row_counts,
+        export_paths=export_paths,
+    )
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert EXTRA_SBA_KPI_BI_TABLES <= set(summary["bi_row_counts"])
+    assert {
+        f"{table_name}.csv"
+        for table_name in EXTRA_SBA_KPI_BI_TABLES
+    } <= {Path(path).name for path in summary["export_paths"]}
 
 
 def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
@@ -196,6 +239,41 @@ def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "CUSTOM_BI")
 
     assert local_flow._snowflake_bi_schema() == "CUSTOM_BI"
+
+
+def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(monkeypatch):
+    executed_sql: list[str] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return None
+
+        def execute(self, sql):
+            executed_sql.append(sql)
+
+        def fetchone(self):
+            return (1,)
+
+    class FakeConnection:
+        def cursor(self):
+            return FakeCursor()
+
+        def close(self):
+            return None
+
+    monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI")
+    monkeypatch.setattr(local_flow.SnowflakeConfig, "from_env", lambda: object())
+    monkeypatch.setattr(local_flow, "connect_to_snowflake", lambda config: FakeConnection())
+    monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
+
+    row_counts = local_flow._validate_snowflake_bi_tables()
+
+    assert row_counts == {table_name: 1 for table_name in local_flow.BI_TABLES}
+    for table_name in EXTRA_SBA_KPI_BI_TABLES:
+        assert f"SMOKE_BI.{table_name.upper()}" in "\n".join(executed_sql)
 
 
 def test_raw_artifact_store_matches_route(tmp_path):

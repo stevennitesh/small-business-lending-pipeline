@@ -202,6 +202,166 @@ models:
       - name: lender_rank
         description: Known lender rank by approved dollars in the state-year.
 
+  - name: bi_lending_performance
+    description: Dashboard-ready annual state loan performance and charge-off metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Average approved loan size.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA.
+      - name: charged_off_loan_count
+        description: Count of loans whose grouped status is explicitly charged-off.
+      - name: chargeoff_amount_rate
+        description: Gross charge-off dollars divided by approved dollars as a decimal ratio.
+      - name: charged_off_loan_count_rate
+        description: Charged-off loan count divided by approved loan count as a decimal ratio.
+
+  - name: bi_lending_status_mix
+    description: Dashboard-ready annual state loan-status mix metrics.
+    meta:
+      grain: one row per state, approval year, and loan status group
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_status_group"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_status_group
+        description: Stable status group used for loan performance KPI calculations.
+      - name: loan_status_group_label
+        description: Display label for the loan status group.
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars for the status group.
+      - name: loan_count
+        description: SBA approved loan count for the status group.
+      - name: average_loan_size
+        description: Average approved loan size for the status group.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for the status group.
+      - name: charged_off_loan_count
+        description: Count of status-group loans whose grouped status is explicitly charged-off.
+      - name: status_group_approved_amount_share
+        description: Status-group share of approved dollars in the state-year as a decimal ratio.
+      - name: status_group_loan_count_share
+        description: Status-group share of approved loan count in the state-year as a decimal ratio.
+
+  - name: bi_lending_terms_pricing
+    description: Dashboard-ready annual state loan term, pricing coverage, guarantee, and 504 financing metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Average approved loan size.
+      - name: term_coverage_count
+        description: Number of loans with a reported term in months.
+      - name: term_coverage_rate
+        description: Share of loans with a reported term in months as a decimal ratio.
+      - name: average_term_months
+        description: Average reported loan term in months.
+      - name: initial_interest_rate_coverage_count
+        description: Number of loans with a reported initial interest rate.
+      - name: initial_interest_rate_coverage_rate
+        description: Share of loans with a reported initial interest rate as a decimal ratio.
+      - name: average_initial_interest_rate
+        description: Average reported initial interest rate as a decimal ratio.
+      - name: interest_type_coverage_count
+        description: Number of loans with a reported fixed or variable interest type.
+      - name: fixed_interest_loan_count
+        description: Number of loans reported with fixed interest type.
+      - name: variable_interest_loan_count
+        description: Number of loans reported with variable interest type.
+      - name: fixed_interest_loan_share
+        description: Fixed-interest share among loans with a reported interest type as a decimal ratio.
+      - name: variable_interest_loan_share
+        description: Variable-interest share among loans with a reported interest type as a decimal ratio.
+      - name: seven_a_approved_loan_amount
+        description: SBA 7(a) approved dollars.
+      - name: sba_guaranteed_approval_amount
+        description: SBA-guaranteed approved dollars reported for SBA 7(a) loans.
+      - name: seven_a_sba_guarantee_rate
+        description: SBA-guaranteed approved dollars divided by SBA 7(a) approved dollars as a decimal ratio.
+      - name: third_party_dollars
+        description: Third-party financing dollars reported for SBA 504 loans.
+      - name: third_party_to_approved_amount_rate
+        description: Third-party financing dollars divided by approved dollars as a decimal ratio.
+
+  - name: bi_lending_jobs_impact
+    description: Dashboard-ready annual state descriptive jobs-supported efficiency metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Approved SBA loan dollars.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Average approved loan size.
+      - name: jobs_supported_coverage_count
+        description: Number of loans with a reported jobs-supported value.
+      - name: jobs_supported_coverage_rate
+        description: Share of loans with a reported jobs-supported value as a decimal ratio.
+      - name: total_jobs_supported
+        description: Source-reported total jobs supported; descriptive and not causal.
+      - name: jobs_supported_per_loan
+        description: Source-reported jobs supported divided by loan count; descriptive, not causal.
+      - name: jobs_supported_per_1m_approved
+        description: Source-reported jobs supported per $1M approved; descriptive, not causal.
+      - name: approved_loan_dollars_per_job_supported
+        description: Approved dollars divided by source-reported jobs supported; descriptive, not causal.
+
   - name: bi_state_filter
     description: Dashboard-ready state and region filter helper.
     meta:

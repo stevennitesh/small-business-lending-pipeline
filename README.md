@@ -90,9 +90,18 @@ Compatibility/testing helpers still exist for narrow checks, such as uploading l
 | Lender concentration | Top 1 lender share, top 5 lender share, active lender count |
 | Industry mix | Approved amount by NAICS sector, industry share, average loan size by sector |
 | Program mix | 7(a) versus 504 approved amount and share |
+| Loan performance | Status mix, gross charge-off dollars, charge-off dollar rate, charged-off loan count rate |
+| Terms, pricing, and financing | Average term, interest-rate coverage, average initial interest rate, 7(a) guarantee rate, 504 third-party financing |
+| Jobs-supported context | Source-reported jobs supported, jobs per loan, jobs per `$1M` approved, dollars per reported job |
 | Regional context | Loans per 1,000 establishments, dollars per establishment, establishment entry rate |
 | Labor-market context | Unemployment rate, YoY unemployment percentage-point change |
 | Pipeline health | Source freshness, validation pass rate, latest successful run, dbt test status |
+
+Extra SBA KPIs use only fields already present in the SBA FOIA data. They do not
+claim application volume, approval rates, denial rates, borrower credit risk, or
+unmet demand. Interest-rate fields are coverage-aware and primarily available for
+7(a). Jobs-supported metrics are descriptive source-reported indicators, not
+causal job-creation claims.
 
 ## Power BI Dashboard Pages
 
@@ -102,6 +111,10 @@ Compatibility/testing helpers still exist for narrow checks, such as uploading l
 4. **Industry and Program Mix** — NAICS sector lending and 7(a) versus 504 mix.
 5. **Regional Business Health** — lending normalized by establishments and business-health context.
 6. **Data Quality and Pipeline Health** — source freshness, validation pass rate, row counts, failed/warning checks.
+
+The dbt and Power BI contracts now include extra SBA KPI tables for future
+report pages, but adding or revising PBIX visuals remains a manual Power BI
+Desktop step.
 
 ## Screenshots
 
@@ -225,6 +238,12 @@ Cloud route output:
 - Snowflake `RAW`, `STAGING`, `INTERMEDIATE`, `MARTS`, `BI`, and `AUDIT` schemas;
 - dbt models built with target `prod_snowflake`;
 - Power BI connects to Snowflake BI tables, not raw files.
+
+The local and cloud routes build the same dbt BI contract. Local runs export
+`BI_EXPORT_TABLES` as CSV files under `data/exports/powerbi`; cloud runs build
+the same logical BI table names in the configured Snowflake BI schema. The extra
+SBA KPI contract includes `bi_lending_performance`, `bi_lending_status_mix`,
+`bi_lending_terms_pricing`, and `bi_lending_jobs_impact`.
 
 dbt and Snowflake raw loading both use `RAW_SCHEMA` for the raw warehouse schema.
 
