@@ -21,3 +21,5 @@ The target desktop artifact is `powerbi/lending_dashboard.pbix`, but PBIX creati
 The model should use dbt-produced BI filter tables, including `bi_state_filter`, `bi_year_filter`, `bi_loan_program_filter`, `bi_naics_filter`, and `bi_lender_filter`. Do not connect to raw files or expose borrower-level fields.
 
 Extra SBA KPI pages can use the dbt-produced BI tables `bi_lending_performance`, `bi_lending_status_mix`, `bi_lending_terms_pricing`, and `bi_lending_jobs_impact`. For local mode these are CSV files in `data/exports/powerbi`; for cloud mode they are the same logical table names in `${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}`.
+
+Those extra tables are available in the source-controlled contract, but the PBIX visuals still need to be updated manually in Power BI Desktop. Do not add application-volume, approval-rate, denial-rate, credit-risk, or causal jobs-created visuals from the current MVP data.

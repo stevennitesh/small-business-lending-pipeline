@@ -314,6 +314,35 @@ sum(sba_guaranteed_amount) / nullif(sum(gross_approval_amount), 0) as sba_guaran
 
 ---
 
+# Existing SBA Extra KPI Set
+
+These KPIs use fields already present in the SBA 7(a) and 504 FOIA extracts.
+They do not require new public sources, and they should not be described as
+approval-rate, denial-rate, application-volume, borrower-risk, or unmet-demand
+metrics.
+
+| KPI | Formula | Grain | BI table | Caveat |
+|---|---|---|---|---|
+| `gross_chargeoff_amount` | `sum(gross_chargeoff_amount)` | State-year | `bi_lending_performance` | Source-reported charge-off dollars for approved loans; not a full loss forecast. |
+| `chargeoff_amount_rate` | `gross_chargeoff_amount / total_approved_loan_amount` | State-year | `bi_lending_performance` | Decimal ratio; denominator is approved dollars, not outstanding balance. |
+| `charged_off_loan_count_rate` | `charged_off_loan_count / loan_count` | State-year | `bi_lending_performance` | Uses explicit charged-off status grouping; canceled/not-funded loans are not credit losses. |
+| `status_group_approved_amount_share` | Status-group approved dollars / state-year approved dollars | State-year-status | `bi_lending_status_mix` | Status groups are descriptive and keep unmapped/unknown values visible. |
+| `average_term_months` | `avg(term_months)` | State-year | `bi_lending_terms_pricing` | Computed only where source term is reported. |
+| `average_initial_interest_rate` | `avg(initial_interest_rate / 100)` | State-year | `bi_lending_terms_pricing` | Decimal ratio; primarily available for 7(a), so pair with coverage. |
+| `initial_interest_rate_coverage_rate` | Loans with initial rate / loan count | State-year | `bi_lending_terms_pricing` | Shows how complete the interest-rate field is before interpreting averages. |
+| `fixed_interest_loan_share` | Fixed-rate loans / loans with reported rate type | State-year | `bi_lending_terms_pricing` | Share among loans with fixed/variable type reported. |
+| `seven_a_sba_guarantee_rate` | SBA-guaranteed dollars / 7(a) approved dollars | State-year | `bi_lending_terms_pricing` | 7(a)-specific guarantee metric; keep distinct from 504 financing. |
+| `third_party_dollars` | `sum(third_party_dollars)` | State-year | `bi_lending_terms_pricing` | 504 third-party financing, not SBA guarantee dollars. |
+| `total_jobs_supported` | `sum(jobs_supported)` | State-year | `bi_lending_jobs_impact` | Source-reported and descriptive; not a causal jobs-created claim. |
+| `jobs_supported_per_loan` | `total_jobs_supported / loan_count` | State-year | `bi_lending_jobs_impact` | Descriptive efficiency metric. |
+| `jobs_supported_per_1m_approved` | `total_jobs_supported / (approved dollars / 1,000,000)` | State-year | `bi_lending_jobs_impact` | Descriptive and sensitive to nominal approved dollars. |
+| `approved_loan_dollars_per_job_supported` | Approved dollars / jobs supported | State-year | `bi_lending_jobs_impact` | Null when jobs-supported denominator is zero. |
+
+All rates and shares are modeled as decimal values. Power BI owns percentage
+formatting, display labels, slicers, relationships, and report layout.
+
+---
+
 # Lending Trend KPIs
 
 ## KPI: Approved Loan Amount Year-over-Year Growth
@@ -1408,6 +1437,16 @@ The MVP dashboard should not try to show every metric. Start with a compact, hig
 | `industry_approved_amount_share` | Yes |
 | `program_approved_loan_amount` | Yes |
 | `program_approved_amount_share` | Yes |
+| `gross_chargeoff_amount` | Optional |
+| `chargeoff_amount_rate` | Optional |
+| `charged_off_loan_count_rate` | Optional |
+| `average_term_months` | Optional |
+| `average_initial_interest_rate` | Optional |
+| `initial_interest_rate_coverage_rate` | Optional |
+| `seven_a_sba_guarantee_rate` | Optional |
+| `third_party_dollars` | Optional |
+| `total_jobs_supported` | Optional |
+| `jobs_supported_per_1m_approved` | Optional |
 
 ## Business Context KPIs
 
@@ -1450,6 +1489,17 @@ The MVP dashboard should not try to show every metric. Start with a compact, hig
 | `industry_approved_loan_amount` | `mart_lending_industry_state_period` |
 | `industry_approved_amount_share` | `mart_lending_industry_state_period` |
 | `program_approved_loan_amount` | `mart_lending_program_state_period` |
+| `gross_chargeoff_amount` | `mart_lending_performance_state_period`, `bi_lending_performance` |
+| `chargeoff_amount_rate` | `mart_lending_performance_state_period`, `bi_lending_performance` |
+| `charged_off_loan_count_rate` | `mart_lending_performance_state_period`, `bi_lending_performance` |
+| `status_group_approved_amount_share` | `mart_lending_status_mix_state_period`, `bi_lending_status_mix` |
+| `average_term_months` | `mart_lending_terms_pricing_state_period`, `bi_lending_terms_pricing` |
+| `average_initial_interest_rate` | `mart_lending_terms_pricing_state_period`, `bi_lending_terms_pricing` |
+| `initial_interest_rate_coverage_rate` | `mart_lending_terms_pricing_state_period`, `bi_lending_terms_pricing` |
+| `seven_a_sba_guarantee_rate` | `mart_lending_terms_pricing_state_period`, `bi_lending_terms_pricing` |
+| `third_party_dollars` | `mart_lending_terms_pricing_state_period`, `bi_lending_terms_pricing` |
+| `total_jobs_supported` | `mart_lending_jobs_impact_state_period`, `bi_lending_jobs_impact` |
+| `jobs_supported_per_1m_approved` | `mart_lending_jobs_impact_state_period`, `bi_lending_jobs_impact` |
 | `establishment_count` | `mart_business_dynamics_annual_state` |
 | `establishment_entry_rate` | `mart_business_dynamics_annual_state` |
 | `establishment_exit_rate` | `mart_business_dynamics_annual_state` |
@@ -1506,6 +1556,10 @@ The Power BI dashboard should include concise notes or an information page with 
 2. **Approval activity, not performance**  
    Approved loan amount measures origination or approval activity. It does not measure repayment, delinquency, default, or loss performance.
 
+   The extra SBA performance tables include source-reported status and
+   charge-off fields, but they are still descriptive historical aggregates.
+   They are not credit-risk scores, default forecasts, or loss-reserve models.
+
 3. **Nominal dollars**  
    Dollar metrics are nominal unless an inflation-adjusted version is explicitly created.
 
@@ -1515,8 +1569,15 @@ The Power BI dashboard should include concise notes or an information page with 
 5. **Descriptive analytics only**  
    Comparisons with business formation or unemployment are descriptive. They should not be interpreted as causal analysis.
 
+   Jobs-supported KPIs are also descriptive. They report SBA source fields and
+   should not be labeled as causal jobs created by lending.
+
 6. **No machine learning model**  
    The MVP does not train or deploy predictive models.
+
+7. **No application funnel metrics**
+   The current sources do not support application volume, approval rate, denial
+   rate, or unmet-demand metrics.
 
 7. **Public data limitations**  
    Source data may contain reporting delays, revisions, missing values, or field-level inconsistencies across historical files.
