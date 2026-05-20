@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 import duckdb
 import pytest
+from pandas.errors import DtypeWarning
 
+from pipelines.load import raw_load_common
 from pipelines.load.duckdb_loader import (
     RAW_TABLES,
     RawLoadError,
@@ -225,6 +228,41 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
     ]
     expected_manifest = json.loads(manifests["sba_7a"][0].read_text(encoding="utf-8"))
     assert loaded_raw_uri == [("local", expected_manifest["raw_uri"])]
+
+
+def test_load_raw_extracts_reads_sba_csvs_without_dtype_warnings(
+    tmp_path, monkeypatch
+):
+    manifests = _build_fixture_manifests(tmp_path)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+    original_read_csv = raw_load_common.pd.read_csv
+
+    def warning_read_csv(*args, **kwargs):
+        if kwargs.get("low_memory") is not False:
+            warnings.warn("mixed types", DtypeWarning, stacklevel=2)
+        return original_read_csv(*args, **kwargs)
+
+    monkeypatch.setattr(raw_load_common.pd, "read_csv", warning_read_csv)
+
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always", DtypeWarning)
+        load_raw_extracts(
+            duckdb_path=tmp_path / "warehouse.duckdb",
+            sba_7a_manifest_paths=manifests["sba_7a"],
+            sba_504_manifest_paths=manifests["sba_504"],
+            census_bds_manifest_paths=manifests["census"],
+            bls_laus_manifest_paths=manifests["bls"],
+            validation_result_paths=[validation_path],
+        )
+
+    assert not [
+        warning
+        for warning in caught_warnings
+        if issubclass(warning.category, DtypeWarning)
+    ]
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):

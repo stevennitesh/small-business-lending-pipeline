@@ -155,7 +155,7 @@ def _table_key(table_name: str) -> str:
 def _read_manifest_frame(table_kind: str, manifest: dict[str, Any]) -> pd.DataFrame:
     raw_path = Path(manifest["local_raw_path"])
     if table_kind == "sba_csv":
-        return pd.read_csv(raw_path)
+        return pd.read_csv(raw_path, low_memory=False)
     if table_kind == "census_bds_json":
         return _read_census_bds_json(raw_path)
     if table_kind == "bls_laus_json":
