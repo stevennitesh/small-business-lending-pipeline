@@ -217,3 +217,119 @@ models:
               arguments:
                 min_value: 0
                 max_value: 1
+
+  - name: mart_lending_performance_state_period
+    description: Annual state-level loan performance and charge-off KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar approval year when approval date is available, otherwise approval fiscal year.
+      - name: total_approved_loan_amount
+        description: Total gross approval amount in the state-year.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan in the state-year.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: charged_off_loan_count
+        description: Number of loans whose grouped status is explicitly charged-off.
+        data_tests:
+          - non_negative
+      - name: chargeoff_amount_rate
+        description: Gross charge-off dollars divided by approved dollars as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: charged_off_loan_count_rate
+        description: Charged-off loan count divided by loan count as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_lending_status_mix_state_period
+    description: Annual state-level lending status mix mart.
+    meta:
+      grain: one row per project state, approval year, and loan status group
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_status_group"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar approval year when approval date is available, otherwise approval fiscal year.
+      - name: loan_status_group
+        description: Stable status group used for loan performance KPI calculations.
+        data_tests:
+          - not_null
+      - name: loan_status_group_label
+        description: Display label for the loan status group.
+        data_tests:
+          - not_null
+      - name: loan_status_sort_order
+        description: Display sort order for grouped loan statuses.
+      - name: total_approved_loan_amount
+        description: Total gross approval amount for the status group in the state-year.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans in the status group in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Average gross approval amount per loan for the status group in the state-year.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for the status group in the state-year.
+        data_tests:
+          - non_negative
+      - name: charged_off_loan_count
+        description: Number of loans in the status group whose grouped status is explicitly charged-off.
+        data_tests:
+          - non_negative
+      - name: status_group_approved_amount_share
+        description: Status-group share of approved dollars within the state-year as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: status_group_loan_count_share
+        description: Status-group share of loan count within the state-year as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1

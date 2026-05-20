@@ -22,6 +22,12 @@ LENDING_MARTS = {
     "mart_lending_program_state_period": Path(
         "dbt/models/marts/lending/mart_lending_program_state_period.sql"
     ),
+    "mart_lending_performance_state_period": Path(
+        "dbt/models/marts/lending/mart_lending_performance_state_period.sql"
+    ),
+    "mart_lending_status_mix_state_period": Path(
+        "dbt/models/marts/lending/mart_lending_status_mix_state_period.sql"
+    ),
 }
 
 
@@ -97,6 +103,8 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         "assert_mart_lending_lender_state_period_reconciles.sql",
         "assert_mart_lending_industry_state_period_reconciles.sql",
         "assert_mart_lending_program_state_period_reconciles.sql",
+        "assert_mart_lending_performance_reconciles.sql",
+        "assert_mart_lending_status_mix_reconciles.sql",
         "assert_bi_lender_mix_excludes_unknown.sql",
     } <= singular_tests
 
@@ -108,6 +116,8 @@ def test_state_lending_marts_exclude_unmapped_project_states():
         "mart_lending_lender_state_period",
         "mart_lending_industry_state_period",
         "mart_lending_program_state_period",
+        "mart_lending_performance_state_period",
+        "mart_lending_status_mix_state_period",
     ):
         model_sql = LENDING_MARTS[model_name].read_text(encoding="utf-8")
 
@@ -177,6 +187,66 @@ def test_lender_concentration_exposes_top_1_and_top_5_metrics():
         assert expected_column in concentration_sql
     assert "top_1_approved_loan_amount > concentration.top_5_approved_loan_amount" in (
         concentration_test_sql
+    )
+
+
+def test_lending_performance_mart_uses_status_group_without_canceled_losses():
+    performance_sql = LENDING_MARTS[
+        "mart_lending_performance_state_period"
+    ].read_text(encoding="utf-8")
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    performance_columns = {
+        column["name"]: column
+        for column in models["mart_lending_performance_state_period"]["columns"]
+    }
+
+    assert "fact.is_credit_loss_status" in performance_sql
+    assert "loan_status" not in performance_sql
+    assert "canceled" not in performance_sql.lower()
+    assert "safe_divide" in performance_sql
+    assert "gross_chargeoff_amount" in performance_columns
+    assert "charged_off_loan_count" in performance_columns
+    assert "accepted_range" in _test_names(
+        performance_columns["chargeoff_amount_rate"]["data_tests"]
+    )
+    assert "decimal ratio" in performance_columns["chargeoff_amount_rate"]["description"]
+    assert "explicitly charged-off" in performance_columns[
+        "charged_off_loan_count"
+    ]["description"]
+
+
+def test_lending_status_mix_mart_reconciles_status_group_shares():
+    status_mix_sql = LENDING_MARTS[
+        "mart_lending_status_mix_state_period"
+    ].read_text(encoding="utf-8")
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    status_mix_columns = {
+        column["name"]: column
+        for column in models["mart_lending_status_mix_state_period"]["columns"]
+    }
+    reconciliation_sql = Path(
+        "dbt/tests/assert_mart_lending_status_mix_reconciles.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "loan_status_group" in status_mix_sql
+    assert "loan_status_group_label" in status_mix_sql
+    assert "loan_status_sort_order" in status_mix_sql
+    assert "mart_lending_performance_state_period" in status_mix_sql
+    assert "status_group_approved_amount_share" in status_mix_columns
+    assert "status_group_loan_count_share" in status_mix_columns
+    for share_column in (
+        "status_group_approved_amount_share",
+        "status_group_loan_count_share",
+    ):
+        assert "accepted_range" in _test_names(
+            status_mix_columns[share_column]["data_tests"]
+        )
+    assert "approved_amount_share_sum" in reconciliation_sql
+    assert "loan_count_share_sum" in reconciliation_sql
+    assert "abs(coalesce(status_totals.loan_count_share_sum, 0) - 1)" in (
+        reconciliation_sql
     )
 
 
