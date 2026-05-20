@@ -28,6 +28,12 @@ LENDING_MARTS = {
     "mart_lending_status_mix_state_period": Path(
         "dbt/models/marts/lending/mart_lending_status_mix_state_period.sql"
     ),
+    "mart_lending_terms_pricing_state_period": Path(
+        "dbt/models/marts/lending/mart_lending_terms_pricing_state_period.sql"
+    ),
+    "mart_lending_jobs_impact_state_period": Path(
+        "dbt/models/marts/lending/mart_lending_jobs_impact_state_period.sql"
+    ),
 }
 
 
@@ -105,6 +111,8 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         "assert_mart_lending_program_state_period_reconciles.sql",
         "assert_mart_lending_performance_reconciles.sql",
         "assert_mart_lending_status_mix_reconciles.sql",
+        "assert_mart_lending_terms_pricing_reconciles.sql",
+        "assert_mart_lending_jobs_impact_reconciles.sql",
         "assert_bi_lender_mix_excludes_unknown.sql",
     } <= singular_tests
 
@@ -118,6 +126,8 @@ def test_state_lending_marts_exclude_unmapped_project_states():
         "mart_lending_program_state_period",
         "mart_lending_performance_state_period",
         "mart_lending_status_mix_state_period",
+        "mart_lending_terms_pricing_state_period",
+        "mart_lending_jobs_impact_state_period",
     ):
         model_sql = LENDING_MARTS[model_name].read_text(encoding="utf-8")
 
@@ -248,6 +258,79 @@ def test_lending_status_mix_mart_reconciles_status_group_shares():
     assert "abs(coalesce(status_totals.loan_count_share_sum, 0) - 1)" in (
         reconciliation_sql
     )
+
+
+def test_lending_terms_pricing_mart_documents_availability_and_program_semantics():
+    terms_sql = LENDING_MARTS[
+        "mart_lending_terms_pricing_state_period"
+    ].read_text(encoding="utf-8")
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    terms_columns = {
+        column["name"]: column
+        for column in models["mart_lending_terms_pricing_state_period"]["columns"]
+    }
+    reconciliation_sql = Path(
+        "dbt/tests/assert_mart_lending_terms_pricing_reconciles.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "fact.initial_interest_rate / 100" in terms_sql
+    assert "initial_interest_rate_coverage_count" in terms_sql
+    assert "fixed_or_variable_interest_indicator" in terms_sql
+    assert "fact.loan_program_key = '7a'" in terms_sql
+    assert "third_party_dollars" in terms_sql
+    assert "seven_a_approved_loan_amount" in terms_columns
+    assert "seven_a_sba_guarantee_rate" in terms_columns
+    assert "SBA 7(a) approved dollars" in terms_columns[
+        "seven_a_sba_guarantee_rate"
+    ]["description"]
+    assert "SBA 504 loans" in terms_columns["third_party_dollars"]["description"]
+    assert "decimal ratio" in terms_columns[
+        "average_initial_interest_rate"
+    ]["description"]
+    for rate_column in (
+        "term_coverage_rate",
+        "initial_interest_rate_coverage_rate",
+        "fixed_interest_loan_share",
+        "variable_interest_loan_share",
+        "seven_a_sba_guarantee_rate",
+    ):
+        assert "accepted_range" in _test_names(terms_columns[rate_column]["data_tests"])
+    assert "seven_a_approved_loan_amount" in reconciliation_sql
+    assert "third_party_dollars" in reconciliation_sql
+
+
+def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
+    jobs_sql = LENDING_MARTS[
+        "mart_lending_jobs_impact_state_period"
+    ].read_text(encoding="utf-8")
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+    jobs_columns = {
+        column["name"]: column
+        for column in models["mart_lending_jobs_impact_state_period"]["columns"]
+    }
+    reconciliation_sql = Path(
+        "dbt/tests/assert_mart_lending_jobs_impact_reconciles.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "jobs_supported_coverage_count" in jobs_sql
+    assert "jobs_supported_per_1m_approved" in jobs_sql
+    assert "approved_loan_dollars_per_job_supported" in jobs_sql
+    assert "not causal" in jobs_columns["total_jobs_supported"]["description"]
+    assert "not causal" in jobs_columns["jobs_supported_per_loan"]["description"]
+    assert "accepted_range" in _test_names(
+        jobs_columns["jobs_supported_coverage_rate"]["data_tests"]
+    )
+    for metric_column in (
+        "total_jobs_supported",
+        "jobs_supported_per_loan",
+        "jobs_supported_per_1m_approved",
+        "approved_loan_dollars_per_job_supported",
+    ):
+        assert "non_negative" in _test_names(jobs_columns[metric_column]["data_tests"])
+    assert "jobs_supported_coverage_count" in reconciliation_sql
+    assert "total_jobs_supported" in reconciliation_sql
 
 
 def _test_names(data_tests: list) -> set[str]:
