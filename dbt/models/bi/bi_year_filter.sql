@@ -31,6 +31,26 @@ with years as (
 
     select approval_year as year
     from {{ ref('bi_lender_mix') }}
+
+    union
+
+    select approval_year as year
+    from {{ ref('bi_lending_performance') }}
+
+    union
+
+    select approval_year as year
+    from {{ ref('bi_lending_status_mix') }}
+
+    union
+
+    select approval_year as year
+    from {{ ref('bi_lending_terms_pricing') }}
+
+    union
+
+    select approval_year as year
+    from {{ ref('bi_lending_jobs_impact') }}
 )
 
 select
