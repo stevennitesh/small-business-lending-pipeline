@@ -1,5 +1,6 @@
 loan_status_key,loan_status_group,loan_status_group_label,is_credit_loss_status,status_sort_order
 UNKNOWN,unknown,Unknown or missing,false,99
+PIF,paid_in_full,Paid in full,false,10
 P I F,paid_in_full,Paid in full,false,10
 PREPAID IN FULL,paid_in_full,Paid in full,false,10
 PAID IN FULL,paid_in_full,Paid in full,false,10

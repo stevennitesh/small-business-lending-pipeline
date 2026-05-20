@@ -177,6 +177,7 @@ def test_loan_status_group_seed_is_documented_and_conservative():
         _column(seeds["ref_loan_status_group"], "loan_status_key")["tests"]
     )
     assert {
+        "PIF",
         "P I F",
         "CURR",
         "CANCLD",
