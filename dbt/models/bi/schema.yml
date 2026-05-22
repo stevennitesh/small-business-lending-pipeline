@@ -6,8 +6,12 @@ models:
     meta:
       grain: one row per state and year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
@@ -40,8 +44,12 @@ models:
     meta:
       grain: one row per state and approval year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
@@ -64,8 +72,12 @@ models:
     meta:
       grain: one row per state and approval year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
@@ -88,8 +100,12 @@ models:
     meta:
       grain: one row per state, approval year, and NAICS sector
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year", "naics_key"]
     columns:
@@ -108,8 +124,12 @@ models:
     meta:
       grain: one row per state, approval year, and loan program
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
     columns:
@@ -128,8 +148,12 @@ models:
     meta:
       grain: one row per state and year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "year"]
     columns:
@@ -162,7 +186,9 @@ models:
     meta:
       grain: one row per pipeline run summary
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
     columns:
       - name: latest_run_status
         description: Overall latest run status.
@@ -176,8 +202,12 @@ models:
     meta:
       grain: one row per state, approval year, and lender
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year", "lender_key"]
     columns:
@@ -207,8 +237,12 @@ models:
     meta:
       grain: one row per state and approval year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
@@ -239,8 +273,12 @@ models:
     meta:
       grain: one row per state, approval year, and loan status group
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year", "loan_status_group"]
     columns:
@@ -275,8 +313,12 @@ models:
     meta:
       grain: one row per state and approval year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
@@ -331,8 +373,12 @@ models:
     meta:
       grain: one row per state and approval year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key", "approval_year"]
     columns:
@@ -367,8 +413,12 @@ models:
     meta:
       grain: one row per state or DC
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["state_key"]
     columns:
@@ -389,8 +439,12 @@ models:
     meta:
       grain: one row per report year
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["year"]
     columns:
@@ -407,8 +461,12 @@ models:
     meta:
       grain: one row per SBA loan program
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["loan_program_key"]
     columns:
@@ -425,8 +483,12 @@ models:
     meta:
       grain: one row per NAICS sector
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["naics_key"]
     columns:
@@ -445,8 +507,12 @@ models:
     meta:
       grain: one row per known lender
     data_tests:
-      - not_empty
+      - not_empty:
+          config:
+            tags: ["critical"]
       - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
           arguments:
             combination_of_columns: ["lender_key"]
     columns:

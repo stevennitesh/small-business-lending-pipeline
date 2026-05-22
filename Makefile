@@ -50,8 +50,9 @@ dbt-build-local-full: $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_dbt_local.sh build
 
 dbt-build-local-fast:
-	@echo 'dbt-build-local-fast is reserved for the fast dbt quality mode implemented in issue #94.'
-	@exit 2
+	scripts/run_dbt_local.sh seed
+	scripts/run_dbt_local.sh run
+	scripts/run_dbt_local.sh test --select tag:critical
 
 dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb

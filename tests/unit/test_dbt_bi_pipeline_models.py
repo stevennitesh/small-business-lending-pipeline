@@ -167,6 +167,24 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
         assert required_columns[model_name] <= column_names
 
 
+def test_bi_schema_marks_fast_quality_tests_critical():
+    schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+
+    for model_name, model in models.items():
+        not_empty_test = _find_test(model["data_tests"], "not_empty")
+        assert "critical" in _test_tags(not_empty_test), model_name
+
+        grain_tests = [
+            test
+            for test in model["data_tests"]
+            if _test_name(test) == "unique_combination_of_columns"
+        ]
+        assert len(grain_tests) <= 1, model_name
+        for grain_test in grain_tests:
+            assert "critical" in _test_tags(grain_test), model_name
+
+
 def test_pipeline_schema_declares_health_columns():
     schema_yml = yaml.safe_load(Path("dbt/models/marts/pipeline/schema.yml").read_text())
     models = {model["name"]: model for model in schema_yml["models"]}
@@ -285,8 +303,25 @@ def test_bi_filter_tables_are_built_from_dbt_models():
 def _test_names(data_tests: list) -> set[str]:
     names = set()
     for test in data_tests:
-        if isinstance(test, str):
-            names.add(test)
-        else:
-            names.update(test)
+        names.add(_test_name(test))
     return names
+
+
+def _find_test(data_tests: list, test_name: str):
+    for test in data_tests:
+        if _test_name(test) == test_name:
+            return test
+    raise AssertionError(f"Missing dbt test: {test_name}")
+
+
+def _test_name(test) -> str:
+    if isinstance(test, str):
+        return test
+    return next(iter(test))
+
+
+def _test_tags(test) -> set[str]:
+    if isinstance(test, str):
+        return set()
+    config = test[_test_name(test)].get("config", {})
+    return set(config.get("tags", []))
