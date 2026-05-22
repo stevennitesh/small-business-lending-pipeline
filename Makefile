@@ -58,8 +58,9 @@ dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb
 
 powerbi-refresh-local:
-	@echo 'powerbi-refresh-local is reserved for the fast Power BI refresh command implemented in issue #95.'
-	@exit 2
+	$(MAKE) dbt-build-local-fast
+	$(VENV_PYTHON) scripts/export_powerbi_tables.py
+	$(MAKE) powerbi-model-check
 
 cleanup-local-data-dry-run:
 	$(VENV_PYTHON) scripts/cleanup_local_data.py --dry-run

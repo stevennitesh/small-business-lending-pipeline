@@ -205,7 +205,7 @@ The local command taxonomy separates cheap checks from expensive work:
 - `make benchmark-local COMMAND="make dbt-local"`: benchmark wrapper for local command timing and disk/RAM evidence.
 - `make dbt-build-local-fast`: iteration build with critical dbt tests.
 - `make dbt-build-local-full`: full local dbt build and validation.
-- `make powerbi-refresh-local`: planned fast local BI refresh route.
+- `make powerbi-refresh-local`: fast local BI refresh route; runs fast dbt mode, exports CSVs, and checks the Power BI model contract.
 
 Local generated data can be previewed for cleanup with:
 
