@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import date
@@ -240,6 +241,7 @@ class PipelineRunSummary:
     dbt_artifacts: dict[str, str] = field(default_factory=dict)
     bi_row_counts: dict[str, int] = field(default_factory=dict)
     export_paths: list[str] = field(default_factory=list)
+    stage_durations_seconds: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -663,7 +665,10 @@ def write_run_summary(
     export_paths: list[str] | None = None,
     s3_upload_summary: dict[str, Any] | None = None,
     snowflake_raw_load_summary: dict[str, Any] | None = None,
+    stage_durations_seconds: dict[str, float] | None = None,
 ) -> Path:
+    summary_started_at = time.perf_counter()
+    stage_durations = dict(stage_durations_seconds or {})
     summary = PipelineRunSummary(
         pipeline_run_id=context.pipeline_run_id,
         run_mode=context.run_mode,
@@ -683,19 +688,25 @@ def write_run_summary(
         dbt_artifacts=dbt_artifacts or {},
         bi_row_counts=bi_row_counts or {},
         export_paths=export_paths or [],
+        stage_durations_seconds=stage_durations,
     )
     summary_path = context.run_validation_dir / "run_summary.json"
+    summary_payload = {
+        **summary.to_dict(),
+        "s3_upload_summary": s3_upload_summary or {},
+        "snowflake_raw_load_summary": snowflake_raw_load_summary or {},
+    }
     summary_path.write_text(
-        json.dumps(
-            {
-                **summary.to_dict(),
-                "s3_upload_summary": s3_upload_summary or {},
-                "snowflake_raw_load_summary": snowflake_raw_load_summary or {},
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
+        json.dumps(summary_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    stage_durations["write_run_summary"] = round(
+        time.perf_counter() - summary_started_at,
+        3,
+    )
+    summary_payload["stage_durations_seconds"] = stage_durations
+    summary_path.write_text(
+        json.dumps(summary_payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return summary_path
@@ -743,6 +754,7 @@ def lending_pipeline_flow(
     s3_upload_summary: dict[str, Any] = {}
     snowflake_raw_load_summary: dict[str, Any] = {}
     failed_stage: str | None = None
+    stage_durations_seconds: dict[str, float] = {}
 
     try:
         project_config = load_config()
@@ -752,13 +764,22 @@ def lending_pipeline_flow(
             require_cloud_mode_config(context)
             completed_stages.append("require_cloud_mode_config")
 
-        extraction_paths = extract_sources(context, project_config)
+        extraction_paths = _run_timed_stage(
+            stage_durations_seconds,
+            "extract_sources",
+            extract_sources,
+            context,
+            project_config,
+        )
         manifest_artifact_uris = [
             location.artifact_uri for location in extraction_paths.manifest_locations
         ]
         completed_stages.extend(["extract_sources", "write_manifests"])
 
-        validation_result_path = validate_raw_outputs(
+        validation_result_path = _run_timed_stage(
+            stage_durations_seconds,
+            "validate_raw_outputs",
+            validate_raw_outputs,
             context,
             extraction_paths,
             project_config,
@@ -766,7 +787,10 @@ def lending_pipeline_flow(
         completed_stages.append("validate_raw_outputs")
 
         if context.is_cloud_route:
-            raw_s3_summary = record_raw_artifact_locations(
+            raw_s3_summary = _run_timed_stage(
+                stage_durations_seconds,
+                "record_raw_artifact_locations",
+                record_raw_artifact_locations,
                 context,
                 extraction_paths,
                 validation_result_path,
@@ -774,7 +798,10 @@ def lending_pipeline_flow(
             s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
             completed_stages.append("record_raw_artifact_locations")
 
-            snowflake_summary = load_snowflake_raw_tables(
+            snowflake_summary = _run_timed_stage(
+                stage_durations_seconds,
+                "load_snowflake_raw_tables",
+                load_snowflake_raw_tables,
                 context,
                 extraction_paths,
                 validation_result_path,
@@ -782,10 +809,17 @@ def lending_pipeline_flow(
             snowflake_raw_load_summary = snowflake_summary.to_dict()
             completed_stages.append("load_snowflake_raw_tables")
         else:
-            load_duckdb_raw_tables(context, extraction_paths, validation_result_path)
+            _run_timed_stage(
+                stage_durations_seconds,
+                "load_duckdb_raw_tables",
+                load_duckdb_raw_tables,
+                context,
+                extraction_paths,
+                validation_result_path,
+            )
             completed_stages.append("load_duckdb_raw_tables")
 
-        run_dbt_build(context)
+        _run_timed_stage(stage_durations_seconds, "run_dbt_build", run_dbt_build, context)
         completed_stages.append("run_dbt_build")
 
         dbt_artifacts = collect_dbt_artifacts(context)
@@ -800,11 +834,21 @@ def lending_pipeline_flow(
             s3_upload_summary["dbt_artifacts"] = dbt_s3_summary.to_dict()
             completed_stages.append("upload_dbt_artifacts_to_s3")
 
-        bi_row_counts = validate_bi_tables(context)
+        bi_row_counts = _run_timed_stage(
+            stage_durations_seconds,
+            "validate_bi_tables",
+            validate_bi_tables,
+            context,
+        )
         completed_stages.append("validate_bi_tables")
 
         if context.run_mode == "local":
-            export_paths = export_bi_tables(context)
+            export_paths = _run_timed_stage(
+                stage_durations_seconds,
+                "export_bi_tables",
+                export_bi_tables,
+                context,
+            )
             completed_stages.append("export_bi_tables")
 
         summary_path = write_run_summary(
@@ -818,6 +862,7 @@ def lending_pipeline_flow(
             export_paths=export_paths,
             s3_upload_summary=s3_upload_summary,
             snowflake_raw_load_summary=snowflake_raw_load_summary,
+            stage_durations_seconds=stage_durations_seconds,
         )
         logger.info(
             "%s lending pipeline completed: %s",
@@ -840,6 +885,7 @@ def lending_pipeline_flow(
             export_paths=export_paths,
             s3_upload_summary=s3_upload_summary,
             snowflake_raw_load_summary=snowflake_raw_load_summary,
+            stage_durations_seconds=stage_durations_seconds,
         )
         logger.error(
             "%s lending pipeline failed at %s: %s",
@@ -849,6 +895,23 @@ def lending_pipeline_flow(
         )
         logger.error("Failure summary written to %s", summary_path)
         raise
+
+
+def _run_timed_stage(
+    stage_durations_seconds: dict[str, float],
+    stage_name: str,
+    stage_callable,
+    *args,
+    **kwargs,
+):
+    started_at = time.perf_counter()
+    try:
+        return stage_callable(*args, **kwargs)
+    finally:
+        stage_durations_seconds[stage_name] = round(
+            time.perf_counter() - started_at,
+            3,
+        )
 
 
 def manifests_by_resource(manifests: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
