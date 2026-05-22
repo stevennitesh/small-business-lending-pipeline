@@ -71,6 +71,48 @@ Parallel groups:
   - `tests/unit/test_powerbi_export.py`
   - `tests/unit/test_powerbi_model_contract.py`
 
+## Implemented Cost-Boundary Evidence
+
+This section records measured evidence from the command split implementation. Use
+it as the baseline for future optimization experiments; do not treat one run as
+a stable performance guarantee.
+
+- Benchmark wrapper:
+  - Command: `make benchmark-local COMMAND="make dbt-local"`.
+  - Output JSON: `.tmp/benchmarks/20260522T222906Z-make-dbt-local.json`.
+  - Output text: `.tmp/benchmarks/20260522T222906Z-make-dbt-local.txt`.
+  - Observed exit code: `0`.
+  - Observed wall time: about `4.296` seconds.
+  - Observed max RSS: about `177,508,352` bytes.
+  - Observed disk deltas:
+    - `data`: `0` bytes.
+    - `data/warehouse`: `0` bytes.
+    - `data/exports/powerbi`: `0` bytes.
+    - `dbt/target`: about `51` bytes.
+- Fast dbt mode:
+  - Command: `make dbt-build-local-fast`.
+  - Behavior: `dbt seed`, `dbt run`, then `dbt test --select tag:critical`.
+  - Critical tests selected: 33 BI tests.
+  - Observed critical test result: PASS=33, WARN=0, ERROR=0, SKIP=0.
+  - Full validation remains `make dbt-build-local-full`.
+- Fast Power BI refresh:
+  - Command: `make powerbi-refresh-local`.
+  - Behavior: fast dbt mode, Power BI CSV export, then model contract check.
+  - Observed Power BI model contract: 17 tables, 25 relationships, filter
+    coverage for industry, lender, program, region, state, and year.
+- Fixture pipeline stage durations:
+  - Command: `make run-local-fixture`.
+  - Output summary:
+    `data/validation/pipeline_run_id=local-201f173d-183f-4216-bacd-d5f00c88e9c0/run_summary.json`.
+  - Observed `stage_durations_seconds`:
+    - `extract_sources`: `0.026`.
+    - `validate_raw_outputs`: `0.021`.
+    - `load_duckdb_raw_tables`: `0.267`.
+    - `run_dbt_build`: `24.043`.
+    - `validate_bi_tables`: `0.947`.
+    - `export_bi_tables`: `1.79`.
+    - `write_run_summary`: `0.001`.
+
 ## Proposed Command Taxonomy
 
 Use names that make cost visible:
@@ -112,7 +154,7 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - If command names confuse existing docs, keep old aliases and document them as compatibility names.
 - Stop/ask if:
   - Changing `make run-local` semantics would break a workflow the user still wants.
-- Status: pending
+- Status: completed in issue #92.
 
 ### Task 2: Add Lightweight Local Benchmark Wrapper
 
@@ -144,7 +186,7 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - If `/usr/bin/time -v` is unavailable, fall back to Python wall-time plus disk/dbt artifact summaries and mark memory as unavailable.
 - Stop/ask if:
   - Capturing max RSS requires installing dependencies or changing the shell environment.
-- Status: pending
+- Status: completed in issue #93.
 
 ### Task 3: Split DBT Fast And Full Quality Modes
 
@@ -176,7 +218,7 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - If selecting critical tests becomes ambiguous, tag only the obvious smoke/contract tests and leave reconciliation-heavy test tagging for a follow-up.
 - Stop/ask if:
   - Critical/full test boundaries would change data quality expectations rather than command cost.
-- Status: pending
+- Status: completed in issue #94.
 
 ### Task 4: Add Fast Power BI Refresh
 
@@ -211,7 +253,7 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - If dbt selector behavior is unclear, keep the first version to export-only plus model-contract validation and leave selective dbt builds for a later issue.
 - Stop/ask if:
   - The user wants every Power BI refresh to always run the full dbt test suite.
-- Status: pending
+- Status: completed in issue #95.
 
 ### Task 5: Add Stage Durations To Pipeline Run Summary
 
@@ -240,7 +282,7 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - If timing inside Prefect tasks is awkward, capture coarse stage timings around task submission boundaries first.
 - Stop/ask if:
   - Prefect task result timing would require a broader orchestration redesign.
-- Status: pending
+- Status: completed in issue #96.
 
 ### Task 6: Define Optimization Experiments After Baseline
 
@@ -270,7 +312,95 @@ Optimization order matters: make accidental expensive runs harder first, measure
   - Do not materialize large dbt models just because it feels faster; require before/after evidence.
 - Stop/ask if:
   - A proposed optimization increases disk or cloud cost more than the user wants.
-- Status: pending
+- Status: completed in issue #97.
+
+## Benchmark-Driven Follow-Up Experiments
+
+Run these only after the command split is merged. Each experiment should change
+one variable, capture before/after benchmark output under `.tmp/benchmarks/`,
+and preserve correctness checks appropriate to the path being optimized.
+
+### Experiment A: Test Selection
+
+- Question: can full dbt validation be split into named quality tiers without
+  hiding important failures during normal Power BI iteration?
+- Baseline evidence:
+  - Full historical dbt timing evidence shows tests dominate summed execution
+    time: about 289 seconds of test execution versus about 3.4 seconds of model
+    execution.
+  - Fast mode currently selects 33 BI `critical` tests and passed them.
+- Candidate change:
+  - Add a second tag such as `reconciliation` for heavier cross-table checks.
+  - Keep relationship-heavy tests in full validation unless they prove cheap and
+    valuable for iteration.
+- Measurement:
+  - `make benchmark-local COMMAND="make dbt-build-local-fast"`.
+  - `make benchmark-local COMMAND="make dbt-build-local-full"` only when WSL has
+    enough memory headroom.
+- Acceptance signal:
+  - Fast mode stays useful for Power BI iteration.
+  - Full mode remains available and unchanged in quality expectations.
+
+### Experiment B: Model Materialization
+
+- Question: are selected marts or BI views repeatedly recomputed enough to
+  justify materializing them locally?
+- Baseline evidence:
+  - Fixture stage durations show `run_dbt_build` dominates the local fixture
+    route at about 24 seconds.
+  - Current models are views, which keeps disk lower but can repeat work during
+    validation and export.
+- Candidate change:
+  - Test materializing only the highest-cost BI or mart candidates first.
+  - Do not materialize broad staging/raw models without benchmark proof.
+- Measurement:
+  - Benchmark fast and full dbt modes before and after.
+  - Compare DuckDB size and `data/warehouse` delta from benchmark JSON.
+- Acceptance signal:
+  - Wall-time reduction is meaningful and repeatable.
+  - DuckDB growth is acceptable for the local route.
+  - Power BI export row counts and model contract remain unchanged.
+
+### Experiment C: DBT Thread Count
+
+- Question: can the local dbt run use more than one thread without raising WSL
+  memory pressure or DuckDB contention?
+- Baseline evidence:
+  - Current local dbt profile uses `threads: 1`.
+  - Compile benchmark max RSS was about 177 MB, but build/test paths need their
+    own measurements.
+- Candidate change:
+  - Add an explicit opt-in local environment variable or profile override for
+    `threads: 2`.
+  - Keep the default conservative until benchmark evidence says otherwise.
+- Measurement:
+  - Benchmark `make dbt-build-local-fast` with one thread and two threads.
+  - Repeat only after the prior run has settled to avoid comparing warm/cold
+    artifacts accidentally.
+- Acceptance signal:
+  - Two threads reduce wall time without materially increasing memory risk or
+    causing intermittent DuckDB failures.
+
+### Experiment D: Raw Retention Cleanup
+
+- Question: can local disk usage be kept small without weakening raw lineage for
+  the latest successful local run?
+- Baseline evidence:
+  - Prior disk evidence showed `data/raw/sba` as the main local disk consumer at
+    about 3.4 GB.
+  - Cleanup commands already exist, but this implementation pass did not delete
+    data.
+- Candidate change:
+  - Define a documented retention rule such as keep latest successful fixture
+    run, latest successful live run, and any explicitly pinned run IDs.
+  - Keep delete behavior behind dry-run output first.
+- Measurement:
+  - `make cleanup-local-data-dry-run`.
+  - Compare benchmark disk-size snapshots before and after any approved cleanup.
+- Acceptance signal:
+  - Disk reclaimed is clear before deletion.
+  - Latest successful validated run remains reproducible.
+  - No source-controlled artifacts or PBIX files are touched.
 
 ## Final Verification
 
@@ -295,8 +425,11 @@ scripts/run_local_pipeline.sh --extract-mode live --pipeline-run-id live-cost-ba
 
 ## Open Questions
 
-- Should `make run-local` remain as the fixture smoke alias, or should it be renamed/deprecated to force users to choose `run-local-fixture` or `run-local-live`?
-- Should the first fast dbt mode use only `critical` tags, or should it use a selector such as BI models plus their parents and critical tests?
-- Should the first fast Power BI path run `make dbt-build-local-fast` before export, or should it only validate/export from the current DuckDB warehouse?
-- Should test tagging start with only `critical` and `full`, or include `reconciliation` immediately for the known heavy custom tests?
-- How many historical live raw runs should local cleanup preserve by default after the command split is in place?
+- Resolved: `make run-local` remains a fixture smoke alias. Use
+  `make run-local-live` for live local extraction.
+- Resolved: the first fast dbt mode uses only `critical` tags.
+- Resolved: the first fast Power BI path runs `make dbt-build-local-fast`
+  before export.
+- Deferred: a `reconciliation` tag can be tested as Experiment A.
+- Deferred: the exact live raw retention count should be decided during
+  Experiment D after dry-run cleanup evidence.
