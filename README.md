@@ -157,7 +157,7 @@ small-business-lending-pipeline/
 cp .env.example .env
 make install
 make test
-make run-local
+make run-local-fixture
 ```
 
 Local route output:
@@ -166,11 +166,21 @@ Local route output:
 - dbt models built with target `dev_duckdb`;
 - Power BI-ready CSV exports under `data/exports/powerbi/...`.
 
-Equivalent direct command:
+`make run-local` remains a fixture-safe compatibility alias for
+`make run-local-fixture`. Use the live local route only when you intentionally
+want to download current source data and spend the extra local disk, memory, and
+runtime:
+
+```bash
+make run-local-live
+```
+
+Equivalent fixture command:
 
 ```bash
 python -m pipelines.flows.lending_pipeline_flow \
   --run-mode local \
+  --extract-mode fixture \
   --dbt-target dev_duckdb
 ```
 
@@ -187,6 +197,15 @@ make dbt-local
 ```bash
 make dbt-build-local-full
 ```
+
+The local command taxonomy separates cheap checks from expensive work:
+
+- `make run-local-fixture`: fixture-backed local smoke route.
+- `make run-local-live`: live-source local route.
+- `make benchmark-local COMMAND="make dbt-local"`: planned benchmark wrapper for local command timing and disk/RAM evidence.
+- `make dbt-build-local-fast`: planned iteration build with critical dbt tests.
+- `make dbt-build-local-full`: full local dbt build and validation.
+- `make powerbi-refresh-local`: planned fast local BI refresh route.
 
 Local generated data can be previewed for cleanup with:
 
