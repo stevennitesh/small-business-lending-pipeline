@@ -202,7 +202,7 @@ The local command taxonomy separates cheap checks from expensive work:
 
 - `make run-local-fixture`: fixture-backed local smoke route.
 - `make run-local-live`: live-source local route.
-- `make benchmark-local COMMAND="make dbt-local"`: planned benchmark wrapper for local command timing and disk/RAM evidence.
+- `make benchmark-local COMMAND="make dbt-local"`: benchmark wrapper for local command timing and disk/RAM evidence.
 - `make dbt-build-local-fast`: planned iteration build with critical dbt tests.
 - `make dbt-build-local-full`: full local dbt build and validation.
 - `make powerbi-refresh-local`: planned fast local BI refresh route.

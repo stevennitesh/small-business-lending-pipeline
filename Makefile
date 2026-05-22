@@ -38,9 +38,8 @@ run-cloud: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_cloud_pipeline.sh
 
 benchmark-local:
-	@echo 'benchmark-local is reserved for the local benchmark wrapper implemented in issue #93.'
-	@echo 'After that lands, run: make benchmark-local COMMAND="make dbt-local"'
-	@exit 2
+	@test -n "$(COMMAND)" || { echo 'Set COMMAND="make dbt-local" or another local command to benchmark.'; exit 2; }
+	$(VENV_PYTHON) scripts/benchmark_local_command.py --command "$(COMMAND)"
 
 dbt-local: dbt-compile-local
 
