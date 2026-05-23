@@ -115,6 +115,45 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
     } <= {Path(path).name for path in summary["export_paths"]}
 
 
+def test_flow_summary_records_stage_durations(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="local-stage-durations",
+    )
+
+    summary_path = local_flow.write_run_summary.fn(
+        context,
+        status="success",
+        completed_stages=["extract_sources", "write_run_summary"],
+        stage_durations_seconds={"extract_sources": 1.25},
+    )
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert summary["stage_durations_seconds"]["extract_sources"] == 1.25
+    assert summary["stage_durations_seconds"]["write_run_summary"] >= 0
+    assert summary["status"] == "success"
+
+
+def test_timed_stage_records_duration_when_stage_fails():
+    stage_durations: dict[str, float] = {}
+
+    def fail_stage():
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        local_flow._run_timed_stage(stage_durations, "validate_raw_outputs", fail_stage)
+
+    assert "validate_raw_outputs" in stage_durations
+    assert stage_durations["validate_raw_outputs"] >= 0
+
+
 def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
     export_dir = tmp_path / "custom-powerbi"
     monkeypatch.setenv("POWERBI_EXPORT_DIR", str(export_dir))

@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local run-cloud dbt-local dbt-compile-local dbt-build-local-full dbt-seed-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
+.PHONY: install test runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -26,11 +26,20 @@ test:
 runtime-smoke: $(PREFECT_HOME)
 	$(VENV_PYTHON) -c "import boto3, duckdb, pandas, prefect, requests, snowflake.connector, yaml; import dbt.cli.main"
 
-run-local: $(PREFECT_HOME)
-	scripts/run_local_pipeline.sh
+run-local: run-local-fixture
+
+run-local-fixture: $(PREFECT_HOME)
+	scripts/run_local_pipeline.sh --extract-mode fixture
+
+run-local-live: $(PREFECT_HOME)
+	scripts/run_local_pipeline.sh --extract-mode live
 
 run-cloud: $(PREFECT_HOME) $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_cloud_pipeline.sh
+
+benchmark-local:
+	@test -n "$(COMMAND)" || { echo 'Set COMMAND="make dbt-local" or another local command to benchmark.'; exit 2; }
+	$(VENV_PYTHON) scripts/benchmark_local_command.py --command "$(COMMAND)"
 
 dbt-local: dbt-compile-local
 
@@ -40,8 +49,18 @@ dbt-compile-local: $(DBT_PROFILES_TMP)/profiles.yml
 dbt-build-local-full: $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_dbt_local.sh build
 
+dbt-build-local-fast: $(DBT_PROFILES_TMP)/profiles.yml
+	scripts/run_dbt_local.sh seed
+	scripts/run_dbt_local.sh run
+	scripts/run_dbt_local.sh test --select tag:critical
+
 dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb
+
+powerbi-refresh-local: $(DBT_PROFILES_TMP)/profiles.yml
+	$(MAKE) dbt-build-local-fast
+	$(VENV_PYTHON) scripts/export_powerbi_tables.py
+	$(MAKE) powerbi-model-check
 
 cleanup-local-data-dry-run:
 	$(VENV_PYTHON) scripts/cleanup_local_data.py --dry-run
