@@ -85,9 +85,9 @@ def test_directory_size_bytes_and_diff_disk_sizes(tmp_path):
 
     assert directory_size_bytes(data_dir) == 6
     assert diff_disk_sizes(
-        {"data": 6, "missing": None},
-        {"data": 10, "missing": 1},
-    ) == {"data": 4, "missing": None}
+        {"data": 6, "created": None, "deleted": 8, "missing": None},
+        {"data": 10, "created": 12, "deleted": None, "missing": None},
+    ) == {"data": 4, "created": 12, "deleted": -8, "missing": None}
 
 
 def test_collect_duckdb_sizes_includes_wal(tmp_path):

@@ -49,7 +49,7 @@ dbt-compile-local: $(DBT_PROFILES_TMP)/profiles.yml
 dbt-build-local-full: $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_dbt_local.sh build
 
-dbt-build-local-fast:
+dbt-build-local-fast: $(DBT_PROFILES_TMP)/profiles.yml
 	scripts/run_dbt_local.sh seed
 	scripts/run_dbt_local.sh run
 	scripts/run_dbt_local.sh test --select tag:critical
@@ -57,7 +57,7 @@ dbt-build-local-fast:
 dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 	cd dbt && DBT_PROFILES_DIR=../$(DBT_PROFILES_TMP) ../$(VENV)/bin/dbt seed --target dev_duckdb
 
-powerbi-refresh-local:
+powerbi-refresh-local: $(DBT_PROFILES_TMP)/profiles.yml
 	$(MAKE) dbt-build-local-fast
 	$(VENV_PYTHON) scripts/export_powerbi_tables.py
 	$(MAKE) powerbi-model-check

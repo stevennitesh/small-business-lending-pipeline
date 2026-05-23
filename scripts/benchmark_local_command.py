@@ -120,8 +120,12 @@ def diff_disk_sizes(
     deltas: dict[str, int | None] = {}
     for path, after_size in after.items():
         before_size = before.get(path)
-        if before_size is None or after_size is None:
+        if before_size is None and after_size is None:
             deltas[path] = None
+        elif before_size is None:
+            deltas[path] = after_size
+        elif after_size is None:
+            deltas[path] = -before_size
         else:
             deltas[path] = after_size - before_size
     return deltas
