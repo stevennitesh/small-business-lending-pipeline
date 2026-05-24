@@ -136,7 +136,7 @@ Patterns intentionally not included:
     joins.
 - Stop/ask if:
   - Any fact model needs a non-`raw_uri` source-file identity.
-- Status: pending
+- Status: completed in issue #111 / commit `6f70268`
 
 ### Task 2: Add A Production-Model Wildcard Projection Guard
 
@@ -171,7 +171,7 @@ Patterns intentionally not included:
 - Stop/ask if:
   - The matcher requires SQL parsing complexity beyond a focused file-pattern
     guard.
-- Status: pending
+- Status: completed in issue #112 / commit `2f745dd`
 
 ### Task 3: Make Staging Source And Manifest Projections Explicit
 
@@ -216,7 +216,7 @@ Patterns intentionally not included:
 - Stop/ask if:
   - A raw source column exists in one route but not the other and needs a source
     contract decision.
-- Status: pending
+- Status: completed in issue #113 / commit `0db522a`
 
 ### Task 4: Make Fact, Mart, And BI Derived Projections Explicit
 
@@ -258,7 +258,7 @@ Patterns intentionally not included:
     restoring the affected model file.
 - Stop/ask if:
   - A model output contract must change to remove a wildcard.
-- Status: pending
+- Status: completed in issue #114 / commit `eafd1bd`
 
 ### Task 5: Run End-To-End DBT/BI Consistency Checks
 
@@ -290,7 +290,7 @@ Patterns intentionally not included:
     plus optional benchmark deferral.
 - Stop/ask if:
   - Full benchmark shows memory pressure similar to earlier WSL crashes.
-- Status: pending
+- Status: completed in issue #115
 
 ## Final Verification
 
@@ -300,6 +300,16 @@ Required:
 - `make dbt-build-local-fast`
 - `make powerbi-model-check`
 - `git diff --check`
+
+Completed evidence on 2026-05-24:
+
+- `.venv/bin/python -m pytest tests/unit/test_dbt_marts_models.py tests/unit/test_dbt_staging_models.py tests/unit/test_dbt_lending_marts.py tests/unit/test_dbt_bi_pipeline_models.py tests/unit/test_dbt_project_setup.py`
+  passed with 37 tests.
+- `make dbt-build-local-fast` passed with seed PASS=4, model run PASS=51,
+  and critical test PASS=33.
+- `make powerbi-model-check` passed with 17 tables, 25 relationships, and
+  filter coverage for industry, lender, program, region, state, and year.
+- `git diff --check` passed before final evidence was recorded.
 
 Optional when WSL has enough memory headroom:
 
