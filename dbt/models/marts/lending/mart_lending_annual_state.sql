@@ -12,7 +12,10 @@ with annual as (
 
 with_context as (
     select
-        annual.*,
+        annual.state_key,
+        annual.approval_year,
+        annual.total_approved_loan_amount,
+        annual.loan_count,
         {{ safe_divide('total_approved_loan_amount', 'loan_count') }} as average_loan_size,
         lag(total_approved_loan_amount) over (
             partition by state_key

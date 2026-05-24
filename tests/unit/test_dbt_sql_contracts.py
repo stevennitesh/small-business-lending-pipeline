@@ -7,29 +7,10 @@ MODEL_ROOT = Path("dbt/models")
 SELECT_STAR_RE = re.compile(r"\bselect\s+\*", re.IGNORECASE)
 ALIAS_STAR_RE = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\.\*")
 
-EXPECTED_PRODUCTION_WILDCARD_PROJECTIONS = {
-    ("dbt/models/bi/bi_executive_overview.sql", 2, "select *"),
-    ("dbt/models/marts/facts/fact_sba_loans.sql", 3, "*"),
-    ("dbt/models/marts/context/mart_laus_annual_state.sql", 12, "annual.*"),
-    (
-        "dbt/models/marts/lending/mart_lending_annual_state.sql",
-        15,
-        "annual.*",
-    ),
-    (
-        "dbt/models/marts/lending/mart_lending_lender_state_period.sql",
-        26,
-        "lender_period.*",
-    ),
-    (
-        "dbt/models/marts/lending/mart_lending_monthly_state.sql",
-        15,
-        "monthly.*",
-    ),
-}
+EXPECTED_PRODUCTION_WILDCARD_PROJECTIONS = set()
 
 
-def test_production_dbt_wildcard_projection_findings_are_tracked():
+def test_production_dbt_models_do_not_use_wildcard_projections():
     findings = {
         (path.as_posix(), line_number, token)
         for path in sorted(MODEL_ROOT.rglob("*.sql"))
