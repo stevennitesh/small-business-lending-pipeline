@@ -9,7 +9,9 @@ with annual as (
 
 with_context as (
     select
-        annual.*,
+        annual.state_key,
+        annual.year,
+        annual.annual_average_unemployment_rate,
         lag(annual_average_unemployment_rate) over (
             partition by state_key
             order by year

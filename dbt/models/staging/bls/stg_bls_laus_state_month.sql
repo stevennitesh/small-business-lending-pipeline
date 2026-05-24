@@ -1,7 +1,10 @@
 {% set raw_bls_laus_state_month = source('raw', 'raw_bls_laus_state_month') %}
 
 with latest_successful_manifests as (
-    select *
+    select
+        pipeline_run_id,
+        resource_name,
+        raw_uri
     from {{ ref('stg_ingestion_manifest') }}
     where source_system = 'bls'
       and dataset_name = 'laus'
@@ -12,7 +15,22 @@ with latest_successful_manifests as (
 
 raw_rows as (
     select
-        raw.*,
+        raw.series_id,
+        raw.state_fips,
+        raw.state_abbr,
+        raw.state_name,
+        raw.observed_month,
+        raw.value,
+        raw.year,
+        raw.period,
+        raw.footnotes,
+        raw.pipeline_run_id,
+        raw.source_system,
+        raw.source_dataset,
+        raw.source_resource_name,
+        raw.ingestion_date,
+        raw.raw_file_path,
+        raw.sha256_checksum,
         raw.raw_uri as artifact_raw_uri,
         raw.storage_backend as artifact_storage_backend
     from {{ raw_bls_laus_state_month }} as raw

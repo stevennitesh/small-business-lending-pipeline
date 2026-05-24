@@ -23,7 +23,11 @@ state_period as (
 
 with_shares as (
     select
-        lender_period.*,
+        lender_period.state_key,
+        lender_period.approval_year,
+        lender_period.lender_key,
+        lender_period.total_approved_loan_amount,
+        lender_period.loan_count,
         state_period.known_lender_approved_loan_amount as state_period_approved_loan_amount,
         {{ safe_divide(
             'lender_period.total_approved_loan_amount',

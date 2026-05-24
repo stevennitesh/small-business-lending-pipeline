@@ -1,7 +1,10 @@
 {% set raw_census_bds_state_year = source('raw', 'raw_census_bds_state_year') %}
 
 with latest_successful_manifests as (
-    select *
+    select
+        pipeline_run_id,
+        resource_name,
+        raw_uri
     from {{ ref('stg_ingestion_manifest') }}
     where source_system = 'census'
       and dataset_name = 'bds'
@@ -12,7 +15,24 @@ with latest_successful_manifests as (
 
 raw_rows as (
     select
-        raw.*,
+        raw.state,
+        raw.name,
+        raw.year,
+        raw.estab,
+        raw.estabs_entry,
+        raw.estabs_entry_rate,
+        raw.estabs_exit,
+        raw.estabs_exit_rate,
+        raw.firm,
+        raw.job_creation,
+        raw.job_destruction,
+        raw.pipeline_run_id,
+        raw.source_system,
+        raw.source_dataset,
+        raw.source_resource_name,
+        raw.ingestion_date,
+        raw.raw_file_path,
+        raw.sha256_checksum,
         raw.raw_uri as artifact_raw_uri,
         raw.storage_backend as artifact_storage_backend
     from {{ raw_census_bds_state_year }} as raw

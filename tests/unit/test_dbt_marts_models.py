@@ -22,6 +22,12 @@ FACT_MODELS = {
     "fact_bds_state_year": Path("dbt/models/marts/facts/fact_bds_state_year.sql"),
 }
 
+FACT_SOURCE_FILE_KEY_EXPRESSIONS = {
+    "fact_sba_loans": '{{ generate_surrogate_key(["raw_uri"]) }}',
+    "fact_laus_state_month": '{{ generate_surrogate_key(["laus.raw_uri"]) }}',
+    "fact_bds_state_year": '{{ generate_surrogate_key(["bds.raw_uri"]) }}',
+}
+
 SEED_SCHEMA = Path("dbt/seeds/schema.yml")
 LOAN_STATUS_SEED = Path("dbt/seeds/ref_loan_status_group.csv")
 
@@ -108,13 +114,38 @@ def test_source_file_dimension_uses_raw_uri_as_identity():
     assert "sha256_checksum" in model_sql
 
 
-def test_fact_models_join_source_file_dimension_by_raw_uri():
-    for model_path in FACT_MODELS.values():
+def test_fact_models_generate_source_file_key_from_raw_uri():
+    for model_name, model_path in FACT_MODELS.items():
         model_sql = model_path.read_text(encoding="utf-8")
+        expected_expression = FACT_SOURCE_FILE_KEY_EXPRESSIONS[model_name]
+        expected_source_file_key = (
+            f"else {expected_expression}\n    end as source_file_key"
+        )
 
-        assert "source_file.source_file_key" in model_sql
-        assert "ref('dim_source_file')" in model_sql
-        assert ".raw_uri = source_file.raw_uri" in model_sql
+        assert expected_source_file_key in model_sql, model_name
+        assert "source_file.source_file_key" not in model_sql, model_name
+        assert "ref('dim_source_file')" not in model_sql, model_name
+
+
+def test_fact_source_file_keys_keep_relationship_tests():
+    schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
+    models = {model["name"]: model for model in schema_yml["models"]}
+
+    for model_name in FACT_MODELS:
+        source_file_key = _column(models[model_name], "source_file_key")
+        data_tests = source_file_key["data_tests"]
+
+        assert "not_null" in _test_names(data_tests), model_name
+        assert "relationships" in _test_names(data_tests), model_name
+        relationship_test = next(
+            test
+            for test in data_tests
+            if isinstance(test, dict) and "relationships" in test
+        )
+        assert relationship_test["relationships"]["arguments"] == {
+            "to": "ref('dim_source_file')",
+            "field": "source_file_key",
+        }
 
 
 def test_fact_sba_loans_exposes_canonical_approval_year():

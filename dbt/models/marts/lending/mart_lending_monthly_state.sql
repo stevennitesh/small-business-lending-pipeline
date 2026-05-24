@@ -12,7 +12,10 @@ with monthly as (
 
 with_context as (
     select
-        monthly.*,
+        monthly.state_key,
+        monthly.approval_month,
+        monthly.total_approved_loan_amount,
+        monthly.loan_count,
         {{ safe_divide('total_approved_loan_amount', 'loan_count') }} as average_loan_size,
         lag(total_approved_loan_amount, 12) over (
             partition by state_key
