@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import warnings
 from pathlib import Path
 
 import duckdb
 import pytest
-from pandas.errors import DtypeWarning
 
-from pipelines.load import raw_load_common
 from pipelines.load.duckdb_loader import (
     RAW_TABLES,
     RawLoadError,
@@ -230,38 +227,57 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
     assert loaded_raw_uri == [("local", expected_manifest["raw_uri"])]
 
 
-def test_load_raw_extracts_reads_sba_csvs_without_dtype_warnings(
-    tmp_path, monkeypatch
-):
+def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_path):
     manifests = _build_fixture_manifests(tmp_path)
+    second_sba_7a = tmp_path / "raw" / "sba_7a_extra.csv"
+    second_sba_7a.write_text(
+        "LoanNumber,GrossApproval\nA-4,not_available\n",
+        encoding="utf-8",
+    )
+    manifests["sba_7a"].append(
+        _write_manifest(
+            raw_file=second_sba_7a,
+            manifest_path=tmp_path / "manifests" / "sba_7a_extra.manifest.json",
+            source_system="sba",
+            dataset_name="7a_504_foia",
+            resource_name="sba_7a_extra",
+            row_count=1,
+            file_format="csv",
+            schema_fields=["LoanNumber", "GrossApproval"],
+        )
+    )
     validation_path = write_validation_results(
         [_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
-    original_read_csv = raw_load_common.pd.read_csv
 
-    def warning_read_csv(*args, **kwargs):
-        if kwargs.get("low_memory") is not False:
-            warnings.warn("mixed types", DtypeWarning, stacklevel=2)
-        return original_read_csv(*args, **kwargs)
+    summary = load_raw_extracts(
+        duckdb_path=tmp_path / "warehouse.duckdb",
+        sba_7a_manifest_paths=manifests["sba_7a"],
+        sba_504_manifest_paths=manifests["sba_504"],
+        census_bds_manifest_paths=manifests["census"],
+        bls_laus_manifest_paths=manifests["bls"],
+        validation_result_paths=[validation_path],
+    )
 
-    monkeypatch.setattr(raw_load_common.pd, "read_csv", warning_read_csv)
+    assert summary.table_row_counts["raw.raw_sba_7a_foia"] == 3
 
-    with warnings.catch_warnings(record=True) as caught_warnings:
-        warnings.simplefilter("always", DtypeWarning)
-        load_raw_extracts(
-            duckdb_path=tmp_path / "warehouse.duckdb",
-            sba_7a_manifest_paths=manifests["sba_7a"],
-            sba_504_manifest_paths=manifests["sba_504"],
-            census_bds_manifest_paths=manifests["census"],
-            bls_laus_manifest_paths=manifests["bls"],
-            validation_result_paths=[validation_path],
-        )
+    with duckdb.connect(str(tmp_path / "warehouse.duckdb")) as connection:
+        loaded_rows = connection.execute(
+            """
+            select
+              cast(LoanNumber as varchar),
+              cast(GrossApproval as varchar),
+              source_resource_name
+            from raw.raw_sba_7a_foia
+            order by 1
+            """
+        ).fetchall()
 
-    assert not [
-        warning
-        for warning in caught_warnings
-        if issubclass(warning.category, DtypeWarning)
+    assert loaded_rows == [
+        ("1", "1000", "sba_7a_fy2020_present"),
+        ("2", "2000", "sba_7a_fy2020_present"),
+        ("A-4", "not_available", "sba_7a_extra"),
     ]
 
 
