@@ -8,11 +8,13 @@ import duckdb
 import pandas as pd
 
 from pipelines.load.raw_load_common import (
+    RAW_ROW_METADATA_COLUMNS,
     assert_validation_passed,
     flatten_manifest_groups,
     load_local_source_frame,
     load_manifests,
     load_validation_results,
+    manifest_raw_row_metadata,
     normalize_records,
     pipeline_run_ids_from_manifest_groups,
     require_manifest_groups,
@@ -37,6 +39,11 @@ SOURCE_TABLES = {
     "raw.raw_bls_laus_state_month": "bls_laus",
 }
 
+LOCAL_DUCKDB_NATIVE_CSV_TABLES = {
+    "raw.raw_sba_7a_foia",
+    "raw.raw_sba_504_foia",
+}
+
 
 class RawLoadError(RuntimeError):
     pass
@@ -47,6 +54,13 @@ class RawLoadSummary:
     duckdb_path: Path
     table_row_counts: dict[str, int]
     pipeline_run_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class NativeCsvManifest:
+    manifest: dict[str, object]
+    raw_path: Path
+    columns: tuple[str, ...]
 
 
 def load_raw_extracts(
@@ -82,12 +96,7 @@ def load_raw_extracts(
         table_row_counts: dict[str, int] = {}
 
         for table_name, manifests in manifest_groups.items():
-            frame = load_local_source_frame(
-                table_name,
-                manifests,
-                error_cls=RawLoadError,
-            )
-            _create_or_replace_table(connection, table_name, frame)
+            _load_local_source_table(connection, table_name, manifests)
             row_count = _table_count(connection, table_name)
             expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
             if row_count != expected_row_count:
@@ -145,6 +154,142 @@ def load_raw_extracts(
     )
 
 
+def _load_local_source_table(
+    connection: duckdb.DuckDBPyConnection,
+    table_name: str,
+    manifests: list[dict[str, object]],
+) -> None:
+    if table_name in LOCAL_DUCKDB_NATIVE_CSV_TABLES:
+        _create_or_replace_native_csv_table(connection, table_name, manifests)
+        return
+
+    # Census/BLS JSON sources are tiny; keep them on the shared local frame path.
+    frame = load_local_source_frame(
+        table_name,
+        manifests,
+        error_cls=RawLoadError,
+    )
+    _create_or_replace_table(connection, table_name, frame)
+
+
+def _create_or_replace_native_csv_table(
+    connection: duckdb.DuckDBPyConnection,
+    table_name: str,
+    manifests: list[dict[str, object]],
+) -> None:
+    csv_manifests = _native_csv_manifests(connection, manifests)
+    source_columns = _ordered_native_csv_columns(csv_manifests)
+    target_columns = _native_csv_target_columns(source_columns)
+    first_manifest, *remaining_manifests = csv_manifests
+
+    connection.execute(
+        f"create or replace table {_quote_qualified_identifier(table_name)} as "
+        + _native_csv_select_sql(source_columns, first_manifest.columns),
+        _native_csv_select_params(first_manifest),
+    )
+    for csv_manifest in remaining_manifests:
+        connection.execute(
+            f"insert into {_quote_qualified_identifier(table_name)} ({target_columns}) "
+            + _native_csv_select_sql(source_columns, csv_manifest.columns),
+            _native_csv_select_params(csv_manifest),
+        )
+
+
+def _native_csv_manifests(
+    connection: duckdb.DuckDBPyConnection,
+    manifests: list[dict[str, object]],
+) -> list[NativeCsvManifest]:
+    return [
+        NativeCsvManifest(
+            manifest=manifest,
+            raw_path=raw_path,
+            columns=_native_csv_columns(connection, raw_path),
+        )
+        for manifest in manifests
+        for raw_path in [_local_raw_path(manifest)]
+    ]
+
+
+def _native_csv_columns(
+    connection: duckdb.DuckDBPyConnection,
+    raw_path: Path,
+) -> tuple[str, ...]:
+    rows = connection.execute(
+        "describe select * from read_csv(?, header=true, all_varchar=true)",
+        [str(raw_path)],
+    ).fetchall()
+    return tuple(str(row[0]) for row in rows)
+
+
+def _ordered_native_csv_columns(
+    csv_manifests: list[NativeCsvManifest],
+) -> tuple[str, ...]:
+    columns: list[str] = []
+    seen_columns: set[str] = set()
+    for csv_manifest in csv_manifests:
+        for column_name in csv_manifest.columns:
+            if column_name not in seen_columns:
+                seen_columns.add(column_name)
+                columns.append(column_name)
+    return tuple(columns)
+
+
+def _native_csv_target_columns(source_columns: tuple[str, ...]) -> str:
+    return ", ".join(
+        _quote_identifier(column_name)
+        for column_name in (*source_columns, *RAW_ROW_METADATA_COLUMNS)
+    )
+
+
+def _native_csv_select_sql(
+    source_columns: tuple[str, ...],
+    manifest_columns: tuple[str, ...],
+) -> str:
+    manifest_column_set = set(manifest_columns)
+    source_column_selects = ", ".join(
+        (
+            f"source.{_quote_identifier(column_name)} as {_quote_identifier(column_name)}"
+            if column_name in manifest_column_set
+            else f"cast(null as varchar) as {_quote_identifier(column_name)}"
+        )
+        for column_name in source_columns
+    )
+    metadata_columns = ", ".join(
+        f'metadata.{_quote_identifier(column_name)}'
+        for column_name in RAW_ROW_METADATA_COLUMNS
+    )
+    metadata_values = ", ".join(
+        f"? as {_quote_identifier(column_name)}"
+        for column_name in RAW_ROW_METADATA_COLUMNS
+    )
+    return (
+        f"select {source_column_selects}, {metadata_columns} "
+        "from read_csv(?, header=true, all_varchar=true) as source "
+        f"cross join (select {metadata_values}) as metadata"
+    )
+
+
+def _native_csv_select_params(csv_manifest: NativeCsvManifest) -> list[object]:
+    metadata = manifest_raw_row_metadata(csv_manifest.manifest)
+    return [
+        str(csv_manifest.raw_path),
+        *[metadata[column_name] for column_name in RAW_ROW_METADATA_COLUMNS],
+    ]
+
+
+def _local_raw_path(manifest: dict[str, object]) -> Path:
+    local_raw_path = manifest.get("local_raw_path")
+    if not local_raw_path:
+        raise RawLoadError(
+            "Local DuckDB raw load requires manifest local_raw_path for "
+            f"{manifest.get('resource_name', 'unknown resource')}"
+        )
+    raw_path = Path(str(local_raw_path))
+    if not raw_path.exists():
+        raise RawLoadError(f"Local raw file does not exist: {raw_path}")
+    return raw_path
+
+
 def _create_or_replace_table(
     connection: duckdb.DuckDBPyConnection,
     table_name: str,
@@ -159,3 +304,11 @@ def _create_or_replace_table(
 
 def _table_count(connection: duckdb.DuckDBPyConnection, table_name: str) -> int:
     return int(connection.execute(f"select count(*) from {table_name}").fetchone()[0])
+
+
+def _quote_qualified_identifier(identifier: str) -> str:
+    return ".".join(_quote_identifier(part) for part in identifier.split("."))
+
+
+def _quote_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
