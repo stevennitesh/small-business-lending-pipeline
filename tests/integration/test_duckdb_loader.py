@@ -6,6 +6,7 @@ from pathlib import Path
 import duckdb
 import pytest
 
+from pipelines.load import raw_load_common
 from pipelines.load.duckdb_loader import (
     RAW_TABLES,
     RawLoadError,
@@ -279,6 +280,34 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
         ("2", "2000", "sba_7a_fy2020_present"),
         ("A-4", "not_available", "sba_7a_extra"),
     ]
+
+
+def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
+    tmp_path,
+    monkeypatch,
+):
+    manifests = _build_fixture_manifests(tmp_path)
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+
+    def fail_read_csv(*args, **kwargs):
+        raise AssertionError("SBA CSV raw load should use DuckDB native scans")
+
+    monkeypatch.setattr(raw_load_common.pd, "read_csv", fail_read_csv)
+
+    summary = load_raw_extracts(
+        duckdb_path=tmp_path / "warehouse.duckdb",
+        sba_7a_manifest_paths=manifests["sba_7a"],
+        sba_504_manifest_paths=manifests["sba_504"],
+        census_bds_manifest_paths=manifests["census"],
+        bls_laus_manifest_paths=manifests["bls"],
+        validation_result_paths=[validation_path],
+    )
+
+    assert summary.table_row_counts["raw.raw_sba_7a_foia"] == 2
+    assert summary.table_row_counts["raw.raw_sba_504_foia"] == 1
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):

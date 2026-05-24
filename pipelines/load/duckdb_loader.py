@@ -8,11 +8,13 @@ import duckdb
 import pandas as pd
 
 from pipelines.load.raw_load_common import (
+    RAW_ROW_METADATA_COLUMNS,
     assert_validation_passed,
     flatten_manifest_groups,
     load_local_source_frame,
     load_manifests,
     load_validation_results,
+    manifest_raw_row_metadata,
     normalize_records,
     pipeline_run_ids_from_manifest_groups,
     require_manifest_groups,
@@ -35,6 +37,11 @@ SOURCE_TABLES = {
     "raw.raw_sba_504_foia": "sba_504",
     "raw.raw_census_bds_state_year": "census_bds",
     "raw.raw_bls_laus_state_month": "bls_laus",
+}
+
+LOCAL_NATIVE_CSV_TABLES = {
+    "raw.raw_sba_7a_foia",
+    "raw.raw_sba_504_foia",
 }
 
 
@@ -82,12 +89,7 @@ def load_raw_extracts(
         table_row_counts: dict[str, int] = {}
 
         for table_name, manifests in manifest_groups.items():
-            frame = load_local_source_frame(
-                table_name,
-                manifests,
-                error_cls=RawLoadError,
-            )
-            _create_or_replace_table(connection, table_name, frame)
+            _load_local_source_table(connection, table_name, manifests)
             row_count = _table_count(connection, table_name)
             expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
             if row_count != expected_row_count:
@@ -145,6 +147,80 @@ def load_raw_extracts(
     )
 
 
+def _load_local_source_table(
+    connection: duckdb.DuckDBPyConnection,
+    table_name: str,
+    manifests: list[dict[str, object]],
+) -> None:
+    if table_name in LOCAL_NATIVE_CSV_TABLES:
+        _create_or_replace_native_csv_table(connection, table_name, manifests)
+        return
+
+    frame = load_local_source_frame(
+        table_name,
+        manifests,
+        error_cls=RawLoadError,
+    )
+    _create_or_replace_table(connection, table_name, frame)
+
+
+def _create_or_replace_native_csv_table(
+    connection: duckdb.DuckDBPyConnection,
+    table_name: str,
+    manifests: list[dict[str, object]],
+) -> None:
+    first_manifest, *remaining_manifests = manifests
+    connection.execute(
+        f"create or replace table {_quote_qualified_identifier(table_name)} as "
+        + _native_csv_select_sql(),
+        _native_csv_select_params(first_manifest),
+    )
+    for manifest in remaining_manifests:
+        connection.execute(
+            f"insert into {_quote_qualified_identifier(table_name)} "
+            + _native_csv_select_sql(),
+            _native_csv_select_params(manifest),
+        )
+
+
+def _native_csv_select_sql() -> str:
+    metadata_columns = ", ".join(
+        f'metadata.{_quote_identifier(column_name)}'
+        for column_name in RAW_ROW_METADATA_COLUMNS
+    )
+    metadata_values = ", ".join(
+        f"? as {_quote_identifier(column_name)}"
+        for column_name in RAW_ROW_METADATA_COLUMNS
+    )
+    return (
+        f"select source.*, {metadata_columns} "
+        "from read_csv(?, header=true, all_varchar=true) as source "
+        f"cross join (select {metadata_values}) as metadata"
+    )
+
+
+def _native_csv_select_params(manifest: dict[str, object]) -> list[object]:
+    raw_path = _local_raw_path(manifest)
+    metadata = manifest_raw_row_metadata(manifest)
+    return [
+        str(raw_path),
+        *[metadata[column_name] for column_name in RAW_ROW_METADATA_COLUMNS],
+    ]
+
+
+def _local_raw_path(manifest: dict[str, object]) -> Path:
+    local_raw_path = manifest.get("local_raw_path")
+    if not local_raw_path:
+        raise RawLoadError(
+            "Local DuckDB raw load requires manifest local_raw_path for "
+            f"{manifest.get('resource_name', 'unknown resource')}"
+        )
+    raw_path = Path(str(local_raw_path))
+    if not raw_path.exists():
+        raise RawLoadError(f"Local raw file does not exist: {raw_path}")
+    return raw_path
+
+
 def _create_or_replace_table(
     connection: duckdb.DuckDBPyConnection,
     table_name: str,
@@ -159,3 +235,11 @@ def _create_or_replace_table(
 
 def _table_count(connection: duckdb.DuckDBPyConnection, table_name: str) -> int:
     return int(connection.execute(f"select count(*) from {table_name}").fetchone()[0])
+
+
+def _quote_qualified_identifier(identifier: str) -> str:
+    return ".".join(_quote_identifier(part) for part in identifier.split("."))
+
+
+def _quote_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
