@@ -114,6 +114,17 @@ def test_source_file_dimension_uses_raw_uri_as_identity():
     assert "sha256_checksum" in model_sql
 
 
+def test_dim_date_uses_year_month_label_macro_for_dialect_formatting():
+    model_sql = DIMENSION_MODELS["dim_date"].read_text(encoding="utf-8")
+    macro_sql = Path("dbt/macros/date_compat.sql").read_text(encoding="utf-8")
+
+    assert "{{ year_month_label('date_day') }} as year_month" in model_sql
+    assert "target.type == 'snowflake'" not in model_sql
+    assert "macro year_month_label(date_expression)" in macro_sql
+    assert "to_char({{ date_expression }}, 'YYYY-MM')" in macro_sql
+    assert "strftime({{ date_expression }}, '%Y-%m')" in macro_sql
+
+
 def test_fact_models_generate_source_file_key_from_raw_uri():
     for model_name, model_path in FACT_MODELS.items():
         model_sql = model_path.read_text(encoding="utf-8")

@@ -21,3 +21,11 @@
         try_cast(strftime({{ date_expression }}, '%Y%m%d') as integer)
     {%- endif -%}
 {%- endmacro %}
+
+{% macro year_month_label(date_expression) -%}
+    {%- if target.type == 'snowflake' -%}
+        to_char({{ date_expression }}, 'YYYY-MM')
+    {%- else -%}
+        strftime({{ date_expression }}, '%Y-%m')
+    {%- endif -%}
+{%- endmacro %}

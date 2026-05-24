@@ -30,11 +30,7 @@ select
     extract(quarter from date_day)::integer as quarter,
     extract(month from date_day)::integer as month,
     extract(day from date_day)::integer as day_of_month,
-    {%- if target.type == 'snowflake' -%}
-        to_char(date_day, 'YYYY-MM')
-    {%- else -%}
-        strftime(date_day, '%Y-%m')
-    {%- endif %} as year_month
+    {{ year_month_label('date_day') }} as year_month
 from (
     {{ date_spine('(select start_date from bounds)', '(select end_date from bounds)') }}
 ) as spine
