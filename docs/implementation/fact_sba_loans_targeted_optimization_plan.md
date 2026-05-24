@@ -68,6 +68,20 @@ Current source shape:
   `source_file_key` directly, so the earlier expensive dimension key lookups
   are already gone.
 
+Fresh baseline captured before this targeted optimization:
+
+- `scripts/run_dbt_local.sh build --select fact_sba_loans+`: passed with
+  `PASS=177`; `fact_sba_loans` built in about `12.56s`.
+- `make benchmark-local COMMAND="scripts/run_dbt_local.sh run"`:
+  wall time about `19.69s`, max RSS about `7.33 GB`, `fact_sba_loans` about
+  `12.06s`.
+- `make benchmark-local COMMAND="make dbt-build-local-full"`:
+  wall time about `29.01s`, max RSS about `7.65 GB`, `fact_sba_loans` about
+  `11.90s`.
+- `fact_sba_loans` contract counters: `2,174,502` rows, `2,174,502`
+  distinct fact keys, no null lender/source-file/NAICS keys, `225,770`
+  `UNKNOWN` NAICS rows, and `109,190` `UNKNOWN` lender rows.
+
 ## Recommended Direction
 
 There are two useful paths, and they should be measured separately.
@@ -121,7 +135,7 @@ Parallel groups:
 - Stop/ask if:
   - Current `fact_sba_loans` tests or benchmark commands fail before any source
     edits.
-- Status: pending.
+- Status: complete. Baseline was captured before source edits.
 
 ### Task 2: Try The Small Fact-Only Cleanup
 
@@ -163,7 +177,12 @@ Parallel groups:
 - Stop/ask if:
   - Direct key logic cannot be made obviously identical to the dimension, or
     benchmark evidence shows worse performance.
-- Status: pending.
+- Status: complete. Direct `naics_key` derivation preserved row counts and key
+  parity, including `2,174,502` rows and no key nulls. A clean A/B rerun after
+  WSL recovered measured the original `dim_naics` lookup at about `21.33s` wall
+  time with `fact_sba_loans` around `12.69s`, then measured the direct-key
+  version at about `20.03s` wall time with `fact_sba_loans` around `11.85s`.
+  The direct-key version was retained as a small fact-model cost reduction.
 
 ### Task 3: Prove Raw Row Number Can Be Loaded Instead Of Recomputed
 
@@ -205,7 +224,17 @@ Parallel groups:
 - Stop/ask if:
   - DuckDB and Snowflake cannot produce comparable stable source-file row
     numbers without widening the raw-load contract beyond this plan.
-- Status: pending.
+- Status: rejected. A proof loaded `raw_row_number` in both local DuckDB and
+  Snowflake loader SQL, then rebuilt `stg_sba_loans+ fact_sba_loans+`. Row
+  counts stayed equal, but fact-key parity failed: `2,058,678` keys appeared
+  only in the baseline and `2,058,678` only after the change. The current
+  staging row number is a deterministic ordinal over the joined latest-manifest
+  source rows, not a safely replaceable load-time row ordinal. The raw-load and
+  staging changes were rolled back. During this proof, the local DuckDB loader
+  also exposed a separate compatibility bug: DuckDB inferred Hive partition
+  columns such as `pipeline_run_id` from raw artifact folders and collided with
+  explicit raw metadata. The accepted fix is to disable Hive partition
+  inference for native SBA CSV scans; this does not change the raw contract.
 
 ### Task 4: Replace The Staging Window Only If Row Number Parity Is Proven
 
@@ -242,7 +271,9 @@ Parallel groups:
     restoring staging row-number computation.
 - Stop/ask if:
   - Any `loan_record_key` mismatch appears against the baseline.
-- Status: pending.
+- Status: rejected. The staging window removal depends on Task 3 parity, and
+  the loaded row-number proof produced large `loan_record_key` churn. The
+  staging-owned `row_number() over (...)` remains the correct MVP behavior.
 
 ### Task 5: Decide Whether To Slim The Fact Contract
 
@@ -280,7 +311,14 @@ Parallel groups:
 - Stop/ask if:
   - A proposed slim fact would remove a field that is part of the MVP audit or
     Power BI contract.
-- Status: pending.
+- Status: complete. Downstream marts use the fact for aggregations by state,
+  year/month, program, lender, NAICS, status group, terms/pricing, charge-off,
+  and jobs-supported metrics. Several descriptive and lineage columns are not
+  directly consumed by current marts, but they preserve loan-level auditability
+  and the fact model is not exposed directly to Power BI. No fact columns were
+  removed in this slice. A future slim/detail split should be a separate
+  contract change only if benchmarks show fact width is a dominant cost after
+  the current local dbt path is otherwise stable.
 
 ## Final Verification
 
@@ -311,11 +349,9 @@ Run the final checks that match the tasks actually implemented:
 
 ## Open Questions
 
-- Can the current DuckDB version expose stable CSV row ordinality from native
-  scans without forcing a pandas fallback?
-- Should the cloud route use Snowflake `METADATA$FILE_ROW_NUMBER` directly for
-  SBA stage loads, or should the loader assign row numbers during a staging
-  `SELECT` before inserting into raw tables?
-- Are high-cardinality descriptive fields in `fact_sba_loans` intended as part
-  of the MVP audit contract, or should a later plan split them into an optional
-  loan-detail model?
+- The current staging row number is not interchangeable with a load-time CSV
+  row ordinal without changing `loan_record_key`; keep staging-owned row
+  numbering unless a future migration intentionally changes the key contract.
+- High-cardinality descriptive fields in `fact_sba_loans` currently function as
+  loan-level audit fields. Split them only under a separate approved plan with
+  benchmark evidence and Power BI/dbt contract updates.

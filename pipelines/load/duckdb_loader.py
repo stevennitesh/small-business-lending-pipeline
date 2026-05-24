@@ -215,7 +215,7 @@ def _native_csv_columns(
     raw_path: Path,
 ) -> tuple[str, ...]:
     rows = connection.execute(
-        "describe select * from read_csv(?, header=true, all_varchar=true)",
+        "describe select * from read_csv(?, header=true, all_varchar=true, hive_partitioning=false)",
         [str(raw_path)],
     ).fetchall()
     return tuple(str(row[0]) for row in rows)
@@ -264,7 +264,7 @@ def _native_csv_select_sql(
     )
     return (
         f"select {source_column_selects}, {metadata_columns} "
-        "from read_csv(?, header=true, all_varchar=true) as source "
+        "from read_csv(?, header=true, all_varchar=true, hive_partitioning=false) as source "
         f"cross join (select {metadata_values}) as metadata"
     )
 
