@@ -22,6 +22,12 @@ FACT_MODELS = {
     "fact_bds_state_year": Path("dbt/models/marts/facts/fact_bds_state_year.sql"),
 }
 
+FACT_SOURCE_FILE_KEY_EXPRESSIONS = {
+    "fact_sba_loans": '{{ generate_surrogate_key(["raw_uri"]) }}',
+    "fact_laus_state_month": '{{ generate_surrogate_key(["laus.raw_uri"]) }}',
+    "fact_bds_state_year": '{{ generate_surrogate_key(["bds.raw_uri"]) }}',
+}
+
 SEED_SCHEMA = Path("dbt/seeds/schema.yml")
 LOAN_STATUS_SEED = Path("dbt/seeds/ref_loan_status_group.csv")
 
@@ -111,10 +117,12 @@ def test_source_file_dimension_uses_raw_uri_as_identity():
 def test_fact_models_generate_source_file_key_from_raw_uri():
     for model_name, model_path in FACT_MODELS.items():
         model_sql = model_path.read_text(encoding="utf-8")
+        expected_expression = FACT_SOURCE_FILE_KEY_EXPRESSIONS[model_name]
+        expected_source_file_key = (
+            f"else {expected_expression}\n    end as source_file_key"
+        )
 
-        assert 'generate_surrogate_key(["' in model_sql, model_name
-        assert "raw_uri" in model_sql, model_name
-        assert ") }}\n    end as source_file_key" in model_sql, model_name
+        assert expected_source_file_key in model_sql, model_name
         assert "source_file.source_file_key" not in model_sql, model_name
         assert "ref('dim_source_file')" not in model_sql, model_name
 

@@ -4,7 +4,8 @@ from pathlib import Path
 
 MODEL_ROOT = Path("dbt/models")
 
-SELECT_STAR_RE = re.compile(r"\bselect\s+\*", re.IGNORECASE)
+SELECT_STAR_RE = re.compile(r"\bselect\s+(distinct\s+)?\*", re.IGNORECASE)
+DISTINCT_STAR_RE = re.compile(r"\bdistinct\s+\*", re.IGNORECASE)
 ALIAS_STAR_RE = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\.\*")
 
 EXPECTED_PRODUCTION_WILDCARD_PROJECTIONS = set()
@@ -57,16 +58,37 @@ standalone as (
         *,
         2 as marker
     from spread
+),
+
+distinct_inline as (
+    select distinct *
+    from spread
+),
+
+distinct_multiline as (
+    select distinct
+        *
+    from spread
+),
+
+select_then_distinct as (
+    select
+        distinct *,
+        3 as marker
+    from spread
 )
 
 select state_key
-from standalone
+from select_then_distinct
 """
 
     assert wildcard_projection_findings(sql) == [
         (3, "select *"),
         (9, "hidden.*"),
         (16, "*"),
+        (22, "select distinct *"),
+        (28, "*"),
+        (34, "distinct *"),
     ]
 
 
@@ -80,8 +102,13 @@ def wildcard_projection_findings(sql: str) -> list[tuple[int, str]]:
         if not stripped:
             continue
 
-        if SELECT_STAR_RE.search(code_line):
-            findings.append((line_number, "select *"))
+        select_star_match = SELECT_STAR_RE.search(code_line)
+        if select_star_match:
+            token = "select distinct *" if select_star_match.group(1) else "select *"
+            findings.append((line_number, token))
+
+        if _is_distinct_star_after_select(stripped, previous_code_line):
+            findings.append((line_number, "distinct *"))
 
         if _is_standalone_star_after_select(stripped, previous_code_line):
             findings.append((line_number, "*"))
@@ -99,7 +126,17 @@ def _is_standalone_star_after_select(
     stripped_line: str,
     previous_code_line: str,
 ) -> bool:
+    normalized_previous = previous_code_line.lower()
     return (
-        previous_code_line == "select"
+        normalized_previous in {"select", "select distinct"}
         and (stripped_line == "*" or stripped_line.startswith("*,"))
+    )
+
+
+def _is_distinct_star_after_select(
+    stripped_line: str,
+    previous_code_line: str,
+) -> bool:
+    return previous_code_line.lower() == "select" and bool(
+        DISTINCT_STAR_RE.match(stripped_line)
     )
