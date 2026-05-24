@@ -23,11 +23,22 @@ models:
   small_business_lending_pipeline:
     staging:
       +schema: staging
+      +materialized: view
       audit:
         +schema: audit
     marts:
       +schema: marts
+      +materialized: table
       pipeline:
         +schema: audit
+      dimensions:
+        +materialized: table
+      facts:
+        +materialized: table
+      context:
+        +materialized: table
+      lending:
+        +materialized: table
     bi:
       +schema: bi
+      +materialized: table

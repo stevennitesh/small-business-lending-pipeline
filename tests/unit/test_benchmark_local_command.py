@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from scripts.benchmark_local_command import (
+    DEFAULT_SIZE_PATHS,
     collect_duckdb_sizes,
     command_slug,
     diff_disk_sizes,
@@ -12,6 +13,10 @@ from scripts.benchmark_local_command import (
     parse_fresh_dbt_slow_nodes,
     render_text_summary,
 )
+
+
+def test_default_size_paths_track_raw_storage_separately():
+    assert Path("data/raw") in DEFAULT_SIZE_PATHS
 
 
 def test_parse_dbt_slow_nodes_sorts_by_execution_time(tmp_path):

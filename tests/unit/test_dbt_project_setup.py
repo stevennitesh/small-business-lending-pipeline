@@ -28,6 +28,25 @@ def test_dbt_target_names_match_runtime_config():
     assert "prod_snowflake" in outputs
 
 
+def test_dbt_materialization_policy_controls_local_compute_cost():
+    project = yaml.safe_load(Path("dbt/dbt_project.yml").read_text())
+    models = project["models"]["small_business_lending_pipeline"]
+
+    assert models["staging"]["+materialized"] == "view"
+    assert models["marts"]["+materialized"] == "table"
+    assert models["bi"]["+materialized"] == "table"
+    assert {
+        "dimensions",
+        "facts",
+        "context",
+        "lending",
+    } <= set(models["marts"])
+    assert all(
+        models["marts"][model_group]["+materialized"] == "table"
+        for model_group in ("dimensions", "facts", "context", "lending")
+    )
+
+
 def test_raw_sources_are_documented():
     sources_yml = yaml.safe_load(Path("dbt/models/sources/sources.yml").read_text())
     raw_source = sources_yml["sources"][0]

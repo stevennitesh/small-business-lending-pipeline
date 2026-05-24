@@ -19,6 +19,7 @@ DEFAULT_RUN_RESULTS_PATH = Path("dbt/target/run_results.json")
 DEFAULT_DUCKDB_PATH = Path("data/warehouse/small_business_lending.duckdb")
 DEFAULT_SIZE_PATHS = (
     Path("data"),
+    Path("data/raw"),
     Path("data/warehouse"),
     Path("data/exports/powerbi"),
     Path("dbt/target"),
