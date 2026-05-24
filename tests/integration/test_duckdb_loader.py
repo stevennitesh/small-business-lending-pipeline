@@ -232,7 +232,7 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
     manifests = _build_fixture_manifests(tmp_path)
     second_sba_7a = tmp_path / "raw" / "sba_7a_extra.csv"
     second_sba_7a.write_text(
-        "LoanNumber,GrossApproval\nA-4,not_available\n",
+        "GrossApproval,ExtraField,LoanNumber\nnot_available,new-column-value,A-4\n",
         encoding="utf-8",
     )
     manifests["sba_7a"].append(
@@ -244,7 +244,7 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
             resource_name="sba_7a_extra",
             row_count=1,
             file_format="csv",
-            schema_fields=["LoanNumber", "GrossApproval"],
+            schema_fields=["GrossApproval", "ExtraField", "LoanNumber"],
         )
     )
     validation_path = write_validation_results(
@@ -269,6 +269,7 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
             select
               cast(LoanNumber as varchar),
               cast(GrossApproval as varchar),
+              cast(ExtraField as varchar),
               source_resource_name
             from raw.raw_sba_7a_foia
             order by 1
@@ -276,9 +277,9 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
         ).fetchall()
 
     assert loaded_rows == [
-        ("1", "1000", "sba_7a_fy2020_present"),
-        ("2", "2000", "sba_7a_fy2020_present"),
-        ("A-4", "not_available", "sba_7a_extra"),
+        ("1", "1000", None, "sba_7a_fy2020_present"),
+        ("2", "2000", None, "sba_7a_fy2020_present"),
+        ("A-4", "not_available", "new-column-value", "sba_7a_extra"),
     ]
 
 

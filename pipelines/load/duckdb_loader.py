@@ -56,6 +56,13 @@ class RawLoadSummary:
     pipeline_run_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class NativeCsvManifest:
+    manifest: dict[str, object]
+    raw_path: Path
+    columns: tuple[str, ...]
+
+
 def load_raw_extracts(
     *,
     duckdb_path: Path | str = "data/warehouse/small_business_lending.duckdb",
@@ -170,21 +177,83 @@ def _create_or_replace_native_csv_table(
     table_name: str,
     manifests: list[dict[str, object]],
 ) -> None:
-    first_manifest, *remaining_manifests = manifests
+    csv_manifests = _native_csv_manifests(connection, manifests)
+    source_columns = _ordered_native_csv_columns(csv_manifests)
+    target_columns = _native_csv_target_columns(source_columns)
+    first_manifest, *remaining_manifests = csv_manifests
+
     connection.execute(
         f"create or replace table {_quote_qualified_identifier(table_name)} as "
-        + _native_csv_select_sql(),
+        + _native_csv_select_sql(source_columns, first_manifest.columns),
         _native_csv_select_params(first_manifest),
     )
-    for manifest in remaining_manifests:
+    for csv_manifest in remaining_manifests:
         connection.execute(
-            f"insert into {_quote_qualified_identifier(table_name)} "
-            + _native_csv_select_sql(),
-            _native_csv_select_params(manifest),
+            f"insert into {_quote_qualified_identifier(table_name)} ({target_columns}) "
+            + _native_csv_select_sql(source_columns, csv_manifest.columns),
+            _native_csv_select_params(csv_manifest),
         )
 
 
-def _native_csv_select_sql() -> str:
+def _native_csv_manifests(
+    connection: duckdb.DuckDBPyConnection,
+    manifests: list[dict[str, object]],
+) -> list[NativeCsvManifest]:
+    return [
+        NativeCsvManifest(
+            manifest=manifest,
+            raw_path=raw_path,
+            columns=_native_csv_columns(connection, raw_path),
+        )
+        for manifest in manifests
+        for raw_path in [_local_raw_path(manifest)]
+    ]
+
+
+def _native_csv_columns(
+    connection: duckdb.DuckDBPyConnection,
+    raw_path: Path,
+) -> tuple[str, ...]:
+    rows = connection.execute(
+        "describe select * from read_csv(?, header=true, all_varchar=true)",
+        [str(raw_path)],
+    ).fetchall()
+    return tuple(str(row[0]) for row in rows)
+
+
+def _ordered_native_csv_columns(
+    csv_manifests: list[NativeCsvManifest],
+) -> tuple[str, ...]:
+    columns: list[str] = []
+    seen_columns: set[str] = set()
+    for csv_manifest in csv_manifests:
+        for column_name in csv_manifest.columns:
+            if column_name not in seen_columns:
+                seen_columns.add(column_name)
+                columns.append(column_name)
+    return tuple(columns)
+
+
+def _native_csv_target_columns(source_columns: tuple[str, ...]) -> str:
+    return ", ".join(
+        _quote_identifier(column_name)
+        for column_name in (*source_columns, *RAW_ROW_METADATA_COLUMNS)
+    )
+
+
+def _native_csv_select_sql(
+    source_columns: tuple[str, ...],
+    manifest_columns: tuple[str, ...],
+) -> str:
+    manifest_column_set = set(manifest_columns)
+    source_column_selects = ", ".join(
+        (
+            f"source.{_quote_identifier(column_name)} as {_quote_identifier(column_name)}"
+            if column_name in manifest_column_set
+            else f"cast(null as varchar) as {_quote_identifier(column_name)}"
+        )
+        for column_name in source_columns
+    )
     metadata_columns = ", ".join(
         f'metadata.{_quote_identifier(column_name)}'
         for column_name in RAW_ROW_METADATA_COLUMNS
@@ -194,17 +263,16 @@ def _native_csv_select_sql() -> str:
         for column_name in RAW_ROW_METADATA_COLUMNS
     )
     return (
-        f"select source.*, {metadata_columns} "
+        f"select {source_column_selects}, {metadata_columns} "
         "from read_csv(?, header=true, all_varchar=true) as source "
         f"cross join (select {metadata_values}) as metadata"
     )
 
 
-def _native_csv_select_params(manifest: dict[str, object]) -> list[object]:
-    raw_path = _local_raw_path(manifest)
-    metadata = manifest_raw_row_metadata(manifest)
+def _native_csv_select_params(csv_manifest: NativeCsvManifest) -> list[object]:
+    metadata = manifest_raw_row_metadata(csv_manifest.manifest)
     return [
-        str(raw_path),
+        str(csv_manifest.raw_path),
         *[metadata[column_name] for column_name in RAW_ROW_METADATA_COLUMNS],
     ]
 
