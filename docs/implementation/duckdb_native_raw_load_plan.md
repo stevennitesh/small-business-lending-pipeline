@@ -334,6 +334,25 @@ The project should keep a clean professional split:
 - Cloud promotion uses S3-backed manifests and Snowflake stages.
 - dbt remains the shared transformation contract on top of either warehouse.
 
+## Benchmark Evidence
+
+Native DuckDB CSV loading was benchmarked against existing raw artifacts for
+`live-postmerge-pipeline-check-20260520` without re-downloading source data.
+
+- Benchmark output:
+  `.tmp/benchmarks/20260524T012337Z-home-steve-code-small-business-lending-pipeline-venv-bin-python-tmp-load-existin.json`.
+- Wall time: `18.069` seconds, improved from the prior `28.6` second baseline.
+- Max RSS: `2,002,464,768` bytes, improved from the prior `~4.7 GB` baseline.
+- DuckDB size: `182,202,368` bytes.
+- Row counts matched the baseline:
+  - `raw.raw_sba_7a_foia`: `1,947,098`.
+  - `raw.raw_sba_504_foia`: `227,404`.
+  - `raw.raw_bls_laus_state_month`: `22,746`.
+  - `raw.raw_census_bds_state_year`: `1,734`.
+  - `raw.raw_ingestion_manifest`: `8`.
+  - `raw.raw_validation_result`: `92`.
+  - `raw.raw_pipeline_run_summary`: `1`.
+
 ## Open Questions
 
 - Should the native DuckDB loader force every raw CSV column to text for maximum
