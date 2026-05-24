@@ -37,6 +37,55 @@ because the latest full local benchmark identified it as the slowest dbt node.
   - `stg_sba_loans` uses `select *` on both SBA staging branches before
     `union all`.
 
+## Implementation Evidence
+
+### Task 1 Result
+
+- Commit `dc82bf3` generates `lender_key` and `source_file_key` directly in
+  `fact_sba_loans` from the same deterministic inputs used by `dim_lender` and
+  `dim_source_file`.
+- Pre-change and post-change fact shape matched:
+  - row count: `2,174,502`;
+  - `lender_key` nulls: `0`;
+  - `source_file_key` nulls: `0`;
+  - `UNKNOWN` lender rows: `109,190`.
+- `scripts/run_dbt_local.sh build --select fact_sba_loans+` passed and the
+  existing relationship tests continued to validate referential integrity.
+
+### Task 2 Result
+
+- Commit `ec9715c` replaces `select *` in `stg_sba_loans` with the explicit SBA
+  standardized column list for both 7(a) and 504 branches.
+- `tests/unit/test_dbt_staging_models.py` now rejects `select *` in the SBA
+  union and verifies both branches use the same ordered column contract.
+- `scripts/run_dbt_local.sh build --select stg_sba_loans+` passed with
+  `PASS=203 WARN=0 ERROR=0 SKIP=0`.
+
+### Task 3 Benchmark Result
+
+Benchmarks were refreshed on 2026-05-24 after Tasks 1 and 2:
+
+- `make benchmark-local COMMAND="make dbt-build-local-full"` passed with
+  `28.382s` wall time, `7,713,222,656` bytes max RSS, DuckDB size
+  `615,002,112` bytes, and `0` byte `data/raw` delta.
+- Slowest full-build dbt node remained
+  `model.small_business_lending_pipeline.fact_sba_loans`, now at about
+  `11.86s`.
+- `make benchmark-local COMMAND="make powerbi-refresh-local"` passed with
+  `26.113s` wall time, `7,454,937,088` bytes max RSS, DuckDB size
+  `654,061,568` bytes, and `0` byte `data/raw` delta.
+- Power BI export row counts stayed in the expected live-data shape, including
+  `bi_executive_overview=1,887`, `bi_lender_mix=149,873`,
+  `bi_industry_mix=31,733`, `bi_regional_business_health=1,734`, and
+  `bi_year_filter=37`.
+- `make powerbi-model-check` passed with 17 tables, 25 relationships, and
+  filter coverage for industry, lender, program, region, state, and year.
+
+Decision: defer an `int_sba_loans_standardized` table experiment. The fact
+model is still the slowest single node, but the full local build is comfortably
+under one minute and slightly faster than the prior materialization benchmark.
+Adding another persisted intermediate table is not justified in this slice.
+
 ## Tasks
 
 ### Task 1: Replace Deterministic Key Lookups In `fact_sba_loans`
