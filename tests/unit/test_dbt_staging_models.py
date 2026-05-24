@@ -49,6 +49,66 @@ MANIFEST_IDENTITY_COLUMNS = [
     "raw_uri",
 ]
 
+SBA_STAGING_COLUMNS = [
+    "loan_record_key",
+    "loan_program",
+    "source_program",
+    "source_loan_id",
+    "borrower_name",
+    "borrower_city",
+    "borrower_state_abbr",
+    "borrower_state_fips",
+    "borrower_state_match_status",
+    "borrower_zip",
+    "lender_name",
+    "lender_fdic_number",
+    "lender_ncua_number",
+    "cdc_name",
+    "cdc_state_abbr",
+    "lender_state_abbr",
+    "third_party_dollars",
+    "project_county",
+    "project_state_abbr",
+    "project_state_fips",
+    "project_state_match_status",
+    "gross_approval_amount",
+    "sba_guaranteed_approval_amount",
+    "approval_date",
+    "approval_fiscal_year",
+    "first_disbursement_date",
+    "processing_method",
+    "subprogram",
+    "initial_interest_rate",
+    "fixed_or_variable_interest_indicator",
+    "term_months",
+    "naics_code",
+    "naics_description",
+    "franchise_code",
+    "franchise_name",
+    "sba_district_office",
+    "congressional_district",
+    "business_type",
+    "business_age",
+    "loan_status",
+    "paid_in_full_date",
+    "chargeoff_date",
+    "gross_chargeoff_amount",
+    "revolver_status",
+    "jobs_supported",
+    "collateral_indicator",
+    "sold_secondary_market_indicator",
+    "pipeline_run_id",
+    "source_system",
+    "source_dataset",
+    "source_resource_name",
+    "ingestion_date",
+    "storage_backend",
+    "raw_uri",
+    "raw_file_path",
+    "sha256_checksum",
+    "raw_row_number",
+]
+
 
 def _test_names(column: dict) -> set[str]:
     names: set[str] = set()
@@ -157,6 +217,26 @@ def test_sba_staging_models_null_out_negative_approval_amounts():
         assert "gross_approval_amount" in model_sql
         assert "else null" in model_sql
         assert ">= 0" in model_sql
+
+
+def test_sba_staging_union_uses_explicit_column_contract():
+    model_sql = STAGING_MODELS["stg_sba_loans"].read_text(encoding="utf-8")
+
+    assert "select *" not in model_sql.lower()
+    branches = model_sql.split("\nunion all\n")
+    assert len(branches) == 2
+
+    for branch_sql in branches:
+        selected_columns = []
+        for line in branch_sql.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped == "select":
+                continue
+            if stripped.startswith("from "):
+                break
+            selected_columns.append(stripped.removesuffix(","))
+
+        assert selected_columns == SBA_STAGING_COLUMNS
 
 
 def test_staging_models_require_route_neutral_raw_identity():
