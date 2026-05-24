@@ -26,19 +26,6 @@ EXPECTED_PRODUCTION_WILDCARD_PROJECTIONS = {
         15,
         "monthly.*",
     ),
-    ("dbt/models/staging/audit/stg_ingestion_manifest.sql", 5, "*"),
-    ("dbt/models/staging/bls/stg_bls_laus_state_month.sql", 4, "select *"),
-    ("dbt/models/staging/bls/stg_bls_laus_state_month.sql", 15, "raw.*"),
-    ("dbt/models/staging/census/stg_census_bds_state_year.sql", 4, "select *"),
-    ("dbt/models/staging/census/stg_census_bds_state_year.sql", 15, "raw.*"),
-    ("dbt/models/staging/sba/stg_sba_504_loans.sql", 4, "select *"),
-    ("dbt/models/staging/sba/stg_sba_504_loans.sql", 15, "raw.*"),
-    ("dbt/models/staging/sba/stg_sba_504_loans.sql", 23, "raw.*"),
-    ("dbt/models/staging/sba/stg_sba_504_loans.sql", 120, "select *"),
-    ("dbt/models/staging/sba/stg_sba_7a_loans.sql", 4, "select *"),
-    ("dbt/models/staging/sba/stg_sba_7a_loans.sql", 15, "raw.*"),
-    ("dbt/models/staging/sba/stg_sba_7a_loans.sql", 23, "raw.*"),
-    ("dbt/models/staging/sba/stg_sba_7a_loans.sql", 120, "select *"),
 }
 
 

@@ -2,7 +2,26 @@
 
 with manifests as (
     select
-        *,
+        pipeline_run_id,
+        source_system,
+        dataset_name,
+        resource_name,
+        source_url,
+        extracted_at_utc,
+        ingestion_date,
+        storage_backend,
+        raw_uri,
+        local_raw_path,
+        s3_raw_uri,
+        file_format,
+        row_count,
+        sha256_checksum,
+        schema_hash,
+        validation_status,
+        request_parameters,
+        column_count,
+        file_size_bytes,
+        validation_messages,
         validation_status = 'passed'
         and dense_rank() over (
             partition by source_system, dataset_name, resource_name
