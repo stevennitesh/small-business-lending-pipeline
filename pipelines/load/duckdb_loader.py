@@ -39,7 +39,7 @@ SOURCE_TABLES = {
     "raw.raw_bls_laus_state_month": "bls_laus",
 }
 
-LOCAL_NATIVE_CSV_TABLES = {
+LOCAL_DUCKDB_NATIVE_CSV_TABLES = {
     "raw.raw_sba_7a_foia",
     "raw.raw_sba_504_foia",
 }
@@ -152,10 +152,11 @@ def _load_local_source_table(
     table_name: str,
     manifests: list[dict[str, object]],
 ) -> None:
-    if table_name in LOCAL_NATIVE_CSV_TABLES:
+    if table_name in LOCAL_DUCKDB_NATIVE_CSV_TABLES:
         _create_or_replace_native_csv_table(connection, table_name, manifests)
         return
 
+    # Census/BLS JSON sources are tiny; keep them on the shared local frame path.
     frame = load_local_source_frame(
         table_name,
         manifests,

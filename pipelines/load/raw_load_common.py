@@ -14,9 +14,7 @@ from pipelines.validation.validation_result import (
 )
 
 
-SOURCE_TABLE_KINDS = {
-    "raw_sba_7a_foia": "sba_csv",
-    "raw_sba_504_foia": "sba_csv",
+LOCAL_FRAME_SOURCE_TABLE_KINDS = {
     "raw_census_bds_state_year": "census_bds_json",
     "raw_bls_laus_state_month": "bls_laus_json",
 }
@@ -127,10 +125,10 @@ def load_local_source_frame(
     *,
     error_cls: type[Exception],
 ) -> pd.DataFrame:
-    """Read local raw files referenced by manifests into a source-shaped frame."""
+    """Read small local non-CSV raw files into a source-shaped frame."""
 
     table_key = _table_key(table_name)
-    table_kind = SOURCE_TABLE_KINDS.get(table_key)
+    table_kind = LOCAL_FRAME_SOURCE_TABLE_KINDS.get(table_key)
     if table_kind is None:
         raise error_cls(f"Unsupported raw table: {table_name}")
 
@@ -187,8 +185,6 @@ def _table_key(table_name: str) -> str:
 
 def _read_manifest_frame(table_kind: str, manifest: dict[str, Any]) -> pd.DataFrame:
     raw_path = Path(manifest["local_raw_path"])
-    if table_kind == "sba_csv":
-        return pd.read_csv(raw_path, low_memory=False)
     if table_kind == "census_bds_json":
         return _read_census_bds_json(raw_path)
     if table_kind == "bls_laus_json":
