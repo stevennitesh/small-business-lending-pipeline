@@ -46,8 +46,12 @@ with loans as (
             when substr(naics_code, 1, 2) in ('31', '32', '33') then '31-33'
             when substr(naics_code, 1, 2) in ('44', '45') then '44-45'
             when substr(naics_code, 1, 2) in ('48', '49') then '48-49'
-            else substr(naics_code, 1, 2)
-        end as naics_sector_key,
+            when substr(naics_code, 1, 2) in (
+                '11', '21', '22', '23', '42', '51', '52', '53', '54', '55',
+                '56', '61', '62', '71', '72', '81', '92', '99'
+            ) then substr(naics_code, 1, 2)
+            else 'UNKNOWN'
+        end as naics_key,
         coalesce(
             nullif(upper(trim(cast(loan_status as varchar))), ''),
             'UNKNOWN'
@@ -63,7 +67,7 @@ select
         when lender_name is null then 'UNKNOWN'
         else {{ generate_surrogate_key(["lender_name"]) }}
     end as lender_key,
-    coalesce(naics.naics_key, 'UNKNOWN') as naics_key,
+    loans.naics_key,
     project_state_fips as project_state_key,
     borrower_state_fips as borrower_state_key,
     case
@@ -116,7 +120,5 @@ select
     loans.raw_file_path,
     loans.sha256_checksum
 from loans
-left join {{ ref('dim_naics') }} as naics
-    on loans.naics_sector_key = naics.naics_key
 left join {{ ref('ref_loan_status_group') }} as status
     on loans.loan_status_key = status.loan_status_key

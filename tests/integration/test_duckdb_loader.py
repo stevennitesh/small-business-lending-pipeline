@@ -311,6 +311,70 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
     assert summary.table_row_counts["raw.raw_sba_504_foia"] == 1
 
 
+def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path):
+    manifests = _build_fixture_manifests(tmp_path)
+    partitioned_dir = (
+        tmp_path
+        / "raw"
+        / "ingestion_date=2026-05-07"
+        / "pipeline_run_id=run-123"
+    )
+    partitioned_dir.mkdir(parents=True)
+    partitioned_sba_7a = partitioned_dir / "sba_7a.csv"
+    partitioned_sba_7a.write_text(
+        "LoanNumber,GrossApproval\n1,1000\n2,2000\n",
+        encoding="utf-8",
+    )
+    manifests["sba_7a"] = [
+        _write_manifest(
+            raw_file=partitioned_sba_7a,
+            manifest_path=tmp_path / "manifests" / "partitioned_sba_7a.manifest.json",
+            source_system="sba",
+            dataset_name="7a_504_foia",
+            resource_name="sba_7a_fy2020_present",
+            row_count=2,
+            file_format="csv",
+            schema_fields=["LoanNumber", "GrossApproval"],
+        )
+    ]
+    validation_path = write_validation_results(
+        [_validation_result()],
+        tmp_path / "validation" / "validation_results.json",
+    )
+
+    load_raw_extracts(
+        duckdb_path=tmp_path / "warehouse.duckdb",
+        sba_7a_manifest_paths=manifests["sba_7a"],
+        sba_504_manifest_paths=manifests["sba_504"],
+        census_bds_manifest_paths=manifests["census"],
+        bls_laus_manifest_paths=manifests["bls"],
+        validation_result_paths=[validation_path],
+    )
+
+    with duckdb.connect(str(tmp_path / "warehouse.duckdb")) as connection:
+        columns = {
+            row[0]
+            for row in connection.execute(
+                """
+                select column_name
+                from information_schema.columns
+                where table_schema = 'raw'
+                  and table_name = 'raw_sba_7a_foia'
+                """
+            ).fetchall()
+        }
+        rows = connection.execute(
+            """
+            select pipeline_run_id, ingestion_date
+            from raw.raw_sba_7a_foia
+            order by LoanNumber
+            """
+        ).fetchall()
+
+    assert columns >= {"pipeline_run_id", "ingestion_date"}
+    assert rows == [("run-123", "2026-05-07"), ("run-123", "2026-05-07")]
+
+
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):
     manifests = _build_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
