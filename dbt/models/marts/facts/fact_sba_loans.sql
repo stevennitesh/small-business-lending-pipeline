@@ -19,11 +19,17 @@ select
     loan_record_key as sba_loan_fact_key,
     loan_record_key,
     loans.loan_program as loan_program_key,
-    coalesce(lender.lender_key, 'UNKNOWN') as lender_key,
+    case
+        when lender_name is null then 'UNKNOWN'
+        else {{ generate_surrogate_key(["lender_name"]) }}
+    end as lender_key,
     coalesce(naics.naics_key, 'UNKNOWN') as naics_key,
     project_state_fips as project_state_key,
     borrower_state_fips as borrower_state_key,
-    source_file.source_file_key,
+    case
+        when raw_uri is null then null
+        else {{ generate_surrogate_key(["raw_uri"]) }}
+    end as source_file_key,
     {{ date_key('approval_date') }} as approval_date_key,
     approval_date,
     coalesce(
@@ -70,11 +76,7 @@ select
     loans.raw_file_path,
     loans.sha256_checksum
 from loans
-left join {{ ref('dim_lender') }} as lender
-    on loans.lender_name = lender.lender_name
 left join {{ ref('dim_naics') }} as naics
     on loans.naics_sector_key = naics.naics_key
 left join {{ ref('ref_loan_status_group') }} as status
     on loans.loan_status_key = status.loan_status_key
-left join {{ ref('dim_source_file') }} as source_file
-    on loans.raw_uri = source_file.raw_uri
