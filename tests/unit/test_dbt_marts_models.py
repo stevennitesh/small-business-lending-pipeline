@@ -158,6 +158,17 @@ def test_fact_sba_loans_exposes_canonical_approval_year():
     assert ") as approval_year" in model_sql
 
 
+def test_fact_sba_loans_generates_naics_key_without_dimension_lookup():
+    model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
+
+    assert "ref('dim_naics')" not in model_sql
+    assert "loans.naics_key," in model_sql
+    assert "else 'UNKNOWN'\n        end as naics_key" in model_sql
+    assert "'31', '32', '33'" in model_sql
+    assert "'44', '45'" in model_sql
+    assert "'48', '49'" in model_sql
+
+
 def test_fact_sba_loans_exposes_extra_kpi_fields_and_status_group():
     model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
     schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
