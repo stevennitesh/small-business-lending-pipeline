@@ -353,6 +353,24 @@ Native DuckDB CSV loading was benchmarked against existing raw artifacts for
   - `raw.raw_validation_result`: `92`.
   - `raw.raw_pipeline_run_summary`: `1`.
 
+## Downstream Verification Evidence
+
+The native-loaded local DuckDB warehouse was used to rebuild dbt models and
+Power BI CSV exports.
+
+- `make dbt-build-local-fast` passed with 4 seeds, 51 models, and 33 critical
+  tests.
+- `make powerbi-refresh-local` passed and exported 17 BI CSV tables.
+- Exported Power BI row counts included:
+  - `bi_executive_overview`: `1,887`.
+  - `bi_lender_mix`: `149,873`.
+  - `bi_industry_mix`: `31,733`.
+  - `bi_regional_business_health`: `1,734`.
+  - `bi_year_filter`: `37`.
+- `make powerbi-model-check` passed with 17 tables, 25 relationships, and
+  filter coverage for industry, lender, program, region, state, and year.
+- `git diff --check` passed.
+
 ## Open Questions
 
 - Should the native DuckDB loader force every raw CSV column to text for maximum
