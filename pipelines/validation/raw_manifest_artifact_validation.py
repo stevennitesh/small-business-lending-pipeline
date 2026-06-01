@@ -1,3 +1,5 @@
+"""Validate raw manifest files and the raw artifacts they point to."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +10,7 @@ from pipelines.storage.raw_artifacts import (
     RawArtifactReader,
 )
 from pipelines.utils.config import ProjectConfig
-from pipelines.utils.source_resources import source_name_for_resource
+from pipelines.utils.source_resources import source_key_for_resource
 from pipelines.validation.raw_manifest_collection import (
     load_manifest_for_validation,
 )
@@ -18,13 +20,17 @@ from pipelines.validation.raw_manifest_rule_checks import (
 )
 from pipelines.validation.raw_validation_check_catalog import (
     RAW_FILE_EXISTS,
+    RAW_MANIFEST_SOURCE_IDENTITY,
 )
 from pipelines.validation.raw_validation_models import (
     LoadedManifestReference,
     RawManifest,
     RawManifestIndex,
 )
-from pipelines.validation.validation_result import ValidationResult
+from pipelines.validation.validation_result import (
+    ValidationResult,
+    make_manifest_validation_result,
+)
 
 
 def check_raw_manifest(
@@ -33,6 +39,7 @@ def check_raw_manifest(
     artifact_reader: RawArtifactReader | None = None,
     manifest_artifact_reader: ArtifactReader | None = None,
 ) -> list[ValidationResult]:
+    """Load a manifest reference and validate its raw artifact contract."""
     reader = artifact_reader or RawArtifactReader()
     manifest_reader = manifest_artifact_reader or ArtifactReader()
     load_result = load_manifest_for_validation(
@@ -59,6 +66,7 @@ def check_raw_manifest_artifact(
     artifact_reader: RawArtifactReader | None = None,
     manifest_artifact_reader: ArtifactReader | None = None,
 ) -> list[ValidationResult]:
+    """Validate one loaded manifest against raw artifact inspection results."""
     reader = artifact_reader or RawArtifactReader()
     manifest_reader = manifest_artifact_reader or ArtifactReader()
     inspection = reader.inspect(manifest)
@@ -76,6 +84,7 @@ def validate_loaded_manifest_artifacts(
     manifest_reader: ArtifactReader,
     raw_artifact_reader: RawArtifactReader,
 ) -> list[ValidationResult]:
+    """Validate all loaded manifests and their referenced raw artifacts."""
     validation_results: list[ValidationResult] = []
     for loaded_manifest in loaded_manifest_references:
         validation_results.extend(
@@ -95,24 +104,66 @@ def validate_manifest_identities_and_storage(
     *,
     is_cloud_route: bool,
 ) -> list[ValidationResult]:
+    """Validate manifest source identity and route-specific storage fields."""
     validation_results: list[ValidationResult] = []
+    sba_resource_names = {spec.logical_name for spec in project_config.sba.resources}
     for manifest in manifest_index.manifests:
+        resource_name = manifest.get("resource_name")
+        if not isinstance(resource_name, str) or not resource_name.strip():
+            validation_results.append(
+                _manifest_resource_identity_failure(
+                    manifest,
+                    resource_name=resource_name,
+                    message="Manifest resource_name is missing or invalid.",
+                )
+            )
+            continue
+        try:
+            expected_identity = project_config.source_identity(
+                source_key_for_resource(
+                    resource_name,
+                    sba_resource_names=sba_resource_names,
+                )
+            )
+        except (KeyError, ValueError):
+            validation_results.append(
+                _manifest_resource_identity_failure(
+                    manifest,
+                    resource_name=resource_name,
+                    message=(
+                        "Manifest resource_name is not recognized in source config."
+                    ),
+                )
+            )
+            continue
         validation_results.extend(
             check_manifest_identity_and_route_rules(
                 manifest,
-                expected_identity=project_config.source_identity(
-                    source_name_for_resource(
-                        str(manifest["resource_name"]),
-                        project_config,
-                    )
-                ),
+                expected_identity=expected_identity,
                 is_cloud_route=is_cloud_route,
             )
         )
     return validation_results
 
 
+def _manifest_resource_identity_failure(
+    manifest: RawManifest,
+    *,
+    resource_name: object,
+    message: str,
+) -> ValidationResult:
+    return make_manifest_validation_result(
+        manifest=manifest,
+        check_definition=RAW_MANIFEST_SOURCE_IDENTITY,
+        passed=False,
+        expected_value="resource_name mapped to configured source",
+        observed_value=resource_name,
+        failed_message=message,
+    )
+
+
 def raw_file_exists_resource_names(results: list[ValidationResult]) -> set[str]:
+    """Extract resource names whose raw-file existence checks passed."""
     return {
         result.source_resource_name
         for result in results

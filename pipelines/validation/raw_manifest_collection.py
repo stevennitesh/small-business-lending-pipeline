@@ -1,3 +1,5 @@
+"""Load raw manifest references into validation-ready manifest objects."""
+
 from __future__ import annotations
 
 import json
@@ -30,6 +32,8 @@ from pipelines.validation.validation_result import (
 
 @dataclass(frozen=True)
 class ManifestLoadResult:
+    """Result of attempting to load one manifest reference."""
+
     loaded_manifest: LoadedManifestReference | None = None
     failure: ValidationResult | None = None
 
@@ -45,6 +49,7 @@ def load_manifests_for_validation(
     manifest_references: tuple[Path | ArtifactLocation, ...],
     manifest_artifact_reader: ArtifactReader,
 ) -> tuple[list[LoadedManifestReference], list[ValidationResult]]:
+    """Load all manifest references, returning loaded manifests and failures."""
     loaded_manifest_references: list[LoadedManifestReference] = []
     validation_results: list[ValidationResult] = []
     for reference in manifest_references:
@@ -65,6 +70,7 @@ def load_manifest_for_validation(
     reference: ArtifactReference,
     manifest_artifact_reader: ArtifactReader,
 ) -> ManifestLoadResult:
+    """Read and parse one manifest reference for validation."""
     try:
         manifest_text = read_artifact_text(reference, manifest_artifact_reader)
     except (BotoCoreError, ClientError, OSError):

@@ -2,25 +2,39 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from pathlib import Path
 
 import pytest
-import requests
 
 from pipelines.extract.bls_laus_extract import (
-    BLSLAUSConfig,
-    BLSSeriesConfig,
+    PUBLIC_YEAR_WINDOW_SIZE,
+    REGISTERED_YEAR_WINDOW_SIZE,
     build_bls_payload,
     chunk_series,
     chunk_year_range,
     extract_bls_laus,
     fetch_bls_laus_responses,
-    load_bls_laus_config,
     normalize_bls_response,
-    parse_monthly_period,
+    resolve_bls_year_window_size,
 )
+from pipelines.extract.bls_laus_periods import parse_monthly_period
 from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_config_models import (
+    BLS_LAUS_CONFIG_FILE,
+    BLSLAUSConfig,
+    BLSSeriesConfig,
+    load_bls_laus_config,
+)
+from pipelines.utils.source_resources import SourceIdentity
+from tests.unit.config_test_helpers import config_path
+from tests.unit.extract_test_helpers import (
+    FakePostSession as FakeSession,
+    FakeS3ObjectClient,
+    read_json_file,
+    read_summary_manifest,
+)
+
+
+BLS_LAUS_CONFIG_PATH = config_path(BLS_LAUS_CONFIG_FILE)
 
 
 def _series_configs() -> tuple[BLSSeriesConfig, ...]:
@@ -95,42 +109,8 @@ def _fixture_response() -> dict:
     }
 
 
-class FakeResponse:
-    def __init__(self, payload: dict, status_code: int = 200):
-        self.payload = payload
-        self.status_code = status_code
-
-    def raise_for_status(self) -> None:
-        if self.status_code >= 400:
-            raise requests.HTTPError(f"HTTP {self.status_code}")
-
-    def json(self) -> dict:
-        return self.payload
-
-
-class FakeSession:
-    def __init__(self, payloads: list[dict]):
-        self.payloads = payloads
-        self.calls: list[dict] = []
-
-    def post(self, url: str, json: dict[str, object], timeout: int):
-        self.calls.append({"url": url, "json": json, "timeout": timeout})
-        return FakeResponse(self.payloads.pop(0))
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        raise NotImplementedError
-
-
 def test_load_bls_laus_config_from_yaml():
-    config = load_bls_laus_config(Path("config/bls_laus_state_series.yml"))
+    config = load_bls_laus_config(BLS_LAUS_CONFIG_PATH)
 
     assert config.endpoint == "https://api.bls.gov/publicAPI/v2/timeseries/data/"
     assert config.measure_name == "unemployment_rate"
@@ -167,10 +147,27 @@ def test_build_bls_payload_uses_year_range_and_optional_key():
     }
 
 
+def test_resolve_bls_year_window_size_uses_override_or_api_access():
+    assert resolve_bls_year_window_size(api_key=None, year_window_size=7) == 7
+    assert resolve_bls_year_window_size(api_key="secret-key") == (
+        REGISTERED_YEAR_WINDOW_SIZE
+    )
+    assert resolve_bls_year_window_size(api_key=None) == PUBLIC_YEAR_WINDOW_SIZE
+
+
+def test_resolve_bls_year_window_size_rejects_non_positive_override():
+    with pytest.raises(ValueError, match="year_window_size must be at least 1"):
+        resolve_bls_year_window_size(api_key=None, year_window_size=0)
+
+
 def test_parse_monthly_period_excludes_annual_periods():
     assert parse_monthly_period("2023", "M01") == date(2023, 1, 1)
     assert parse_monthly_period("2023", "M12") == date(2023, 12, 1)
     assert parse_monthly_period("2023", "M13") is None
+
+
+def test_parse_monthly_period_returns_none_for_invalid_year():
+    assert parse_monthly_period("not-a-year", "M01") is None
 
 
 def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
@@ -296,13 +293,13 @@ def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
         "raw/bls/laus/grain=state_month/ingestion_date=2026-05-07/"
         "pipeline_run_id=run-123/bls_laus_state_month_2023_2023.json"
     )
-    raw_payload = json.loads(summary.result.local_raw_path.read_text(encoding="utf-8"))
+    raw_payload = read_json_file(summary.result.local_raw_path)
     assert raw_payload["normalized_rows"][0]["observed_month"] == "2023-02-01"
     assert raw_payload["responses"][0]["status"] == "REQUEST_SUCCEEDED"
     assert summary.result.manifest.row_count == 3
     assert summary.latest_observed_month == "2023-02-01"
 
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["resource_name"] == "laus_state_month"
     assert manifest["row_count"] == 3
     assert manifest["series_count"] == 2
@@ -340,7 +337,7 @@ def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
         "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
         "bls_laus_state_month_2023_2023.json"
     )
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["source_system"] == "custom_bls"
     assert manifest["dataset_name"] == "custom_laus"
     assert manifest["s3_raw_uri"].startswith(
@@ -380,7 +377,7 @@ def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
 
     assert summary.result.local_raw_path is None
     assert summary.result.manifest.storage_backend == "s3"
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["storage_backend"] == "s3"
     assert manifest["raw_uri"] == manifest["s3_raw_uri"]
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")

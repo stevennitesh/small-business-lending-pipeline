@@ -72,6 +72,12 @@ class ExtractionResult:
         }
 
 
+@dataclass(frozen=True)
+class ManifestWriteResult:
+    manifest_path: Path
+    manifest_location: Any | None = None
+
+
 def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     manifest = normalize_manifest_storage_fields(manifest)
     missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(manifest))
@@ -108,7 +114,10 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def write_manifest(manifest: ExtractionManifest | dict[str, Any], path: Path | str) -> Path:
+def write_manifest(
+    manifest: ExtractionManifest | dict[str, Any],
+    path: Path | str,
+) -> Path:
     payload = manifest_to_json_bytes(manifest)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,6 +168,58 @@ def build_manifest_artifact_location(
         ingestion_date=manifest.ingestion_date,
         pipeline_run_id=manifest.pipeline_run_id,
         filename=filename,
+    )
+
+
+def write_extraction_manifest_outputs(
+    *,
+    data_root: Path,
+    source_directory: str,
+    manifest: ExtractionManifest,
+    filename: str,
+    manifest_artifact_store: Any | None = None,
+    manifest_payload: ExtractionManifest | dict[str, Any] | None = None,
+) -> ManifestWriteResult:
+    manifest_path = build_local_manifest_path(
+        data_root=data_root,
+        source_directory=source_directory,
+        ingestion_date=manifest.ingestion_date,
+        pipeline_run_id=manifest.pipeline_run_id,
+        filename=filename,
+    )
+    return write_manifest_outputs(
+        manifest=manifest,
+        manifest_path=manifest_path,
+        manifest_artifact_store=manifest_artifact_store,
+        manifest_payload=manifest_payload,
+    )
+
+
+def write_manifest_outputs(
+    *,
+    manifest: ExtractionManifest,
+    manifest_path: Path,
+    manifest_artifact_store: Any | None = None,
+    manifest_payload: ExtractionManifest | dict[str, Any] | None = None,
+) -> ManifestWriteResult:
+    payload = manifest_payload or manifest
+    write_manifest(payload, manifest_path)
+
+    manifest_location = None
+    if manifest_artifact_store is not None:
+        manifest_location = build_manifest_artifact_location(
+            manifest_artifact_store,
+            manifest=manifest,
+            filename=manifest_path.name,
+        )
+        manifest_artifact_store.write_bytes(
+            manifest_location,
+            manifest_to_json_bytes(payload),
+        )
+
+    return ManifestWriteResult(
+        manifest_path=manifest_path,
+        manifest_location=manifest_location,
     )
 
 

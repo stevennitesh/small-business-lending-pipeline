@@ -1,3 +1,5 @@
+"""Raw validation check definitions and stable check IDs."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,6 +7,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ValidationCheckDefinition:
+    """Catalog entry used to create consistent validation results."""
+
     validation_check_id: str
     check_name: str
     check_type: str

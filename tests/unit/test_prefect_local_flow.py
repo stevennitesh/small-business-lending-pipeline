@@ -13,8 +13,12 @@ from pipelines.extract.census_bds_extract import CensusBDSExtractionSummary
 from pipelines.extract.sba_extract import SBAExtractionSummary
 from pipelines.flows import dbt_bi, raw_loads, source_extracts
 import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.flows.run_models import (
+from pipelines.flows.extraction_artifact_stores import resolve_extraction_bucket
+from pipelines.flows.extraction_manifests import (
     ExtractionPaths,
+    extraction_paths_from_manifest_maps,
+)
+from pipelines.flows.run_models import (
     FlowRunState,
 )
 from pipelines.storage.raw_artifacts import (
@@ -228,6 +232,81 @@ def test_raw_artifact_store_matches_route(tmp_path):
         bucket="cloud-bucket",
         s3_client=object(),
     ).storage_backend == "s3"
+
+
+def test_extraction_bucket_rejects_missing_cloud_bucket(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="cloud",
+        extract_mode="fixture",
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "cloud-data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="cloud-missing-bucket",
+    )
+
+    with pytest.raises(RuntimeError, match="configured S3 bucket"):
+        resolve_extraction_bucket(
+            context,
+            default_bucket="local-live",
+            s3_bucket_resolver=lambda _: None,
+        )
+
+
+def test_extraction_bucket_uses_default_only_for_local_route(tmp_path):
+    context = local_flow.initialize_run.fn(
+        run_mode="local",
+        extract_mode="fixture",
+        dbt_target="dev_duckdb",
+        data_root=str(tmp_path / "local-data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=None,
+        pipeline_run_id="local-default-bucket",
+    )
+
+    assert (
+        resolve_extraction_bucket(
+            context,
+            default_bucket="local-live",
+            s3_bucket_resolver=lambda _: None,
+        )
+        == "local-live"
+    )
+
+
+def test_cloud_manifest_references_keep_local_paths_for_missing_locations(tmp_path):
+    sba_manifest = tmp_path / "sba.json"
+    census_manifest = tmp_path / "census.json"
+    bls_manifest = tmp_path / "bls.json"
+    census_location = ArtifactLocation(
+        storage_backend="s3",
+        artifact_uri="s3://cloud-bucket/manifests/census.json",
+        artifact_key="manifests/census.json",
+        local_path=None,
+        s3_uri="s3://cloud-bucket/manifests/census.json",
+    )
+    extraction_paths = extraction_paths_from_manifest_maps(
+        manifest_paths={
+            "sba_7a_fy2020_present": sba_manifest,
+            "bds_state_year": census_manifest,
+            "laus_state_month": bls_manifest,
+        },
+        manifest_locations={
+            "bds_state_year": census_location,
+        },
+    )
+
+    assert extraction_paths.manifest_references_for_validation(
+        cloud_route=True,
+    ) == (
+        sba_manifest,
+        census_location,
+        bls_manifest,
+    )
 
 
 def test_raw_loads_record_cloud_artifact_locations_without_reupload(tmp_path):

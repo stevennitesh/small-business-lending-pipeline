@@ -1,3 +1,5 @@
+"""Shared resource names used by raw validation results."""
+
 from __future__ import annotations
 
 from pipelines.utils.source_resources import (
@@ -5,6 +7,8 @@ from pipelines.utils.source_resources import (
     BLS_LAUS_SOURCE_KEY,
     CENSUS_BDS_RESOURCE_NAME,
     CENSUS_BDS_SOURCE_KEY,
+    SBA_504_FY2010_PRESENT_RESOURCE_NAME,
+    SBA_7A_FY2020_PRESENT_RESOURCE_NAME,
     SBA_FOIA_SOURCE_KEY,
 )
 

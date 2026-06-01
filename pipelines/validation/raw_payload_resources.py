@@ -1,3 +1,5 @@
+"""Shared helpers for validating required JSON raw payload resources."""
+
 from __future__ import annotations
 
 import json
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from pipelines.storage.raw_artifacts import RawArtifactReader
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation.raw_manifest_rule_checks import (
     check_required_manifest_resource,
 )
@@ -18,6 +20,8 @@ PayloadValidator = Callable[[JsonPayload], list[ValidationResult]]
 
 @dataclass(frozen=True)
 class RequiredPayloadResource:
+    """Manifest check result plus decoded payload when the manifest exists."""
+
     manifest_result: ValidationResult
     payload: JsonPayload | None
 
@@ -31,6 +35,7 @@ def validate_required_json_payload_resource(
     artifact_reader: RawArtifactReader,
     validate_payload: PayloadValidator,
 ) -> list[ValidationResult]:
+    """Validate a required manifest before running payload-specific checks."""
     payload_resource = required_payload_resource(
         manifest_index,
         resource_name=resource_name,
@@ -52,6 +57,7 @@ def required_payload_resource(
     source_identity: SourceIdentity,
     artifact_reader: RawArtifactReader,
 ) -> RequiredPayloadResource:
+    """Load a required JSON payload only when its manifest is present."""
     manifest_result = check_required_manifest_resource(
         manifest_index.manifests,
         resource_name=resource_name,
@@ -74,6 +80,7 @@ def read_payload_json(
     resource_name: str,
     artifact_reader: RawArtifactReader,
 ) -> JsonPayload:
+    """Read and decode the JSON payload referenced by a manifest resource."""
     return json.loads(
         artifact_reader.read_text(manifest_index.manifest_for(resource_name))
     )

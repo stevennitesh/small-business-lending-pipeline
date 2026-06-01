@@ -1,10 +1,11 @@
+"""Validate normalized BLS LAUS raw payload content."""
+
 from __future__ import annotations
 
 import re
 from datetime import date
 
-from pipelines.utils.config import SourceIdentity
-from pipelines.utils.source_resources import BLS_LAUS_SOURCE_IDENTITY
+from pipelines.utils.source_resources import BLS_LAUS_SOURCE_IDENTITY, SourceIdentity
 from pipelines.validation.raw_validation_check_catalog import (
     BLS_EXPECTED_SERIES,
     BLS_MONTHLY_PERIODS,
@@ -32,6 +33,7 @@ def check_bls_laus_payload(
     unemployment_rate_max: float = 100,
     source_identity: SourceIdentity = DEFAULT_BLS_LAUS_IDENTITY,
 ) -> list[ValidationResult]:
+    """Validate BLS LAUS series coverage, monthly periods, and rate values."""
     rows = payload.get("normalized_rows", [])
     observed_series_ids = {str(row.get("series_id")) for row in rows}
     missing_series_ids = sorted(set(expected_series_ids) - observed_series_ids)
@@ -101,6 +103,7 @@ def check_bls_laus_payload(
 
 
 def _is_month_start(value: str) -> bool:
+    """Return whether an ISO date string represents the first day of a month."""
     try:
         parsed_date = date.fromisoformat(value)
     except ValueError:

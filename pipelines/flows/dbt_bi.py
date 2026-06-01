@@ -1,3 +1,5 @@
+"""Flow adapters for dbt execution, BI validation, exports, and cloud artifacts."""
+
 from __future__ import annotations
 
 import json
@@ -12,7 +14,8 @@ from typing import Any, Callable
 import duckdb
 from dotenv import load_dotenv
 
-from pipelines.flows.run_models import DbtBuildResult, ExtractionPaths, LocalRunContext
+from pipelines.flows.extraction_manifests import ExtractionPaths
+from pipelines.flows.run_models import DbtBuildResult, LocalRunContext
 from pipelines.flows.run_setup import resolve_s3_bucket
 from pipelines.load.s3_loader import (
     S3UploadSummary,
@@ -33,6 +36,7 @@ _SNOWFLAKE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
 def run_dbt_build_for_context(context: LocalRunContext) -> DbtBuildResult:
+    """Run `dbt build` for the active context and return captured output."""
     load_dotenv(override=False)
     ensure_dbt_profile(context)
     dbt_executable = dbt_executable_path()
@@ -68,6 +72,7 @@ def run_dbt_build_for_context(context: LocalRunContext) -> DbtBuildResult:
 
 
 def collect_dbt_artifacts_for_context(context: LocalRunContext) -> dict[str, str]:
+    """Collect required dbt target artifacts after a successful build."""
     target_dir = context.dbt_project_dir / "target"
     artifacts = {
         name: str(target_dir / name)
@@ -86,6 +91,7 @@ def upload_dbt_artifacts_for_context(
     *,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> S3UploadSummary:
+    """Upload dbt artifacts to S3 using the run manifest partition metadata."""
     bucket = (s3_bucket_resolver or resolve_s3_bucket)(context)
     if not dbt_artifacts:
         return S3UploadSummary(bucket=bucket, uploaded_objects=())
@@ -109,6 +115,7 @@ def upload_dbt_artifacts_for_context(
 
 
 def validate_bi_tables_for_context(context: LocalRunContext) -> dict[str, int]:
+    """Validate BI table row counts in DuckDB or Snowflake."""
     if context.is_cloud_route:
         return validate_snowflake_bi_tables()
 
@@ -117,6 +124,7 @@ def validate_bi_tables_for_context(context: LocalRunContext) -> dict[str, int]:
 
 
 def export_bi_tables_for_context(context: LocalRunContext) -> list[str]:
+    """Export local BI tables to files for Power BI."""
     summary = export_powerbi_tables(
         duckdb_path=context.duckdb_path,
         export_dir=context.run_export_dir,
@@ -125,6 +133,7 @@ def export_bi_tables_for_context(context: LocalRunContext) -> list[str]:
 
 
 def ensure_dbt_profile(context: LocalRunContext) -> None:
+    """Create the dbt profile needed for the active local or cloud target."""
     context.dbt_profiles_dir.mkdir(parents=True, exist_ok=True)
     profile_path = context.dbt_profiles_dir / "profiles.yml"
     if context.is_cloud_route or context.dbt_target == "prod_snowflake":
@@ -146,6 +155,7 @@ def ensure_dbt_profile(context: LocalRunContext) -> None:
 
 
 def dbt_executable_path() -> Path:
+    """Prefer the current virtualenv's dbt executable, falling back to PATH."""
     executable = Path(sys.executable).with_name("dbt")
     if executable.is_file():
         return executable
@@ -153,6 +163,7 @@ def dbt_executable_path() -> Path:
 
 
 def validate_snowflake_bi_tables() -> dict[str, int]:
+    """Validate configured Snowflake BI tables and return row counts."""
     config = SnowflakeConfig.from_env()
     bi_schema = snowflake_bi_schema()
     quoted_bi_schema = quote_snowflake_identifier(bi_schema)
@@ -177,12 +188,14 @@ def validate_snowflake_bi_tables() -> dict[str, int]:
 
 
 def quote_snowflake_identifier(identifier: str) -> str:
+    """Quote a safe Snowflake identifier after strict validation."""
     if not _SNOWFLAKE_IDENTIFIER_PATTERN.fullmatch(identifier):
         raise ValueError(f"Invalid Snowflake identifier: {identifier}")
     return f'"{identifier.upper()}"'
 
 
 def snowflake_bi_schema() -> str:
+    """Resolve the Snowflake BI schema from explicit env or dbt schema prefix."""
     load_dotenv(override=False)
     schema_prefix = os.getenv("DBT_SCHEMA_PREFIX", "").strip()
     return os.getenv("SNOWFLAKE_BI_SCHEMA") or (

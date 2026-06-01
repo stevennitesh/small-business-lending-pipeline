@@ -1,15 +1,19 @@
+"""Resolve source-specific raw validation expectations from project config."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, TypeAlias
 
 from pipelines.utils.config import ProjectConfig
-from pipelines.validation.raw_validation_models import RawValidationExpectations
-from pipelines.validation.raw_validation_resources import (
+from pipelines.utils.source_resources import (
     BLS_LAUS_SOURCE_KEY,
     CENSUS_BDS_SOURCE_KEY,
+    SBA_504_FY2010_PRESENT_RESOURCE_NAME,
+    SBA_7A_FY2020_PRESENT_RESOURCE_NAME,
     SBA_FOIA_SOURCE_KEY,
 )
+from pipelines.validation.raw_validation_models import RawValidationExpectations
 
 
 SourceExpectationConfig: TypeAlias = dict[str, Any]
@@ -17,6 +21,8 @@ SourceExpectationConfig: TypeAlias = dict[str, Any]
 
 @dataclass(frozen=True)
 class BlsValidationSettings:
+    """BLS payload validation thresholds and period rules."""
+
     required_period_pattern: str
     unemployment_rate_min: float
     unemployment_rate_max: float
@@ -28,8 +34,8 @@ _DEFAULT_BLS_VALIDATION_SETTINGS = BlsValidationSettings(
     unemployment_rate_max=100,
 )
 _FIXTURE_SBA_REQUIRED_RESOURCE_NAMES = [
-    "sba_7a_fy2020_present",
-    "sba_504_fy2010_present",
+    SBA_7A_FY2020_PRESENT_RESOURCE_NAME,
+    SBA_504_FY2010_PRESENT_RESOURCE_NAME,
 ]
 _FIXTURE_BLS_EXPECTED_SERIES_IDS = (
     "LASST010000000000003",
@@ -42,6 +48,7 @@ def raw_validation_expectations(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> RawValidationExpectations:
+    """Resolve the validation expectations for fixture or live extraction runs."""
     bls_settings = _bls_validation_settings(extract_mode, project_config)
     return RawValidationExpectations(
         sba_required_resource_names=_sba_required_resource_names(
@@ -70,6 +77,7 @@ def _sba_required_resource_names(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> list[str]:
+    """Resolve which SBA resources must be present for this run mode."""
     if _is_fixture_extract(extract_mode):
         return list(_FIXTURE_SBA_REQUIRED_RESOURCE_NAMES)
 
@@ -95,6 +103,7 @@ def _census_required_variables(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
+    """Resolve Census BDS variables expected in raw payload rows."""
     if _is_fixture_extract(extract_mode):
         if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
             return ()
@@ -112,6 +121,7 @@ def _census_expected_state_count(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> int:
+    """Resolve the minimum expected Census state coverage for the run mode."""
     if _is_fixture_extract(extract_mode):
         if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
             return 0
@@ -133,6 +143,7 @@ def _bls_expected_series_ids(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
+    """Resolve BLS LAUS series IDs expected in the normalized payload."""
     if _is_fixture_extract(extract_mode):
         return _FIXTURE_BLS_EXPECTED_SERIES_IDS
     if _enabled_bls_expectations(project_config) is None:
@@ -144,6 +155,7 @@ def _bls_validation_settings(
     extract_mode: str,
     project_config: ProjectConfig,
 ) -> BlsValidationSettings:
+    """Resolve BLS validation thresholds, falling back to conservative defaults."""
     if _is_fixture_extract(extract_mode):
         return _DEFAULT_BLS_VALIDATION_SETTINGS
     bls_expectations = _enabled_bls_expectations(project_config)
@@ -160,6 +172,7 @@ def _enabled_source_expectations(
     project_config: ProjectConfig,
     source_key: str,
 ) -> SourceExpectationConfig | None:
+    """Return expectations for an enabled source, or None when disabled."""
     if not project_config.is_source_enabled(source_key):
         return None
     return project_config.raw_validation_expectations[source_key]
@@ -192,6 +205,7 @@ def _enabled_bls_expectations(
 def _bls_validation_settings_from(
     bls_expectations: SourceExpectationConfig,
 ) -> BlsValidationSettings:
+    """Build typed BLS settings from raw config values."""
     return BlsValidationSettings(
         required_period_pattern=str(
             bls_expectations.get(

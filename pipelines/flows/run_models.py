@@ -1,10 +1,11 @@
+"""Shared data models for pipeline flow execution and reporting."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.validation.raw_validation_models import RawValidationOutput
 
 
@@ -48,6 +49,8 @@ FLOW_STAGES = LOCAL_FLOW_STAGES
 
 @dataclass(frozen=True)
 class LocalRunContext:
+    """Resolved runtime configuration for one local or cloud pipeline run."""
+
     pipeline_run_id: str
     run_mode: str
     extract_mode: str
@@ -64,46 +67,29 @@ class LocalRunContext:
 
     @property
     def is_cloud_route(self) -> bool:
+        """Return whether this run should use cloud storage/load paths."""
         return self.run_mode == "cloud"
 
     @property
     def run_validation_dir(self) -> Path:
+        """Directory for validation output and run summary artifacts."""
         return self.data_root / "validation" / f"pipeline_run_id={self.pipeline_run_id}"
 
     @property
     def run_export_dir(self) -> Path:
+        """Directory where local BI exports should be written."""
         return self.powerbi_export_dir
 
     @property
     def stage_order(self) -> tuple[str, ...]:
+        """Expected stage order for failure reporting."""
         return CLOUD_FLOW_STAGES if self.is_cloud_route else LOCAL_FLOW_STAGES
 
 
 @dataclass(frozen=True)
-class ExtractionPaths:
-    sba_7a_manifest_paths: tuple[Path, ...]
-    sba_504_manifest_paths: tuple[Path, ...]
-    census_bds_manifest_paths: tuple[Path, ...]
-    bls_laus_manifest_paths: tuple[Path, ...]
-    manifest_paths: tuple[Path, ...]
-    sba_7a_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    sba_504_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    census_bds_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    manifest_locations: tuple[ArtifactLocation, ...] = ()
-
-    def manifest_references_for_validation(
-        self,
-        *,
-        cloud_route: bool,
-    ) -> tuple[Path | ArtifactLocation, ...]:
-        if cloud_route and self.manifest_locations:
-            return self.manifest_locations
-        return self.manifest_paths
-
-
-@dataclass(frozen=True)
 class DbtBuildResult:
+    """dbt command result captured for diagnostics."""
+
     command: tuple[str, ...]
     returncode: int
     stdout: str
@@ -112,6 +98,8 @@ class DbtBuildResult:
 
 @dataclass
 class FlowRunState:
+    """Mutable in-memory state accumulated while the Prefect flow runs."""
+
     completed_stages: list[str] = field(default_factory=list)
     validation_output: RawValidationOutput | None = None
     manifest_artifact_uris: list[str] = field(default_factory=list)
@@ -123,20 +111,26 @@ class FlowRunState:
     stage_durations_seconds: dict[str, float] = field(default_factory=dict)
 
     def complete(self, stage: str) -> None:
+        """Mark one pipeline stage as complete."""
         self.completed_stages.append(stage)
 
     def complete_many(self, stages: list[str]) -> None:
+        """Mark multiple pipeline stages as complete in order."""
         self.completed_stages.extend(stages)
 
     def completed_with_summary(self) -> list[str]:
+        """Return completed stages including the summary-writing stage."""
         return [*self.completed_stages, "write_run_summary"]
 
     def failed_stage(self, stage_order: tuple[str, ...]) -> str:
+        """Return the first expected stage that has not completed."""
         return failed_stage_for(self.completed_stages, stage_order)
 
 
 @dataclass(frozen=True)
 class PipelineRunSummary:
+    """Serializable run summary written at the end of each pipeline attempt."""
+
     pipeline_run_id: str
     run_mode: str
     route: str
@@ -158,10 +152,12 @@ class PipelineRunSummary:
     stage_durations_seconds: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the run summary for JSON output."""
         return asdict(self)
 
 
 def failed_stage_for(completed_stages: list[str], stage_order: tuple[str, ...]) -> str:
+    """Find the first incomplete stage in the route-specific stage order."""
     for stage in stage_order:
         if stage not in completed_stages and stage != "write_run_summary":
             return stage

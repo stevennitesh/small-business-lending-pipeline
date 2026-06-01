@@ -1,3 +1,5 @@
+"""Run-context setup and environment checks for pipeline flows."""
+
 from __future__ import annotations
 
 import os
@@ -26,6 +28,7 @@ def initialize_run_context(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> LocalRunContext:
+    """Normalize runtime inputs, create a run context, and prepare directories."""
     normalized_run_mode = normalize_run_mode(run_mode)
     if extract_mode not in {"fixture", "live"}:
         raise ValueError("extract_mode must be 'fixture' or 'live'.")
@@ -57,12 +60,14 @@ def initialize_run_context(
 
 
 def create_context_directories(context: LocalRunContext) -> None:
+    """Create local directories required before flow stages write artifacts."""
     context.data_root.mkdir(parents=True, exist_ok=True)
     context.run_validation_dir.mkdir(parents=True, exist_ok=True)
     context.run_export_dir.mkdir(parents=True, exist_ok=True)
 
 
 def require_cloud_mode_config_for_context(context: LocalRunContext) -> str:
+    """Validate cloud-mode environment and return the resolved S3 bucket."""
     if not context.is_cloud_route:
         return context.s3_bucket or ""
 
@@ -86,10 +91,12 @@ def require_cloud_mode_config_for_context(context: LocalRunContext) -> str:
 
 
 def resolve_s3_bucket(context: LocalRunContext) -> str | None:
+    """Resolve the S3 bucket from explicit context first, then environment."""
     return context.s3_bucket or os.getenv("S3_BUCKET") or None
 
 
 def normalize_run_mode(run_mode: str) -> str:
+    """Validate and normalize accepted run-mode aliases."""
     try:
         return RUN_MODE_ALIASES[run_mode]
     except KeyError as exc:
@@ -98,6 +105,7 @@ def normalize_run_mode(run_mode: str) -> str:
 
 
 def resolve_powerbi_export_dir(data_root: Path, configured_dir: str | None) -> Path:
+    """Resolve Power BI export directory from explicit input, env, or data root."""
     configured = configured_dir or os.getenv("POWERBI_EXPORT_DIR")
     if configured:
         return Path(configured)

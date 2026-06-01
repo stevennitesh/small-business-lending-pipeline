@@ -1,7 +1,8 @@
+"""Validate Census BDS raw payload content."""
+
 from __future__ import annotations
 
-from pipelines.utils.config import SourceIdentity
-from pipelines.utils.source_resources import CENSUS_BDS_SOURCE_IDENTITY
+from pipelines.utils.source_resources import CENSUS_BDS_SOURCE_IDENTITY, SourceIdentity
 from pipelines.validation.raw_validation_check_catalog import (
     BDS_REQUIRED_VARIABLES,
     BDS_STATE_COVERAGE,
@@ -25,6 +26,7 @@ def check_census_bds_payload(
     pipeline_run_id: str,
     source_identity: SourceIdentity = DEFAULT_CENSUS_BDS_IDENTITY,
 ) -> list[ValidationResult]:
+    """Validate Census BDS required variables and state coverage."""
     header = payload[0] if payload else []
     rows = payload[1:] if len(payload) > 1 else []
     missing_variables = sorted(set(required_variables) - set(header))

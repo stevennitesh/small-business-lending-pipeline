@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.flows.run_models import ExtractionPaths, LocalRunContext
+from pipelines.flows.extraction_manifests import ExtractionPaths
+from pipelines.flows.run_models import LocalRunContext
 from pipelines.utils.config import ProjectConfig
 
 

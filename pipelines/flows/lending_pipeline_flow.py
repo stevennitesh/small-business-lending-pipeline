@@ -1,3 +1,5 @@
+"""Prefect orchestration for the local-first lending pipeline."""
+
 from __future__ import annotations
 
 import time
@@ -8,6 +10,7 @@ from prefect import flow, get_run_logger, task
 
 from pipelines.flows import (
     dbt_bi,
+    fixture_source_extracts,
     raw_loads,
     raw_validation,
     run_setup,
@@ -18,10 +21,10 @@ from pipelines.flows.run_models import (
     CLOUD_FLOW_STAGES,
     LOCAL_FLOW_STAGES,
     DbtBuildResult,
-    ExtractionPaths,
     FlowRunState,
     LocalRunContext,
 )
+from pipelines.flows.extraction_manifests import ExtractionPaths
 from pipelines.flows.raw_loads import RawLoadSummary, S3UploadSummary
 from pipelines.flows.raw_loads import SnowflakeRawLoadSummary
 from pipelines.utils.config import ProjectConfig, load_project_config
@@ -47,6 +50,7 @@ def initialize_run(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> LocalRunContext:
+    """Create a run context and prepare local run directories."""
     return run_setup.initialize_run_context(
         run_mode=run_mode,
         extract_mode=extract_mode,
@@ -65,11 +69,13 @@ def initialize_run(
 
 @task
 def load_config(config_dir: str = "config") -> ProjectConfig:
+    """Load project configuration for source, validation, and runtime settings."""
     return load_project_config(Path(config_dir))
 
 
 @task
 def require_cloud_mode_config(context: LocalRunContext) -> str:
+    """Fail early when cloud mode lacks required S3 or Snowflake settings."""
     return run_setup.require_cloud_mode_config_for_context(context)
 
 
@@ -78,11 +84,15 @@ def extract_sources(
     context: LocalRunContext,
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
+    """Run fixture or live source extraction and return manifest references."""
     if context.run_mode not in {"local", "cloud"}:
         raise ValueError("run_mode must be 'local' or 'cloud'.")
     if context.extract_mode == "live":
         return source_extracts.extract_live_sources(context, project_config)
-    return source_extracts.extract_fixture_sources_for_flow(context, project_config)
+    return fixture_source_extracts.extract_fixture_sources_for_flow(
+        context,
+        project_config,
+    )
 
 
 @task
@@ -91,6 +101,7 @@ def validate_raw_outputs(
     extraction_paths: ExtractionPaths,
     project_config: ProjectConfig,
 ) -> RawValidationOutput:
+    """Validate raw manifests, raw artifacts, and source payload contracts."""
     return raw_validation.validate_raw_outputs_for_flow(
         context,
         extraction_paths,
@@ -104,6 +115,7 @@ def load_duckdb_raw_tables(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> RawLoadSummary:
+    """Load validated raw artifacts into the local DuckDB warehouse."""
     return raw_loads.load_duckdb_raw_tables_for_context(
         context,
         extraction_paths,
@@ -117,6 +129,7 @@ def record_raw_artifact_locations(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> S3UploadSummary:
+    """Record cloud raw artifact locations for summary reporting."""
     return raw_loads.record_raw_artifact_locations_for_context(
         context,
         extraction_paths,
@@ -130,6 +143,7 @@ def load_snowflake_raw_tables(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> SnowflakeRawLoadSummary:
+    """Load validated raw artifacts into Snowflake for cloud runs."""
     return raw_loads.load_snowflake_raw_tables_for_context(
         context,
         extraction_paths,
@@ -139,11 +153,13 @@ def load_snowflake_raw_tables(
 
 @task
 def run_dbt_build(context: LocalRunContext) -> DbtBuildResult:
+    """Run dbt models for the active local or cloud target."""
     return dbt_bi.run_dbt_build_for_context(context)
 
 
 @task
 def collect_dbt_artifacts(context: LocalRunContext) -> dict[str, str]:
+    """Collect dbt target artifacts produced by the build."""
     return dbt_bi.collect_dbt_artifacts_for_context(context)
 
 
@@ -153,6 +169,7 @@ def upload_dbt_artifacts_to_s3(
     extraction_paths: ExtractionPaths,
     dbt_artifacts: dict[str, str],
 ) -> S3UploadSummary:
+    """Upload dbt artifacts for cloud-run lineage."""
     return dbt_bi.upload_dbt_artifacts_for_context(
         context,
         extraction_paths,
@@ -162,11 +179,13 @@ def upload_dbt_artifacts_to_s3(
 
 @task
 def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
+    """Validate BI table row counts for the active dbt target."""
     return dbt_bi.validate_bi_tables_for_context(context)
 
 
 @task
 def export_bi_tables(context: LocalRunContext) -> list[str]:
+    """Export local BI tables for Power BI consumption."""
     return dbt_bi.export_bi_tables_for_context(context)
 
 
@@ -187,6 +206,7 @@ def write_run_summary(
     snowflake_raw_load_summary: dict[str, Any] | None = None,
     stage_durations_seconds: dict[str, float] | None = None,
 ) -> Path:
+    """Write the durable run summary for success or failure states."""
     return run_summary.write_run_summary_for_context(
         context,
         status=status,
@@ -220,6 +240,7 @@ def lending_pipeline_flow(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> str:
+    """Run the end-to-end lending pipeline and return the run summary path."""
     logger = get_run_logger()
     state = FlowRunState()
     context = initialize_run(
@@ -391,6 +412,7 @@ def _run_timed_stage(
     *args,
     **kwargs,
 ):
+    """Execute a stage and record its elapsed wall-clock duration."""
     started_at = time.perf_counter()
     try:
         return stage_callable(*args, **kwargs)

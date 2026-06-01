@@ -1,21 +1,26 @@
+"""Extract and validate Census BDS state-year business dynamics data."""
+
 from __future__ import annotations
 
 import argparse
-import json
-import os
-import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import requests
 
-from pipelines.utils.config import SourceIdentity, load_yaml_file
-from pipelines.utils.dates import (
-    format_utc_timestamp,
-    ingestion_date_from_iso_timestamp,
-    utc_now,
+from pipelines.extract.extraction_cli import (
+    add_common_extraction_arguments,
+    add_year_range_arguments,
+)
+from pipelines.extract.extraction_run import (
+    DEFAULT_EXTRACTION_S3_BUCKET,
+    JsonExtractionArtifactSpec,
+    SingleResourceExtractionSummary,
+    build_extraction_run,
+    resolve_api_key,
+    resolve_year_range,
+    write_json_extraction_artifact,
 )
 from pipelines.storage.raw_artifacts import (
     ArtifactLocation,
@@ -24,66 +29,115 @@ from pipelines.storage.raw_artifacts import (
     S3ArtifactStore,
     S3RawArtifactStore,
 )
-from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import (
-    ExtractionManifest,
-    ExtractionResult,
-    build_local_manifest_path,
-    build_manifest_artifact_location,
-    manifest_to_json_bytes,
-    write_manifest,
+from pipelines.utils.manifest import ExtractionResult
+from pipelines.utils.source_config_models import (
+    CENSUS_BDS_CONFIG_FILE,
+    CensusBDSConfig,
+    load_census_bds_config,
 )
-
-
-DEFAULT_S3_BUCKET = "small-business-lending-pipeline"
-RESOURCE_NAME = "bds_state_year"
-RESOURCE_GRAIN = "grain=state_year"
-DEFAULT_SOURCE_IDENTITY = SourceIdentity(
-    source_system="census",
-    dataset_name="bds",
+from pipelines.utils.source_resources import (
+    CENSUS_BDS_RESOURCE,
+    SourceIdentity,
 )
-
-
-@dataclass(frozen=True)
-class CensusBDSConfig:
-    endpoint: str
-    geography: str
-    start_year: int
-    required_variables: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class CensusBDSResponseSummary:
+    """Validated Census BDS response metadata used for raw manifests."""
+
     header: list[str]
     row_count: int
     latest_available_year: int
 
 
 @dataclass(frozen=True)
-class CensusBDSExtractionSummary:
+class CensusBDSExtractionSummary(SingleResourceExtractionSummary):
+    """Summary returned after a Census BDS state-year extraction completes."""
+
+    source_resource = CENSUS_BDS_RESOURCE
+
     result: ExtractionResult
     manifest_path: Path
     latest_available_year: int
     manifest_location: ArtifactLocation | None = None
 
 
-def load_census_bds_config(
-    config_path: Path | str = "config/census_bds_variables.yml",
-) -> CensusBDSConfig:
-    return parse_census_bds_config(load_yaml_file(Path(config_path))["census_bds"])
-
-
-def parse_census_bds_config(config: Mapping[str, Any]) -> CensusBDSConfig:
-    variables = tuple(
-        str(variable["name"])
-        for variable in config["variables"]
-        if bool(variable.get("required", False))
+def extract_census_bds(
+    *,
+    config: CensusBDSConfig | None = None,
+    source_identity: SourceIdentity | None = None,
+    session: requests.Session | None = None,
+    data_root: Path | str = "data",
+    s3_bucket: str = DEFAULT_EXTRACTION_S3_BUCKET,
+    pipeline_run_id: str | None = None,
+    extracted_at_utc: str | None = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
+    api_key: str | None = None,
+    timeout: int = 120,
+    raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
+) -> CensusBDSExtractionSummary:
+    """Fetch, validate, persist, and manifest Census BDS state-year data."""
+    active_config = config or load_census_bds_config()
+    resolved_start_year, resolved_end_year = resolve_year_range(
+        default_start_year=active_config.start_year,
+        start_year=start_year,
+        end_year=end_year,
     )
-    return CensusBDSConfig(
-        endpoint=str(config["endpoint"]),
-        geography=str(config["geography"]),
-        start_year=int(config["start_year"]),
-        required_variables=variables,
+    active_api_key = resolve_api_key(api_key, env_var="CENSUS_API_KEY")
+    extraction_run = build_extraction_run(
+        data_root=data_root,
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+        extracted_at_utc=extracted_at_utc,
+        raw_artifact_store=raw_artifact_store,
+    )
+
+    response_rows = fetch_census_bds_response(
+        active_config,
+        session=session,
+        start_year=resolved_start_year,
+        end_year=resolved_end_year,
+        api_key=active_api_key,
+        timeout=timeout,
+    )
+    response_summary = validate_bds_response(
+        response_rows,
+        required_variables=active_config.required_variables,
+    )
+
+    artifact = write_json_extraction_artifact(
+        extraction_run=extraction_run,
+        spec=JsonExtractionArtifactSpec(
+            source_resource=CENSUS_BDS_RESOURCE,
+            source_url=active_config.endpoint,
+            raw_filename=(
+                f"{CENSUS_BDS_RESOURCE.resource_name}_{resolved_start_year}_"
+                f"{resolved_end_year}.json"
+            ),
+            raw_payload=response_rows,
+            row_count=response_summary.row_count,
+            schema_fields=response_summary.header,
+            request_parameters={
+                "start_year": resolved_start_year,
+                "end_year": resolved_end_year,
+                "geography": active_config.geography,
+                "variables": list(active_config.required_variables),
+            },
+            source_identity=source_identity,
+            manifest_payload_extras={
+                "latest_available_year": response_summary.latest_available_year,
+            },
+        ),
+        manifest_artifact_store=manifest_artifact_store,
+    )
+
+    return CensusBDSExtractionSummary(
+        result=artifact.result,
+        manifest_path=artifact.manifest_path,
+        manifest_location=artifact.manifest_location,
+        latest_available_year=response_summary.latest_available_year,
     )
 
 
@@ -94,8 +148,12 @@ def build_census_bds_params(
     end_year: int | None = None,
     api_key: str | None = None,
 ) -> dict[str, str]:
-    resolved_start_year = start_year or config.start_year
-    resolved_end_year = end_year or datetime.now().year
+    """Build Census API query parameters from configured variables and years."""
+    resolved_start_year, resolved_end_year = resolve_year_range(
+        default_start_year=config.start_year,
+        start_year=start_year,
+        end_year=end_year,
+    )
     query_variables = tuple(
         variable
         for variable in config.required_variables
@@ -120,6 +178,7 @@ def fetch_census_bds_response(
     api_key: str | None = None,
     timeout: int = 120,
 ) -> list[list[str]]:
+    """Fetch raw Census BDS rows from the Census API."""
     active_session = session or requests.Session()
     response = active_session.get(
         config.endpoint,
@@ -145,12 +204,15 @@ def validate_bds_response(
     *,
     required_variables: tuple[str, ...],
 ) -> CensusBDSResponseSummary:
+    """Validate Census BDS row shape, required fields, and state-year uniqueness."""
     if len(response_rows) < 2:
         raise ValueError("Census BDS response must include a header row and data rows")
 
     header = response_rows[0]
     data_rows = response_rows[1:]
-    if not isinstance(header, list) or not all(isinstance(row, list) for row in data_rows):
+    if not isinstance(header, list) or not all(
+        isinstance(row, list) for row in data_rows
+    ):
         raise ValueError("Census BDS response rows must be lists")
 
     missing_variables = sorted(set(required_variables) - set(header))
@@ -181,129 +243,23 @@ def validate_bds_response(
     )
 
 
-def extract_census_bds(
-    *,
-    config: CensusBDSConfig | None = None,
-    source_identity: SourceIdentity | None = None,
-    session: requests.Session | None = None,
-    data_root: Path | str = "data",
-    s3_bucket: str = DEFAULT_S3_BUCKET,
-    pipeline_run_id: str | None = None,
-    extracted_at_utc: str | None = None,
-    start_year: int | None = None,
-    end_year: int | None = None,
-    api_key: str | None = None,
-    timeout: int = 120,
-    raw_artifact_store: LocalRawArtifactStore | S3RawArtifactStore | None = None,
-    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
-) -> CensusBDSExtractionSummary:
-    active_config = config or load_census_bds_config()
-    active_identity = source_identity or DEFAULT_SOURCE_IDENTITY
-    resolved_start_year = start_year or active_config.start_year
-    resolved_end_year = end_year or datetime.now().year
-    run_id = pipeline_run_id or str(uuid.uuid4())
-    extracted_timestamp = extracted_at_utc or format_utc_timestamp(utc_now())
-    ingestion_date = ingestion_date_from_iso_timestamp(extracted_timestamp)
-
-    response_rows = fetch_census_bds_response(
-        active_config,
-        session=session,
-        start_year=resolved_start_year,
-        end_year=resolved_end_year,
-        api_key=api_key or os.getenv("CENSUS_API_KEY") or None,
-        timeout=timeout,
-    )
-    response_summary = validate_bds_response(
-        response_rows,
-        required_variables=active_config.required_variables,
-    )
-
-    store = raw_artifact_store or LocalRawArtifactStore(
-        data_root=Path(data_root),
-        s3_bucket=s3_bucket,
-    )
-    location = store.location(
-        source_system=active_identity.source_system,
-        dataset_name=active_identity.dataset_name,
-        resource_name=RESOURCE_GRAIN,
-        ingestion_date=ingestion_date,
-        pipeline_run_id=run_id,
-        filename=f"{RESOURCE_NAME}_{resolved_start_year}_{resolved_end_year}.json",
-    )
-    raw_payload = (json.dumps(response_rows, indent=2) + "\n").encode("utf-8")
-    store.write_bytes(location, raw_payload)
-    manifest_fields = location.manifest_fields()
-    manifest = ExtractionManifest(
-        pipeline_run_id=run_id,
-        source_system=active_identity.source_system,
-        dataset_name=active_identity.dataset_name,
-        resource_name=RESOURCE_NAME,
-        source_url=active_config.endpoint,
-        extracted_at_utc=extracted_timestamp,
-        ingestion_date=ingestion_date,
-        local_raw_path=manifest_fields["local_raw_path"],
-        s3_raw_uri=str(manifest_fields["s3_raw_uri"]),
-        file_format="json",
-        row_count=response_summary.row_count,
-        sha256_checksum=hash_bytes(raw_payload),
-        schema_hash=hash_schema(response_summary.header),
-        validation_status="passed",
-        raw_uri=str(manifest_fields["raw_uri"]),
-        storage_backend=str(manifest_fields["storage_backend"]),
-        request_parameters={
-            "start_year": resolved_start_year,
-            "end_year": resolved_end_year,
-            "geography": active_config.geography,
-            "variables": list(active_config.required_variables),
-        },
-        column_count=len(response_summary.header),
-        file_size_bytes=len(raw_payload),
-        validation_messages=[],
-    )
-    manifest_path = build_local_manifest_path(
-        data_root=Path(data_root),
-        source_directory="census",
-        ingestion_date=ingestion_date,
-        pipeline_run_id=run_id,
-        filename=f"{RESOURCE_NAME}.manifest.json",
-    )
-    manifest_dict = {
-        **manifest.to_dict(),
-        "latest_available_year": response_summary.latest_available_year,
-    }
-    write_manifest(manifest_dict, manifest_path)
-    manifest_location = None
-    if manifest_artifact_store is not None:
-        manifest_location = build_manifest_artifact_location(
-            manifest_artifact_store,
-            manifest=manifest,
-            filename=manifest_path.name,
-        )
-        manifest_artifact_store.write_bytes(
-            manifest_location,
-            manifest_to_json_bytes(manifest_dict),
-        )
-
-    return CensusBDSExtractionSummary(
-        result=ExtractionResult(
-            manifest=manifest,
-            local_raw_path=location.local_path,
-            row_count=response_summary.row_count,
-        ),
-        manifest_path=manifest_path,
-        manifest_location=manifest_location,
-        latest_available_year=response_summary.latest_available_year,
-    )
+def _time_predicate(start_year: int, end_year: int) -> str:
+    """Format the Census API time predicate for one year or an inclusive range."""
+    if start_year > end_year:
+        raise ValueError("start_year cannot be greater than end_year")
+    if start_year == end_year:
+        return str(start_year)
+    return f"from {start_year} to {end_year}"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extract Census BDS state-year data.")
-    parser.add_argument("--config", default="config/census_bds_variables.yml")
-    parser.add_argument("--data-root", default="data")
-    parser.add_argument("--s3-bucket", default=DEFAULT_S3_BUCKET)
-    parser.add_argument("--pipeline-run-id")
-    parser.add_argument("--start-year", type=int)
-    parser.add_argument("--end-year", type=int)
+    add_common_extraction_arguments(
+        parser,
+        config_default=f"config/{CENSUS_BDS_CONFIG_FILE}",
+        s3_bucket_default=DEFAULT_EXTRACTION_S3_BUCKET,
+    )
+    add_year_range_arguments(parser)
     args = parser.parse_args()
 
     summary = extract_census_bds(
@@ -318,14 +274,6 @@ def main() -> None:
         "Downloaded Census BDS state-year extract: "
         f"{summary.result.row_count} rows, latest year {summary.latest_available_year}"
     )
-
-
-def _time_predicate(start_year: int, end_year: int) -> str:
-    if start_year > end_year:
-        raise ValueError("start_year cannot be greater than end_year")
-    if start_year == end_year:
-        return str(start_year)
-    return f"from {start_year} to {end_year}"
 
 
 if __name__ == "__main__":

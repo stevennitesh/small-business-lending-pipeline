@@ -1,13 +1,18 @@
+"""Helpers for turning blocking validation results into runtime failures."""
+
 from __future__ import annotations
 
 from pipelines.validation.validation_result import ValidationResult
 
 
 class ValidationFailedError(RuntimeError):
+    """Raised when fail-severity validation checks did not pass."""
+
     pass
 
 
 def assert_no_blocking_failures(results: list[ValidationResult]) -> None:
+    """Raise when any fail-severity validation result has failed status."""
     failures = [
         result
         for result in results

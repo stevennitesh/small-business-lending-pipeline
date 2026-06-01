@@ -1,11 +1,12 @@
+"""Validate SBA raw resource coverage and readability."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Iterable
 
 from pipelines.storage.raw_artifacts import RawArtifactReader
-from pipelines.utils.config import SourceIdentity
-from pipelines.utils.source_resources import SBA_FOIA_SOURCE_IDENTITY
+from pipelines.utils.source_resources import SBA_FOIA_SOURCE_IDENTITY, SourceIdentity
 from pipelines.validation.raw_validation_check_catalog import (
     SBA_REQUIRED_RESOURCES_FOUND,
     SBA_REQUIRED_RESOURCES_READABLE,
@@ -29,6 +30,7 @@ def check_sba_required_resources(
     artifact_reader: RawArtifactReader | None = None,
     raw_file_exists_resource_names: set[str] | None = None,
 ) -> list[ValidationResult]:
+    """Validate that required SBA resources have manifests and readable raw files."""
     manifest_list = list(manifests)
     resources_by_name = {
         str(manifest.get("resource_name")): manifest
@@ -71,6 +73,7 @@ def _manifest_artifact_exists(
     *,
     artifact_reader: RawArtifactReader | None,
 ) -> bool:
+    """Check raw artifact existence through the configured reader or local path."""
     if artifact_reader is not None:
         return artifact_reader.exists(manifest)
     local_raw_path = manifest.get("local_raw_path")
@@ -86,6 +89,7 @@ def _unreadable_required_resources(
     artifact_reader: RawArtifactReader | None,
     raw_file_exists_resource_names: set[str] | None,
 ) -> list[str]:
+    """Return required resources whose raw files were not proven readable."""
     required_resources = set(required_resource_names)
     if raw_file_exists_resource_names is not None:
         return sorted(

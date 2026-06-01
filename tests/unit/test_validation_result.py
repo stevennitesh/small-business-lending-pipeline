@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation.raw_validation_check_catalog import (
     BDS_REQUIRED_VARIABLES,
     RAW_FILE_EXISTS,
