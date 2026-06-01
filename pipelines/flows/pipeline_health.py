@@ -40,6 +40,7 @@ def check_row_count_captured(
     source_dataset: str,
     source_resource_name: str,
 ) -> ValidationResult:
+    """Create a pipeline-health result for row-count presence."""
     return make_check_validation_result(
         pipeline_run_id=pipeline_run_id,
         check_definition=PIPELINE_ROW_COUNT_CAPTURED,
@@ -62,6 +63,7 @@ def check_latest_observation_not_future(
     source_dataset: str,
     source_resource_name: str,
 ) -> ValidationResult:
+    """Create a pipeline-health result for freshness date sanity."""
     return make_check_validation_result(
         pipeline_run_id=pipeline_run_id,
         check_definition=PIPELINE_LATEST_OBSERVATION_NOT_FUTURE,

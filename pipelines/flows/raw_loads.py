@@ -1,8 +1,10 @@
+"""Flow adapters for loading validated raw artifacts into warehouses."""
+
 from __future__ import annotations
 
 from pipelines.flows.run_setup import resolve_s3_bucket
+from pipelines.flows.extraction_manifests import ExtractionPaths
 from pipelines.flows.run_models import (
-    ExtractionPaths,
     LocalRunContext,
 )
 from pipelines.load.duckdb_loader import RawLoadSummary, load_raw_extracts
@@ -21,6 +23,7 @@ def load_duckdb_raw_tables_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> RawLoadSummary:
+    """Load local validated raw artifacts into DuckDB raw tables."""
     return load_raw_extracts(
         duckdb_path=context.duckdb_path,
         sba_7a_manifest_paths=extraction_paths.sba_7a_manifest_paths,
@@ -36,6 +39,7 @@ def record_raw_artifact_locations_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> S3UploadSummary:
+    """Return uploaded raw artifact references for cloud/local summary output."""
     if context.is_cloud_route and validation_output.artifact_location is not None:
         uploaded_objects = [
             *(
@@ -61,6 +65,7 @@ def load_snowflake_raw_tables_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> SnowflakeRawLoadSummary:
+    """Load cloud-route raw artifacts into Snowflake from manifest references."""
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
     try:

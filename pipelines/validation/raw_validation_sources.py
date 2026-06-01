@@ -1,10 +1,13 @@
+"""Dispatch source-specific raw payload validation checks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable
 
 from pipelines.storage.raw_artifacts import RawArtifactReader
-from pipelines.utils.config import ProjectConfig, SourceIdentity
+from pipelines.utils.config import ProjectConfig
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation import raw_payload_resources
 from pipelines.validation.bls_laus_payload_checks import check_bls_laus_payload
 from pipelines.validation.census_bds_payload_checks import check_census_bds_payload
@@ -29,6 +32,8 @@ from pipelines.validation.validation_result import ValidationResult
 
 @dataclass(frozen=True)
 class SourceValidationContext:
+    """Context shared by all source-specific validation functions."""
+
     manifest_index: RawManifestIndex
     expectations: RawValidationExpectations
     project_config: ProjectConfig
@@ -39,12 +44,16 @@ class SourceValidationContext:
 
 @dataclass(frozen=True)
 class SourceValidationRegistration:
+    """Registry entry mapping a source key to its validator function."""
+
     source_key: str
     validate: Callable[[SourceValidationContext], list[ValidationResult]]
 
 
 @dataclass(frozen=True)
 class JsonSourceValidationSpec:
+    """Validation wiring for a required JSON raw payload resource."""
+
     source_key: str
     resource_name: str
     coerce_payload: Callable[[JsonPayload], JsonPayload]
@@ -67,6 +76,7 @@ def validate_source_outputs(
     raw_file_exists_resource_names: set[str],
     validator_registry: tuple[SourceValidationRegistration, ...] | None = None,
 ) -> list[ValidationResult]:
+    """Run enabled source-specific validators against loaded raw manifests."""
     validation_results: list[ValidationResult] = []
 
     expectations = raw_validation_expectations(extract_mode, project_config)
@@ -90,6 +100,7 @@ def validate_source_outputs(
 def validate_sba_source_outputs(
     context: SourceValidationContext,
 ) -> list[ValidationResult]:
+    """Validate SBA required resources using source config expectations."""
     return check_sba_required_resources(
         context.manifest_index.manifests,
         required_resource_names=context.expectations.sba_required_resource_names,
@@ -102,6 +113,7 @@ def validate_sba_source_outputs(
 def validate_census_bds_source_outputs(
     context: SourceValidationContext,
 ) -> list[ValidationResult]:
+    """Validate Census BDS required JSON payload output."""
     return _validate_required_json_source_output(
         context,
         spec=_CENSUS_BDS_JSON_VALIDATION,
@@ -111,6 +123,7 @@ def validate_census_bds_source_outputs(
 def validate_bls_laus_source_outputs(
     context: SourceValidationContext,
 ) -> list[ValidationResult]:
+    """Validate BLS LAUS required JSON payload output."""
     return _validate_required_json_source_output(
         context,
         spec=_BLS_LAUS_JSON_VALIDATION,
@@ -122,6 +135,7 @@ def _validate_required_json_source_output(
     *,
     spec: JsonSourceValidationSpec,
 ) -> list[ValidationResult]:
+    """Load one required JSON resource and run its payload validator."""
     source_identity = context.project_config.source_identity(spec.source_key)
 
     def validate_resource_payload(payload: JsonPayload) -> list[ValidationResult]:

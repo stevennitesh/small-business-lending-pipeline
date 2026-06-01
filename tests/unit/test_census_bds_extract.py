@@ -1,20 +1,31 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
-import requests
 
 from pipelines.extract.census_bds_extract import (
-    CensusBDSConfig,
     build_census_bds_params,
     extract_census_bds,
-    load_census_bds_config,
     validate_bds_response,
 )
 from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_config_models import (
+    CENSUS_BDS_CONFIG_FILE,
+    CensusBDSConfig,
+    load_census_bds_config,
+)
+from pipelines.utils.source_resources import SourceIdentity
+from tests.unit.config_test_helpers import config_path
+from tests.unit.extract_test_helpers import (
+    FakeGetSession as FakeSession,
+    FakeS3ObjectClient,
+    read_json_file,
+    read_summary_manifest,
+)
+
+
+CENSUS_BDS_CONFIG_PATH = config_path(CENSUS_BDS_CONFIG_FILE)
 
 
 def _fixture_response() -> list[list[str]]:
@@ -78,42 +89,8 @@ def _fixture_response() -> list[list[str]]:
     ]
 
 
-class FakeResponse:
-    def __init__(self, payload: list[list[str]], status_code: int = 200):
-        self.payload = payload
-        self.status_code = status_code
-
-    def raise_for_status(self) -> None:
-        if self.status_code >= 400:
-            raise requests.HTTPError(f"HTTP {self.status_code}")
-
-    def json(self) -> list[list[str]]:
-        return self.payload
-
-
-class FakeSession:
-    def __init__(self, payload: list[list[str]]):
-        self.payload = payload
-        self.calls: list[dict] = []
-
-    def get(self, url: str, params: dict[str, str], timeout: int):
-        self.calls.append({"url": url, "params": params, "timeout": timeout})
-        return FakeResponse(self.payload)
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        raise NotImplementedError
-
-
 def test_load_census_bds_config_from_yaml():
-    config = load_census_bds_config(Path("config/census_bds_variables.yml"))
+    config = load_census_bds_config(CENSUS_BDS_CONFIG_PATH)
 
     assert config.endpoint == "https://api.census.gov/data/timeseries/bds"
     assert config.geography == "state"
@@ -220,13 +197,11 @@ def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatc
         "raw/census/bds/grain=state_year/ingestion_date=2026-05-07/"
         "pipeline_run_id=run-123/bds_state_year_2022_2023.json"
     )
-    assert json.loads(summary.result.local_raw_path.read_text(encoding="utf-8")) == (
-        _fixture_response()
-    )
+    assert read_json_file(summary.result.local_raw_path) == _fixture_response()
     assert summary.result.manifest.row_count == 3
     assert summary.latest_available_year == 2023
 
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["resource_name"] == "bds_state_year"
     assert manifest["row_count"] == 3
     assert manifest["latest_available_year"] == 2023
@@ -263,7 +238,7 @@ def test_extract_census_bds_uses_passed_source_identity(tmp_path, monkeypatch):
         "ingestion_date=2026-05-07/pipeline_run_id=run-123/"
         "bds_state_year_2022_2023.json"
     )
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["source_system"] == "custom_census"
     assert manifest["dataset_name"] == "custom_bds"
     assert manifest["s3_raw_uri"].startswith(
@@ -303,7 +278,7 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
 
     assert summary.result.local_raw_path is None
     assert summary.result.manifest.storage_backend == "s3"
-    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    manifest = read_summary_manifest(summary)
     assert manifest["storage_backend"] == "s3"
     assert manifest["raw_uri"] == manifest["s3_raw_uri"]
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")

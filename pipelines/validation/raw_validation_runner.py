@@ -1,3 +1,5 @@
+"""Coordinate raw manifest, source payload, and validation-output checks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,6 +39,8 @@ from pipelines.validation.validation_result import ValidationResult
 
 @dataclass(frozen=True)
 class RawValidationCollection:
+    """Raw validation results with the manifests they were computed from."""
+
     validation_results: list[ValidationResult]
     manifests: list[RawManifest]
 
@@ -49,6 +53,7 @@ def validate_raw_outputs(
     raw_artifact_reader: RawArtifactReader | None = None,
     validation_artifact_store: ValidationArtifactStore | None = None,
 ) -> RawValidationOutput:
+    """Run raw validation, write results, and fail on blocking failures."""
     resolved_manifest_reader = manifest_reader or artifact_reader_for_route(
         cloud_route=validation_input.is_cloud_route,
     )
@@ -92,6 +97,7 @@ def collect_raw_validation_results(
     manifest_reader: ArtifactReader,
     raw_artifact_reader: RawArtifactReader,
 ) -> RawValidationCollection:
+    """Collect manifest, storage, and source-payload validation results."""
     validation_results: list[ValidationResult] = []
     loaded_manifest_references, manifest_load_results = load_manifests_for_validation(
         validation_input.pipeline_run_id,

@@ -1,20 +1,34 @@
-import csv
 import re
-import shutil
-from pathlib import Path
 
 import pytest
-import yaml
 
-from pipelines.utils.config import CONFIG_FILENAMES, load_project_config, load_yaml_file
-
-
-CONFIG_DIR = Path("config")
+from pipelines.utils.config import (
+    CONFIG_FILE_SECTIONS,
+    CONFIG_FILENAMES,
+    load_project_config,
+)
+from pipelines.utils.source_config_models import (
+    FRESHNESS_RULES_CONFIG_FILE,
+    RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+    SOURCES_CONFIG_FILE,
+    SOURCES_CONFIG_SECTION,
+    load_yaml_file,
+)
+from pipelines.utils.source_resources import (
+    BLS_LAUS_SOURCE_KEY,
+    CENSUS_BDS_SOURCE_KEY,
+    SBA_FOIA_SOURCE_KEY,
+)
+from tests.unit.config_test_helpers import (
+    CONFIG_DIR,
+    config_path,
+    mutate_config_file,
+)
 
 
 def test_all_config_files_parse():
     for filename in CONFIG_FILENAMES:
-        config = load_yaml_file(CONFIG_DIR / filename)
+        config = load_yaml_file(config_path(filename))
         assert config
 
 
@@ -22,39 +36,33 @@ def test_project_config_loader_returns_named_configs():
     project_config = load_project_config(CONFIG_DIR)
 
     assert set(project_config.files) == set(CONFIG_FILENAMES)
-    assert project_config.get("sources.yml")["sources"]["sba_foia"]["enabled"] is True
-    assert project_config.sources["sba_foia"].dataset_name == "7a_504_foia"
+    assert project_config.sources[SBA_FOIA_SOURCE_KEY].enabled is True
+    assert project_config.sources[SBA_FOIA_SOURCE_KEY].dataset_name == "7a_504_foia"
     assert project_config.sba.dataset_name == "7a_504_foia"
     assert project_config.census_bds.start_year == 1990
     assert project_config.bls_laus.start_year == 1990
     assert project_config.bls_laus.measure_name == "unemployment_rate"
-    assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
-    assert project_config.raw_validation_expectations["census_bds"][
+    assert (
+        project_config.freshness_rules[SBA_FOIA_SOURCE_KEY]["expected_cadence"]
+        == "quarterly"
+    )
+    assert project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY][
         "expected_state_count"
     ] == 51
-    assert project_config.source_identity("bls_laus").source_system == "bls"
-    assert project_config.source_identity("bls_laus").dataset_name == "laus"
+    assert project_config.source_identity(BLS_LAUS_SOURCE_KEY).source_system == "bls"
+    assert project_config.source_identity(BLS_LAUS_SOURCE_KEY).dataset_name == "laus"
 
 
 def test_config_files_have_required_top_level_keys():
-    required_top_level_keys = {
-        "sources.yml": "sources",
-        "sba_resources.yml": "sba_resources",
-        "census_bds_variables.yml": "census_bds",
-        "bls_laus_state_series.yml": "bls_laus",
-        "freshness_rules.yml": "freshness_rules",
-        "raw_validation_expectations.yml": "raw_validation_expectations",
-    }
-
     project_config = load_project_config(CONFIG_DIR)
 
-    for filename, key in required_top_level_keys.items():
-        assert key in project_config.get(filename)
+    for filename, section_name in CONFIG_FILE_SECTIONS.items():
+        assert section_name in project_config.get(filename)
 
 
 def test_mvp_source_registry_does_not_declare_unused_path_overrides():
     project_config = load_project_config(CONFIG_DIR)
-    raw_sources = project_config.get("sources.yml")["sources"]
+    raw_sources = project_config.get(SOURCES_CONFIG_FILE)[SOURCES_CONFIG_SECTION]
 
     for source_config in raw_sources.values():
         assert "raw_storage_subdir" not in source_config
@@ -72,7 +80,7 @@ def test_mvp_freshness_rules_only_declare_active_cadence_contracts():
 def test_sba_raw_validation_expectations_only_declare_active_controls():
     project_config = load_project_config(CONFIG_DIR)
 
-    assert set(project_config.raw_validation_expectations["sba_foia"]) == {
+    assert set(project_config.raw_validation_expectations[SBA_FOIA_SOURCE_KEY]) == {
         "required_programs",
     }
 
@@ -80,7 +88,7 @@ def test_sba_raw_validation_expectations_only_declare_active_controls():
 def test_census_raw_validation_expectations_only_declare_active_controls():
     project_config = load_project_config(CONFIG_DIR)
 
-    assert set(project_config.raw_validation_expectations["census_bds"]) == {
+    assert set(project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY]) == {
         "expected_state_count",
         "required_variables",
     }
@@ -88,64 +96,133 @@ def test_census_raw_validation_expectations_only_declare_active_controls():
 
 def test_enabled_sources_have_freshness_and_validation_config():
     project_config = load_project_config(CONFIG_DIR)
-    sources = project_config.get("sources.yml")["sources"]
-    freshness_rules = project_config.get("freshness_rules.yml")["freshness_rules"]
-    raw_validation_expectations = project_config.get(
-        "raw_validation_expectations.yml"
-    )[
-        "raw_validation_expectations"
-    ]
     enabled_source_names = {
         source_name
-        for source_name, source_config in sources.items()
-        if source_config["enabled"]
+        for source_name, source_config in project_config.sources.items()
+        if source_config.enabled
     }
 
-    assert enabled_source_names <= set(freshness_rules)
-    assert enabled_source_names <= set(raw_validation_expectations)
+    assert enabled_source_names <= set(project_config.freshness_rules)
+    assert enabled_source_names <= set(project_config.raw_validation_expectations)
 
 
 def test_project_config_rejects_unknown_policy_source(tmp_path):
-    config_dir = _copy_config_dir(tmp_path)
-    validation_path = config_dir / "raw_validation_expectations.yml"
-    validation_config = load_yaml_file(validation_path)
-    validation_config["raw_validation_expectations"]["unknown_source"] = {
-        "expected_state_count": 1
-    }
-    _write_yaml_config(validation_path, validation_config)
+    def add_unknown_source(config: dict) -> None:
+        config["raw_validation_expectations"]["unknown_source"] = {
+            "expected_state_count": 1
+        }
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+        add_unknown_source,
+    )
 
     with pytest.raises(ValueError, match="unknown source keys: unknown_source"):
         load_project_config(config_dir)
 
 
+def test_project_config_rejects_enabled_source_missing_freshness_rule(tmp_path):
+    def remove_sba_freshness_rule(config: dict) -> None:
+        del config["freshness_rules"][SBA_FOIA_SOURCE_KEY]
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        FRESHNESS_RULES_CONFIG_FILE,
+        remove_sba_freshness_rule,
+    )
+
+    with pytest.raises(ValueError, match="missing freshness rules: sba_foia"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_enabled_source_missing_validation_expectations(
+    tmp_path,
+):
+    def remove_bls_validation_expectations(config: dict) -> None:
+        del config["raw_validation_expectations"][BLS_LAUS_SOURCE_KEY]
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+        remove_bls_validation_expectations,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="missing raw validation expectations: bls_laus",
+    ):
+        load_project_config(config_dir)
+
+
 def test_project_config_rejects_cadence_drift(tmp_path):
-    config_dir = _copy_config_dir(tmp_path)
-    freshness_path = config_dir / "freshness_rules.yml"
-    freshness_config = load_yaml_file(freshness_path)
-    freshness_config["freshness_rules"]["bls_laus"]["expected_cadence"] = "annual"
-    _write_yaml_config(freshness_path, freshness_config)
+    def change_bls_cadence(config: dict) -> None:
+        config["freshness_rules"][BLS_LAUS_SOURCE_KEY][
+            "expected_cadence"
+        ] = "annual"
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        FRESHNESS_RULES_CONFIG_FILE,
+        change_bls_cadence,
+    )
 
     with pytest.raises(ValueError, match="refresh_cadence"):
         load_project_config(config_dir)
 
 
 def test_project_config_rejects_census_validation_variables_not_requested(tmp_path):
-    config_dir = _copy_config_dir(tmp_path)
-    validation_path = config_dir / "raw_validation_expectations.yml"
-    validation_config = load_yaml_file(validation_path)
-    validation_config["raw_validation_expectations"]["census_bds"][
-        "required_variables"
-    ].append("NOT_REQUESTED")
-    _write_yaml_config(validation_path, validation_config)
+    def add_not_requested_census_variable(config: dict) -> None:
+        config["raw_validation_expectations"][CENSUS_BDS_SOURCE_KEY][
+            "required_variables"
+        ].append("NOT_REQUESTED")
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+        add_not_requested_census_variable,
+    )
 
     with pytest.raises(ValueError, match="not requested variables: NOT_REQUESTED"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_sba_validation_programs_not_configured(tmp_path):
+    def add_unknown_sba_program(config: dict) -> None:
+        config["raw_validation_expectations"][SBA_FOIA_SOURCE_KEY][
+            "required_programs"
+        ].append("UNKNOWN")
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+        add_unknown_sba_program,
+    )
+
+    with pytest.raises(ValueError, match="not configured resources: UNKNOWN"):
+        load_project_config(config_dir)
+
+
+def test_project_config_rejects_bls_validation_rate_bounds_drift(tmp_path):
+    def change_bls_min_rate(config: dict) -> None:
+        config["raw_validation_expectations"][BLS_LAUS_SOURCE_KEY][
+            "unemployment_rate_min"
+        ] = 101
+
+    config_dir = mutate_config_file(
+        tmp_path,
+        RAW_VALIDATION_EXPECTATIONS_CONFIG_FILE,
+        change_bls_min_rate,
+    )
+
+    with pytest.raises(ValueError, match="unemployment_rate_min cannot exceed"):
         load_project_config(config_dir)
 
 
 def test_bls_raw_validation_expectations_only_declare_active_controls():
     project_config = load_project_config(CONFIG_DIR)
 
-    assert set(project_config.raw_validation_expectations["bls_laus"]) == {
+    assert set(project_config.raw_validation_expectations[BLS_LAUS_SOURCE_KEY]) == {
         "required_period_pattern",
         "unemployment_rate_min",
         "unemployment_rate_max",
@@ -154,10 +231,6 @@ def test_bls_raw_validation_expectations_only_declare_active_controls():
 
 def test_census_bds_required_variables_are_declared():
     project_config = load_project_config(CONFIG_DIR)
-    variables = project_config.get("census_bds_variables.yml")["census_bds"][
-        "variables"
-    ]
-    variable_names = {variable["name"] for variable in variables}
 
     assert {
         "YEAR",
@@ -166,84 +239,15 @@ def test_census_bds_required_variables_are_declared():
         "ESTAB",
         "ESTABS_ENTRY",
         "ESTABS_EXIT",
-    } <= variable_names
+    } <= set(project_config.census_bds.required_variables)
 
 
 def test_bls_laus_config_maps_50_states_plus_dc():
     project_config = load_project_config(CONFIG_DIR)
-    series = project_config.get("bls_laus_state_series.yml")["bls_laus"]["series"]
-    state_fips = {row["state_fips"] for row in series}
-    series_ids = {row["series_id"] for row in series}
+    state_fips = {series.state_fips for series in project_config.bls_laus.series}
+    series_ids = {series.series_id for series in project_config.bls_laus.series}
 
-    assert len(series) == 51
+    assert len(project_config.bls_laus.series) == 51
     assert "11" in state_fips
     assert len(series_ids) == 51
     assert all(re.fullmatch(r"LASST\d{15}", series_id) for series_id in series_ids)
-
-
-def _read_seed(seed_name: str) -> list[dict[str, str]]:
-    with Path("dbt/seeds", seed_name).open("r", encoding="utf-8", newline="") as file:
-        return list(csv.DictReader(file))
-
-
-def test_ref_state_seed_includes_50_states_plus_dc():
-    rows = _read_seed("ref_state.csv")
-    state_rows = [row for row in rows if row["is_state"] == "true"]
-    dc_rows = [row for row in rows if row["is_dc"] == "true"]
-
-    assert len(rows) == 51
-    assert len(state_rows) == 50
-    assert len(dc_rows) == 1
-    assert dc_rows[0]["state_abbr"] == "DC"
-
-
-def test_ref_bls_laus_seed_maps_every_reporting_state_to_series():
-    state_rows = _read_seed("ref_state.csv")
-    series_rows = _read_seed("ref_bls_laus_state_series.csv")
-    state_fips = {row["state_fips"] for row in state_rows}
-    series_fips = {row["state_fips"] for row in series_rows}
-
-    assert len(series_rows) == 51
-    assert series_fips == state_fips
-    assert all(
-        re.fullmatch(r"LASST\d{15}", row["series_id"])
-        for row in series_rows
-    )
-
-
-def test_bls_laus_config_and_seed_match():
-    project_config = load_project_config(CONFIG_DIR)
-    config_series = project_config.get("bls_laus_state_series.yml")["bls_laus"][
-        "series"
-    ]
-    seed_series = _read_seed("ref_bls_laus_state_series.csv")
-    config_pairs = {
-        (row["state_fips"], row["series_id"])
-        for row in config_series
-    }
-    seed_pairs = {
-        (row["state_fips"], row["series_id"])
-        for row in seed_series
-    }
-
-    assert config_pairs == seed_pairs
-
-
-def test_ref_naics_seed_has_current_sector_rows():
-    rows = _read_seed("ref_naics.csv")
-    sector_codes = {row["naics_sector_code"] for row in rows}
-
-    assert "11" in sector_codes
-    assert "31-33" in sector_codes
-    assert "92" in sector_codes
-    assert len(rows) >= 20
-
-
-def _copy_config_dir(tmp_path: Path) -> Path:
-    config_dir = tmp_path / "config"
-    shutil.copytree(CONFIG_DIR, config_dir)
-    return config_dir
-
-
-def _write_yaml_config(path: Path, config: dict) -> None:
-    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")

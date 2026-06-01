@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation import raw_manifest_artifact_validation
 from pipelines.validation.raw_manifest_artifact_validation import (
     check_raw_manifest,

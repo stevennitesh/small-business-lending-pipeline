@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from pipelines.extract.fixture_extract import extract_fixture_sources
+from pipelines.flows.fixture_source_extracts import extract_fixture_sources_for_flow
 from pipelines.flows.run_models import LocalRunContext
 from pipelines.storage.raw_artifacts import (
     ArtifactReader,
@@ -15,6 +15,7 @@ from pipelines.storage.raw_artifacts import (
 )
 from pipelines.utils.config import load_project_config
 from pipelines.flows.raw_validation import validate_raw_outputs_for_flow
+from tests.unit.extract_test_helpers import FakeS3ObjectClient
 from tests.unit.validation_test_helpers import read_json, read_json_bytes
 
 
@@ -22,7 +23,7 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     project_config = load_project_config()
     context = run_context(tmp_path, run_mode="local", pipeline_run_id="test-run")
 
-    extraction_paths = extract_fixture_sources(context, project_config)
+    extraction_paths = extract_fixture_sources_for_flow(context, project_config)
     validation_output = validate_raw_outputs_for_flow(
         context,
         extraction_paths,
@@ -70,7 +71,7 @@ def test_fixture_manifests_use_source_config_identity(tmp_path):
         pipeline_run_id="fixture-identity-run",
     )
 
-    extraction_paths = extract_fixture_sources(context, project_config)
+    extraction_paths = extract_fixture_sources_for_flow(context, project_config)
     census_manifest = read_json(extraction_paths.census_bds_manifest_paths[0])
     bls_manifest = read_json(extraction_paths.bls_laus_manifest_paths[0])
 
@@ -108,7 +109,7 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(tmp_pat
             s3_client=s3_client if context.is_cloud_route else None
         )
 
-    extraction_paths = extract_fixture_sources(
+    extraction_paths = extract_fixture_sources_for_flow(
         context,
         project_config,
         raw_artifact_store_factory=raw_artifact_store_factory,
@@ -169,22 +170,3 @@ def run_context(
     context.run_validation_dir.mkdir(parents=True, exist_ok=True)
     context.run_export_dir.mkdir(parents=True, exist_ok=True)
     return context
-
-
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    def read(self) -> bytes:
-        return self.payload
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}

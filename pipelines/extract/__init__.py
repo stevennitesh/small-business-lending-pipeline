@@ -1,1 +1,1 @@
-"""Source extraction modules."""
+"""Source extractors and shared extraction artifact helpers."""

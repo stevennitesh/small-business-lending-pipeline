@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from pipelines.storage.raw_artifacts import RawArtifactReader
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.utils.source_resources import (
     BLS_LAUS_SOURCE_IDENTITY,
     CENSUS_BDS_SOURCE_IDENTITY,

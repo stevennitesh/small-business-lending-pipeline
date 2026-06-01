@@ -1,10 +1,12 @@
+"""Validation result model and factory helpers."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from pipelines.utils.config import SourceIdentity
 from pipelines.utils.dates import utc_now_iso
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation.raw_validation_check_catalog import ValidationCheckDefinition
 from pipelines.validation.raw_validation_models import RawManifest
 from pipelines.validation.raw_validation_resources import (
@@ -19,6 +21,8 @@ VALID_STATUSES = frozenset({"passed", "warning", "failed"})
 
 @dataclass(frozen=True)
 class ValidationResult:
+    """One raw validation check outcome ready for JSON persistence."""
+
     pipeline_run_id: str
     validation_check_id: str
     validation_scope: str
@@ -41,6 +45,7 @@ class ValidationResult:
             raise ValueError(f"Invalid validation status: {self.status}")
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the validation result for JSON output."""
         return asdict(self)
 
 
@@ -61,6 +66,7 @@ def make_validation_result(
     passed_message: str | None = None,
     validation_scope: str = "raw",
 ) -> ValidationResult:
+    """Build a validation result from explicit check metadata."""
     status = "passed" if passed else ("warning" if severity == "warning" else "failed")
     resolved_passed_message = passed_message or f"{check_name} check passed."
     return ValidationResult(
@@ -95,6 +101,7 @@ def make_check_validation_result(
     passed_message: str | None = None,
     validation_scope: str = "raw",
 ) -> ValidationResult:
+    """Build a validation result from a catalog check definition."""
     return make_validation_result(
         pipeline_run_id=pipeline_run_id,
         validation_check_id=check_definition.validation_check_id,
@@ -122,6 +129,7 @@ def make_manifest_validation_result(
     observed_value: Any,
     failed_message: str,
 ) -> ValidationResult:
+    """Build a validation result scoped to a raw manifest."""
     return make_check_validation_result(
         pipeline_run_id=str(manifest.get("pipeline_run_id", "unknown")),
         check_definition=check_definition,
@@ -148,6 +156,7 @@ def make_pipeline_validation_result(
     source_dataset: str = VALIDATION_RESULTS_DATASET_NAME,
     passed_message: str | None = None,
 ) -> ValidationResult:
+    """Build a validation result scoped to pipeline-owned validation artifacts."""
     return make_check_validation_result(
         pipeline_run_id=pipeline_run_id,
         check_definition=check_definition,
@@ -175,6 +184,7 @@ def make_source_identity_validation_result(
     pipeline_run_id: str | None = None,
     manifest: RawManifest | None = None,
 ) -> ValidationResult:
+    """Build a validation result using configured source identity metadata."""
     return make_check_validation_result(
         pipeline_run_id=pipeline_run_id
         or str((manifest or {}).get("pipeline_run_id", "unknown")),

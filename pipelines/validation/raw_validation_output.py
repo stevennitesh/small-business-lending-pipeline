@@ -1,3 +1,5 @@
+"""Persist raw validation results locally and optionally to artifact storage."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -33,6 +35,8 @@ from pipelines.validation.validation_result_io import (
 
 
 class ValidationArtifactStore(Protocol):
+    """Minimal artifact-store protocol needed to write validation outputs."""
+
     def location(
         self,
         *,
@@ -56,6 +60,8 @@ class ValidationArtifactStore(Protocol):
 
 @dataclass(frozen=True)
 class _ValidationOutputDestination:
+    """Resolved local and optional remote destination for validation results."""
+
     local_path: Path
     artifact_location: ArtifactLocation | None = None
     artifact_store: ValidationArtifactStore | None = None
@@ -63,6 +69,8 @@ class _ValidationOutputDestination:
 
 @dataclass(frozen=True)
 class ValidationOutputWrite:
+    """Output metadata returned after validation results are written."""
+
     local_path: Path
     artifact_location: ArtifactLocation | None
     validation_results: list[ValidationResult]
@@ -70,6 +78,8 @@ class ValidationOutputWrite:
 
 @dataclass(frozen=True)
 class ValidationOutputWriteRequest:
+    """Inputs needed to choose and write validation output destinations."""
+
     validation_results: list[ValidationResult]
     manifests: list[RawManifest]
     validation_path: Path
@@ -85,6 +95,7 @@ class ValidationOutputWriteRequest:
 def write_validation_output_for_route(
     request: ValidationOutputWriteRequest,
 ) -> ValidationOutputWrite:
+    """Write validation output for local or cloud route and append self-check."""
     destination = _validation_output_destination(
         request.manifests,
         validation_path=request.validation_path,
@@ -119,6 +130,7 @@ def _validation_output_destination(
     bucket: str | None,
     artifact_store: ValidationArtifactStore | None = None,
 ) -> _ValidationOutputDestination:
+    """Resolve local path plus optional cloud artifact destination."""
     if not is_cloud_route:
         return _ValidationOutputDestination(local_path=validation_path)
     ingestion_date = (
@@ -153,6 +165,7 @@ def _write_validation_output(
     *,
     destination: _ValidationOutputDestination,
 ) -> None:
+    """Write validation results to the resolved destination."""
     write_validation_results(validation_results, destination.local_path)
     if destination.artifact_location is None:
         return
@@ -173,6 +186,7 @@ def _write_validation_output_with_self_check(
     destination: _ValidationOutputDestination,
     artifact_reader: ArtifactReader,
 ) -> list[ValidationResult]:
+    """Write once, validate output existence, then rewrite with that check included."""
     _write_validation_output(
         validation_results,
         destination=destination,
@@ -198,6 +212,7 @@ def check_validation_output_created(
     pipeline_run_id: str,
     artifact_reader: ArtifactReader | None = None,
 ) -> ValidationResult:
+    """Validate that the validation result artifact was created."""
     output_exists = artifact_exists(
         output_reference,
         artifact_reader or ArtifactReader(),
@@ -222,6 +237,7 @@ def _validation_artifact_store(
     bucket: str | None,
     artifact_store: ValidationArtifactStore | None = None,
 ) -> ValidationArtifactStore:
+    """Return an injected validation artifact store or build one for the route."""
     if artifact_store is not None:
         return artifact_store
     resolved_bucket = bucket or "local-validation"

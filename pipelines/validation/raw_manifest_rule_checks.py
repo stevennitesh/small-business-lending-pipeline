@@ -1,3 +1,5 @@
+"""Raw manifest and raw artifact rule checks."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,7 +11,7 @@ from pipelines.storage.raw_artifacts import (
     artifact_exists,
     artifact_uri,
 )
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.utils.manifest import (
     REQUIRED_MANIFEST_FIELDS,
     normalize_manifest_storage_fields,
@@ -41,6 +43,7 @@ def check_raw_artifact(
     *,
     inspection: RawArtifactInspection,
 ) -> list[ValidationResult]:
+    """Validate raw file existence, size, and checksum for one manifest."""
     return [
         _check_raw_file_exists(manifest, inspection),
         _check_raw_file_size(manifest, inspection),
@@ -49,6 +52,7 @@ def check_raw_artifact(
 
 
 def check_raw_manifest_fields(manifest: RawManifest) -> list[ValidationResult]:
+    """Validate required manifest metadata and count/hash fields."""
     return [
         _check_required_metadata(manifest),
         _check_row_count(manifest),
@@ -64,6 +68,7 @@ def check_raw_manifest_artifact_rules(
     manifest_reference: Path | str | ArtifactLocation,
     manifest_artifact_reader: ArtifactReader,
 ) -> list[ValidationResult]:
+    """Run manifest field checks plus raw artifact and manifest-file checks."""
     return [
         *check_raw_artifact(manifest, inspection=inspection),
         check_manifest_created(
@@ -81,6 +86,7 @@ def check_manifest_identity_and_route_rules(
     expected_identity: SourceIdentity,
     is_cloud_route: bool,
 ) -> list[ValidationResult]:
+    """Validate source identity and cloud-only storage requirements."""
     validation_results = [
         check_manifest_source_identity(
             manifest,
@@ -104,6 +110,7 @@ def check_required_manifest_resource(
     pipeline_run_id: str,
     source_identity: SourceIdentity,
 ) -> ValidationResult:
+    """Validate that a required resource name appears in loaded manifests."""
     resource_names = sorted(str(manifest.get("resource_name")) for manifest in manifests)
     return make_pipeline_validation_result(
         pipeline_run_id=pipeline_run_id,
@@ -123,6 +130,7 @@ def check_manifest_source_identity(
     *,
     expected_identity: SourceIdentity,
 ) -> ValidationResult:
+    """Validate that manifest source identity matches source config."""
     observed_identity = {
         "source_system": str(manifest.get("source_system", "unknown")),
         "dataset_name": str(manifest.get("dataset_name", "unknown")),
@@ -142,6 +150,7 @@ def check_manifest_source_identity(
 
 
 def check_cloud_manifest_storage(manifest: RawManifest) -> ValidationResult:
+    """Validate that cloud-route manifests point to S3-backed raw artifacts."""
     storage_backend = str(manifest.get("storage_backend", "")).lower()
     raw_uri = str(manifest.get("raw_uri") or "")
     return _result(
@@ -158,6 +167,7 @@ def check_cloud_manifest_storage(manifest: RawManifest) -> ValidationResult:
 
 
 def check_manifest_raw_uri_required(manifest: RawManifest) -> ValidationResult:
+    """Validate that the manifest carries a route-neutral raw artifact URI."""
     raw_uri = manifest.get("raw_uri")
     return _result(
         manifest=manifest,
@@ -174,6 +184,7 @@ def check_manifest_created(
     manifest_reference: Path | str | ArtifactLocation,
     manifest_artifact_reader: ArtifactReader,
 ) -> ValidationResult:
+    """Validate that the manifest artifact itself can be found."""
     manifest_exists = artifact_exists(manifest_reference, manifest_artifact_reader)
     return _result(
         manifest=manifest,

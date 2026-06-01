@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pipelines.storage.raw_artifacts import RawArtifactReader
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation import raw_validation_sources
 from pipelines.validation.raw_validation_models import RawManifestIndex
 from pipelines.validation.raw_validation_resources import (

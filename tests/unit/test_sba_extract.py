@@ -2,22 +2,35 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 
 import pytest
 import requests
 
 from pipelines.extract.sba_extract import (
     DEFAULT_SBA_PACKAGE_URL,
-    SBADiscoveryConfig,
-    SBAResourcesConfig,
-    SBAResourceSpec,
     extract_sba_foia,
-    load_sba_resources_config,
     resolve_sba_resources,
 )
 from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_config_models import (
+    SBA_RESOURCES_CONFIG_FILE,
+    SBADiscoveryConfig,
+    SBAResourcesConfig,
+    load_sba_resources_config,
+)
+from pipelines.utils.source_resources import SourceIdentity
+from tests.unit.config_test_helpers import config_path
+from tests.unit.extract_test_helpers import (
+    FakeDownloadSession as FakeSession,
+    FakeS3ObjectClient,
+    read_json_file,
+    read_sba_manifest,
+    sba_7a_fy2020_present_spec,
+    sba_foia_data_dictionary_spec,
+)
+
+
+SBA_RESOURCES_CONFIG_PATH = config_path(SBA_RESOURCES_CONFIG_FILE)
 
 
 def _sample_package_metadata() -> dict:
@@ -71,58 +84,8 @@ def _sample_package_metadata() -> dict:
     }
 
 
-class FakeResponse:
-    def __init__(self, content: bytes | dict | list[bytes], status_code: int = 200):
-        self.content = content
-        self.status_code = status_code
-
-    def raise_for_status(self) -> None:
-        if self.status_code >= 400:
-            raise requests.HTTPError(f"HTTP {self.status_code}")
-
-    def iter_content(self, chunk_size: int):
-        if isinstance(self.content, list):
-            yield from self.content
-            return
-        if not isinstance(self.content, bytes):
-            raise TypeError("FakeResponse content is not bytes")
-        for index in range(0, len(self.content), chunk_size):
-            yield self.content[index : index + chunk_size]
-
-    def json(self) -> dict:
-        if not isinstance(self.content, dict):
-            raise TypeError("FakeResponse content is not JSON")
-        return self.content
-
-
-class FakeSession:
-    def __init__(self, downloads: dict[str, bytes | dict | list[bytes] | Exception]):
-        self.downloads = downloads
-        self.requested_urls: list[str] = []
-
-    def get(self, url: str, timeout: int, stream: bool = False):
-        self.requested_urls.append(url)
-        payload = self.downloads[url]
-        if isinstance(payload, Exception):
-            raise payload
-        return FakeResponse(payload)
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-        self.body_types: dict[tuple[str, str], str] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body) -> None:
-        self.body_types[(Bucket, Key)] = type(Body).__name__
-        self.objects[(Bucket, Key)] = Body.read() if hasattr(Body, "read") else Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        raise NotImplementedError
-
-
 def test_load_sba_resources_config_includes_discovery_settings():
-    config = load_sba_resources_config(Path("config/sba_resources.yml"))
+    config = load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH)
 
     assert config.dataset_name == "7a_504_foia"
     assert config.discovery.package_url == DEFAULT_SBA_PACKAGE_URL
@@ -133,7 +96,7 @@ def test_load_sba_resources_config_includes_discovery_settings():
 
 
 def test_load_sba_resources_config_provides_resource_specs():
-    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
+    specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
 
     assert len(specs) == 7
     assert {spec.logical_name for spec in specs} == {
@@ -156,16 +119,7 @@ def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
             allow_dynamic_url_resolution=True,
             cache_subdir=str(tmp_path / "metadata-cache"),
         ),
-        resources=(
-            SBAResourceSpec(
-                logical_name="sba_7a_fy2020_present",
-                program="7a",
-                source_period="fy2020_present",
-                expected_format="csv",
-                required=True,
-                title_pattern="FOIA - 7(a) (FY2020-Present)",
-            ),
-        ),
+        resources=(sba_7a_fy2020_present_spec(),),
     )
     session = FakeSession(
         {
@@ -191,9 +145,7 @@ def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
     ]
     cached_metadata = tmp_path / "metadata-cache" / "sba_package_metadata.json"
     assert cached_metadata.is_file()
-    assert json.loads(cached_metadata.read_text(encoding="utf-8")) == (
-        _sample_package_metadata()
-    )
+    assert read_json_file(cached_metadata) == _sample_package_metadata()
     assert list(summary.results) == ["sba_7a_fy2020_present"]
 
 
@@ -206,16 +158,7 @@ def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp
             allow_dynamic_url_resolution=False,
             cache_subdir=str(tmp_path / "metadata-cache"),
         ),
-        resources=(
-            SBAResourceSpec(
-                logical_name="sba_7a_fy2020_present",
-                program="7a",
-                source_period="fy2020_present",
-                expected_format="csv",
-                required=True,
-                title_pattern="FOIA - 7(a) (FY2020-Present)",
-            ),
-        ),
+        resources=(sba_7a_fy2020_present_spec(),),
     )
 
     with pytest.raises(ValueError, match="Dynamic SBA resource resolution is disabled"):
@@ -228,7 +171,7 @@ def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp
 
 
 def test_resolve_sba_resources_matches_expected_metadata():
-    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
+    specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
     resolved = resolve_sba_resources(specs, _sample_package_metadata())
 
     assert len(resolved) == 7
@@ -238,7 +181,7 @@ def test_resolve_sba_resources_matches_expected_metadata():
 
 
 def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
-    specs = list(load_sba_resources_config(Path("config/sba_resources.yml")).resources)
+    specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
     metadata = _sample_package_metadata()
     downloads = {
         resource["url"]: b"col_a,col_b\n1,2\n3,4\n"
@@ -276,22 +219,14 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     assert csv_result.manifest.row_count == 2
     assert len(csv_result.manifest.sha256_checksum) == 64
 
-    manifest_path = summary.manifest_paths["sba_7a_fy2020_present"]
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = read_sba_manifest(summary, "sba_7a_fy2020_present")
     assert manifest["resource_name"] == "sba_7a_fy2020_present"
     assert manifest["s3_raw_uri"].startswith("s3://unit-test-bucket/raw/sba/")
     assert manifest["validation_status"] == "passed"
 
 
 def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_path):
-    spec = SBAResourceSpec(
-        logical_name="sba_7a_fy2020_present",
-        program="7a",
-        source_period="fy2020_present",
-        expected_format="csv",
-        required=True,
-        title_pattern="FOIA - 7(a) (FY2020-Present)",
-    )
+    spec = sba_7a_fy2020_present_spec()
     metadata = _sample_package_metadata()
     chunks = [b"col_a,", b"col_b\n", b"1,2\n", b"3,4\n"]
     expected_payload = b"".join(chunks)
@@ -318,14 +253,7 @@ def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_pat
 
 
 def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
-    spec = SBAResourceSpec(
-        logical_name="sba_7a_fy2020_present",
-        program="7a",
-        source_period="fy2020_present",
-        expected_format="csv",
-        required=True,
-        title_pattern="FOIA - 7(a) (FY2020-Present)",
-    )
+    spec = sba_7a_fy2020_present_spec()
     metadata = _sample_package_metadata()
     session = FakeSession(
         {"https://example.test/7a_2020_present.csv": b"col_a,col_b\n1,2\n"}
@@ -351,9 +279,7 @@ def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
         "ingestion_date=2026-05-06/pipeline_run_id=run-123/"
         "7a_2020_present.csv"
     )
-    manifest = json.loads(
-        summary.manifest_paths["sba_7a_fy2020_present"].read_text(encoding="utf-8")
-    )
+    manifest = read_sba_manifest(summary, "sba_7a_fy2020_present")
     assert manifest["source_system"] == "custom_sba"
     assert manifest["dataset_name"] == "custom_7a_504"
     assert manifest["s3_raw_uri"].startswith(
@@ -362,14 +288,7 @@ def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
 
 
 def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
-    spec = SBAResourceSpec(
-        logical_name="sba_7a_fy2020_present",
-        program="7a",
-        source_period="fy2020_present",
-        expected_format="csv",
-        required=True,
-        title_pattern="FOIA - 7(a) (FY2020-Present)",
-    )
+    spec = sba_7a_fy2020_present_spec()
     metadata = _sample_package_metadata()
     payload = b"col_a,col_b\n1,2\n"
     session = FakeSession({"https://example.test/7a_2020_present.csv": payload})
@@ -397,9 +316,7 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
     assert result.local_raw_path is None
     assert result.manifest.storage_backend == "s3"
     assert result.manifest.raw_uri == result.manifest.s3_raw_uri
-    manifest = json.loads(
-        summary.manifest_paths["sba_7a_fy2020_present"].read_text(encoding="utf-8")
-    )
+    manifest = read_sba_manifest(summary, "sba_7a_fy2020_present")
     assert manifest["storage_backend"] == "s3"
     assert manifest["raw_uri"].startswith("s3://cloud-bucket/raw/sba/7a_foia/")
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
@@ -415,22 +332,8 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):
-    csv_spec = SBAResourceSpec(
-        logical_name="sba_7a_fy2020_present",
-        program="7a",
-        source_period="fy2020_present",
-        expected_format="csv",
-        required=True,
-        title_pattern="FOIA - 7(a) (FY2020-Present)",
-    )
-    dictionary_spec = SBAResourceSpec(
-        logical_name="sba_foia_data_dictionary",
-        program="all",
-        source_period="all",
-        expected_format="xlsx",
-        required=True,
-        title_pattern="7a_504_FOIA Data Dictionary",
-    )
+    csv_spec = sba_7a_fy2020_present_spec()
+    dictionary_spec = sba_foia_data_dictionary_spec()
     metadata = {
         "resources": [
             {
@@ -471,16 +374,7 @@ def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):
 
 
 def test_required_csv_download_failure_raises(tmp_path):
-    specs = [
-        SBAResourceSpec(
-            logical_name="sba_7a_fy2020_present",
-            program="7a",
-            source_period="fy2020_present",
-            expected_format="csv",
-            required=True,
-            title_pattern="FOIA - 7(a) (FY2020-Present)",
-        )
-    ]
+    specs = [sba_7a_fy2020_present_spec()]
     metadata = {
         "resources": [
             {

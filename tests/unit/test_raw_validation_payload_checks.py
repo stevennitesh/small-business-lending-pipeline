@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pipelines.utils.config import SourceIdentity
+from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation.bls_laus_payload_checks import check_bls_laus_payload
 from pipelines.validation.census_bds_payload_checks import check_census_bds_payload
 from pipelines.validation.raw_validation_check_catalog import (

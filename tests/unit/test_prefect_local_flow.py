@@ -13,8 +13,8 @@ from pipelines.extract.census_bds_extract import CensusBDSExtractionSummary
 from pipelines.extract.sba_extract import SBAExtractionSummary
 from pipelines.flows import dbt_bi, raw_loads, source_extracts
 import pipelines.flows.lending_pipeline_flow as local_flow
+from pipelines.flows.extraction_manifests import ExtractionPaths
 from pipelines.flows.run_models import (
-    ExtractionPaths,
     FlowRunState,
 )
 from pipelines.storage.raw_artifacts import (
