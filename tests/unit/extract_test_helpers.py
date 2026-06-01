@@ -6,7 +6,8 @@ from typing import Any
 
 import requests
 
-from pipelines.utils.source_config_models import SBAResourceSpec
+from pipelines.utils.source_config_models import BLSSeriesConfig, SBAResourceSpec
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def read_json_file(path: Path | str) -> Any:
@@ -41,6 +42,190 @@ def sba_foia_data_dictionary_spec() -> SBAResourceSpec:
         required=True,
         title_pattern="7a_504_FOIA Data Dictionary",
     )
+
+
+def sample_sba_package_metadata() -> dict:
+    resources = [
+        (
+            "7a_504_FOIA Data Dictionary as of 260331.xlsx",
+            "xlsx",
+            "https://example.test/dictionary.xlsx",
+        ),
+        (
+            "FOIA - 7(a)(FY1991-FY1999) asof 260331.csv",
+            "csv",
+            "https://example.test/7a_1991_1999.csv",
+        ),
+        (
+            "FOIA - 7(a)(FY2000-FY2009) asof 260331.csv",
+            "csv",
+            "https://example.test/7a_2000_2009.csv",
+        ),
+        (
+            "FOIA - 7(a) (FY2010-FY2019) asof 260331.csv",
+            "csv",
+            "https://example.test/7a_2010_2019.csv",
+        ),
+        (
+            "FOIA - 7(a) (FY2020-Present) asof 260331.csv",
+            "csv",
+            "https://example.test/7a_2020_present.csv",
+        ),
+        (
+            "FOIA - 504 (FY1991-FY2009) asof 260331.csv",
+            "csv",
+            "https://example.test/504_1991_2009.csv",
+        ),
+        (
+            "FOIA - 504 (FY2010-Present) asof 260331.csv",
+            "csv",
+            "https://example.test/504_2010_present.csv",
+        ),
+    ]
+    return {
+        "resources": [
+            {
+                "name": name,
+                "format": file_format,
+                "url": url,
+                "size": len(url),
+            }
+            for name, file_format, url in resources
+        ]
+    }
+
+
+def census_bds_fixture_response() -> list[list[str]]:
+    return [
+        [
+            "NAME",
+            "YEAR",
+            "ESTAB",
+            "ESTABS_ENTRY",
+            "ESTABS_ENTRY_RATE",
+            "ESTABS_EXIT",
+            "ESTABS_EXIT_RATE",
+            "FIRM",
+            "JOB_CREATION",
+            "JOB_DESTRUCTION",
+            "time",
+            "state",
+        ],
+        [
+            "Alabama",
+            "2022",
+            "97218",
+            "8966",
+            "9.260",
+            "8190",
+            "8.459",
+            "70912",
+            "226550",
+            "177056",
+            "2022",
+            "01",
+        ],
+        [
+            "Alabama",
+            "2023",
+            "98246",
+            "9094",
+            "9.306",
+            "8044",
+            "8.232",
+            "71429",
+            "223092",
+            "179480",
+            "2023",
+            "01",
+        ],
+        [
+            "Alaska",
+            "2022",
+            "18583",
+            "1896",
+            "10.250",
+            "1633",
+            "8.827",
+            "14667",
+            "36076",
+            "27925",
+            "2022",
+            "02",
+        ],
+    ]
+
+
+def bls_laus_series_configs() -> tuple[BLSSeriesConfig, ...]:
+    return (
+        BLSSeriesConfig(
+            state_fips="01",
+            state_abbr="AL",
+            state_name="Alabama",
+            series_id="LASST010000000000003",
+        ),
+        BLSSeriesConfig(
+            state_fips="02",
+            state_abbr="AK",
+            state_name="Alaska",
+            series_id="LASST020000000000003",
+        ),
+    )
+
+
+def bls_laus_fixture_response() -> dict:
+    return {
+        "status": "REQUEST_SUCCEEDED",
+        "Results": {
+            "series": [
+                {
+                    "seriesID": "LASST010000000000003",
+                    "data": [
+                        {
+                            "year": "2023",
+                            "period": "M02",
+                            "periodName": "February",
+                            "value": "2.7",
+                            "footnotes": [{}],
+                        },
+                        {
+                            "year": "2023",
+                            "period": "M01",
+                            "periodName": "January",
+                            "value": "2.6",
+                            "footnotes": [{"code": "P", "text": "Preliminary"}],
+                        },
+                        {
+                            "year": "2023",
+                            "period": "M13",
+                            "periodName": "Annual",
+                            "value": "2.9",
+                            "footnotes": [{}],
+                        },
+                        {
+                            "year": "2024",
+                            "period": "M01",
+                            "periodName": "January",
+                            "value": "-",
+                            "footnotes": [{}],
+                        },
+                    ],
+                },
+                {
+                    "seriesID": "LASST020000000000003",
+                    "data": [
+                        {
+                            "year": "2023",
+                            "period": "M01",
+                            "periodName": "January",
+                            "value": "3.8",
+                            "footnotes": [{}],
+                        }
+                    ],
+                },
+            ]
+        },
+    }
 
 
 class FakeResponse:
@@ -102,24 +287,3 @@ class FakePostSession:
                 "FakePostSession received more POST calls than configured payloads."
             )
         return FakeResponse(self.payloads.pop(0))
-
-
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    def read(self) -> bytes:
-        return self.payload
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-        self.body_types: dict[tuple[str, str], str] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body) -> None:
-        self.body_types[(Bucket, Key)] = type(Body).__name__
-        self.objects[(Bucket, Key)] = Body.read() if hasattr(Body, "read") else Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}

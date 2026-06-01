@@ -49,38 +49,45 @@ def raw_validation_expectations(
     project_config: ProjectConfig,
 ) -> RawValidationExpectations:
     """Resolve the validation expectations for fixture or live extraction runs."""
-    bls_settings = _bls_validation_settings(extract_mode, project_config)
+    if _is_fixture_extract(extract_mode):
+        return _fixture_validation_expectations(project_config)
+    return _live_validation_expectations(project_config)
+
+
+def _fixture_validation_expectations(
+    project_config: ProjectConfig,
+) -> RawValidationExpectations:
+    """Resolve validation expectations for the stable fixture payloads."""
+    bls_settings = _DEFAULT_BLS_VALIDATION_SETTINGS
     return RawValidationExpectations(
-        sba_required_resource_names=_sba_required_resource_names(
-            extract_mode,
-            project_config,
-        ),
-        census_required_variables=_census_required_variables(
-            extract_mode,
-            project_config,
-        ),
-        census_expected_state_count=_census_expected_state_count(
-            extract_mode,
-            project_config,
-        ),
-        bls_expected_series_ids=_bls_expected_series_ids(
-            extract_mode,
-            project_config,
-        ),
+        sba_required_resource_names=list(_FIXTURE_SBA_REQUIRED_RESOURCE_NAMES),
+        census_required_variables=_fixture_census_required_variables(project_config),
+        census_expected_state_count=_fixture_census_expected_state_count(project_config),
+        bls_expected_series_ids=_FIXTURE_BLS_EXPECTED_SERIES_IDS,
         bls_required_period_pattern=bls_settings.required_period_pattern,
         bls_unemployment_rate_min=bls_settings.unemployment_rate_min,
         bls_unemployment_rate_max=bls_settings.unemployment_rate_max,
     )
 
 
-def _sba_required_resource_names(
-    extract_mode: str,
+def _live_validation_expectations(
     project_config: ProjectConfig,
-) -> list[str]:
-    """Resolve which SBA resources must be present for this run mode."""
-    if _is_fixture_extract(extract_mode):
-        return list(_FIXTURE_SBA_REQUIRED_RESOURCE_NAMES)
+) -> RawValidationExpectations:
+    """Resolve validation expectations for live, enabled project sources."""
+    bls_settings = _live_bls_validation_settings(project_config)
+    return RawValidationExpectations(
+        sba_required_resource_names=_live_sba_required_resource_names(project_config),
+        census_required_variables=_live_census_required_variables(project_config),
+        census_expected_state_count=_live_census_expected_state_count(project_config),
+        bls_expected_series_ids=_live_bls_expected_series_ids(project_config),
+        bls_required_period_pattern=bls_settings.required_period_pattern,
+        bls_unemployment_rate_min=bls_settings.unemployment_rate_min,
+        bls_unemployment_rate_max=bls_settings.unemployment_rate_max,
+    )
 
+
+def _live_sba_required_resource_names(project_config: ProjectConfig) -> list[str]:
+    """Resolve which SBA resources must be present for live enabled sources."""
     sba_expectations = _enabled_sba_expectations(project_config)
     if sba_expectations is None:
         return []
@@ -99,34 +106,40 @@ def _sba_required_resource_names(
     ]
 
 
-def _census_required_variables(
-    extract_mode: str,
+def _fixture_census_required_variables(
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
-    """Resolve Census BDS variables expected in raw payload rows."""
-    if _is_fixture_extract(extract_mode):
-        if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
-            return ()
-        return _census_required_variables_from(
-            _configured_census_expectations(project_config)
-        )
+    """Resolve Census BDS variables expected in fixture raw payload rows."""
+    if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
+        return ()
+    return _census_required_variables_from(
+        _configured_census_expectations(project_config)
+    )
 
+
+def _live_census_required_variables(
+    project_config: ProjectConfig,
+) -> tuple[str, ...]:
+    """Resolve Census BDS variables expected in live raw payload rows."""
     census_expectations = _enabled_census_expectations(project_config)
     if census_expectations is None:
         return ()
     return _census_required_variables_from(census_expectations)
 
 
-def _census_expected_state_count(
-    extract_mode: str,
+def _fixture_census_expected_state_count(
     project_config: ProjectConfig,
 ) -> int:
-    """Resolve the minimum expected Census state coverage for the run mode."""
-    if _is_fixture_extract(extract_mode):
-        if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
-            return 0
-        return 2
+    """Resolve the minimum expected Census fixture state coverage."""
+    if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
+        return 0
+    return 2
 
+
+def _live_census_expected_state_count(
+    project_config: ProjectConfig,
+) -> int:
+    """Resolve the minimum expected Census state coverage for live runs."""
     census_expectations = _enabled_census_expectations(project_config)
     if census_expectations is None:
         return 0
@@ -139,25 +152,19 @@ def _census_required_variables_from(
     return tuple(census_expectations["required_variables"])
 
 
-def _bls_expected_series_ids(
-    extract_mode: str,
+def _live_bls_expected_series_ids(
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
-    """Resolve BLS LAUS series IDs expected in the normalized payload."""
-    if _is_fixture_extract(extract_mode):
-        return _FIXTURE_BLS_EXPECTED_SERIES_IDS
+    """Resolve live BLS LAUS series IDs expected in the normalized payload."""
     if _enabled_bls_expectations(project_config) is None:
         return ()
     return tuple(series.series_id for series in project_config.bls_laus.series)
 
 
-def _bls_validation_settings(
-    extract_mode: str,
+def _live_bls_validation_settings(
     project_config: ProjectConfig,
 ) -> BlsValidationSettings:
-    """Resolve BLS validation thresholds, falling back to conservative defaults."""
-    if _is_fixture_extract(extract_mode):
-        return _DEFAULT_BLS_VALIDATION_SETTINGS
+    """Resolve live BLS validation thresholds, falling back to defaults."""
     bls_expectations = _enabled_bls_expectations(project_config)
     if bls_expectations is None:
         return _DEFAULT_BLS_VALIDATION_SETTINGS

@@ -10,7 +10,7 @@ The target desktop artifact is `powerbi/lending_dashboard.pbix`, but PBIX creati
 
 ## Build In Power BI Desktop
 
-1. Run `make run-local` to refresh local CSV tables under `data/exports/powerbi/*.csv`, or use `make run-cloud` to refresh Snowflake BI-schema tables. Both routes use the same BI table contract from `scripts/export_powerbi_tables.py`.
+1. Run `make run-local` to refresh local CSV tables under `data/exports/powerbi/*.csv`, or use `make run-cloud` to refresh Snowflake BI-schema tables. Both routes use the same BI table contract from `pipelines.powerbi.export_contract`.
 2. Open Power BI Desktop on Windows.
 3. For local CSV mode, paste the queries from `powerbi/power_query/local_csv_queries.pq`. If Power BI Desktop cannot resolve the repo-relative `data/exports/powerbi` path, edit the `ExportRoot` value in the query to the Windows absolute path for this repo's export folder, for example `C:\Users\<you>\code\small-business-lending-pipeline\data\exports\powerbi`.
 4. For cloud mode, connect to the matching Snowflake tables in `${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}`.

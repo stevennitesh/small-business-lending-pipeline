@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from botocore.exceptions import ClientError
+
 from pipelines.storage.raw_artifacts import (
     LocalRawArtifactStore,
     RawArtifactReader,
@@ -7,6 +10,7 @@ from pipelines.storage.raw_artifacts import (
     raw_artifact_reader_for_route,
     raw_artifact_store_for_route,
 )
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def test_local_raw_artifact_store_writes_and_reads_local_payload(tmp_path):
@@ -102,20 +106,29 @@ def test_raw_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
     assert cloud_reader.s3_client is client
 
 
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
+def test_raw_artifact_reader_distinguishes_missing_from_permission_errors():
+    missing_reader = RawArtifactReader(s3_client=FakeS3ObjectClient())
+    missing_manifest = {
+        "storage_backend": "s3",
+        "raw_uri": "s3://bucket/missing.csv",
+    }
 
-    def read(self) -> bytes:
-        return self.payload
+    assert missing_reader.inspect(missing_manifest).exists is False
+
+    permission_reader = RawArtifactReader(s3_client=AccessDeniedS3ObjectClient())
+    with pytest.raises(ClientError, match="AccessDenied"):
+        permission_reader.exists(missing_manifest)
 
 
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}
+class AccessDeniedS3ObjectClient:
+    def get_object(self, *, Bucket: str, Key: str, **kwargs):
+        del Bucket, Key, kwargs
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDenied",
+                    "Message": "Access denied",
+                }
+            },
+            "GetObject",
+        )

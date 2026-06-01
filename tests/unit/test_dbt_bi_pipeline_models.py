@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from scripts.export_powerbi_tables import BI_EXPORT_TABLES
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
 
 
 BI_MODELS = {

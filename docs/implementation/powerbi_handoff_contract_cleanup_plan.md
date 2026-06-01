@@ -1,5 +1,9 @@
 # Plan: Align Power BI Handoff Contract
 
+## Current Status Note
+
+This plan is historical. The current Power BI contract exports 17 tables through `pipelines/powerbi/export_schema.py` and `pipelines/powerbi/export_contract.py`; model validation now lives in `pipelines/powerbi/model_contract.py`, with `scripts/validate_powerbi_model.py` kept as a thin CLI wrapper.
+
 ## Goal
 
 Make the dbt mart to Power BI handoff fully deliberate for both supported routes:
@@ -35,9 +39,9 @@ The tasks touch overlapping BI contracts, export code, model JSON, Power Query, 
 ## Baseline
 
 - Working tree: clean except user-owned `powerbi/lending_dashboard.pbix`.
-- Current local path:
+- Historical local path when this plan was written:
   - dbt builds DuckDB tables.
-  - `scripts/export_powerbi_tables.py` exports 12 tables to stable `data/exports/powerbi/*.csv`.
+  - `scripts/export_powerbi_tables.py` exported 12 tables to stable `data/exports/powerbi/*.csv`.
   - The Prefect local flow exports only the 9 `bi_*` tables and writes them under run-specific folders.
   - `powerbi/power_query/local_csv_queries.pq` loads only the 9 `bi_*` tables.
 - Current cloud path:

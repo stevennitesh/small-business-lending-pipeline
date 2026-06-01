@@ -19,15 +19,15 @@ from pipelines.flows.run_models import DbtBuildResult, LocalRunContext
 from pipelines.flows.run_setup import resolve_s3_bucket
 from pipelines.load.s3_loader import (
     S3UploadSummary,
-    build_dbt_artifact_upload_item,
     upload_items_to_s3,
 )
+from pipelines.load.s3_upload_items import build_dbt_artifact_upload_item
 from pipelines.load.snowflake_loader import SnowflakeConfig, connect_to_snowflake
-from scripts.export_powerbi_tables import (
-    BI_EXPORT_TABLES,
+from pipelines.powerbi.export_contract import (
     export_powerbi_tables,
     validate_powerbi_export_tables,
 )
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
 
 
 BI_TABLES = BI_EXPORT_TABLES

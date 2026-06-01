@@ -21,7 +21,6 @@ from pipelines.storage.raw_artifacts import S3ArtifactStore, S3RawArtifactStore
 from pipelines.utils.source_config_models import (
     BLS_LAUS_CONFIG_FILE,
     BLSLAUSConfig,
-    BLSSeriesConfig,
     load_bls_laus_config,
 )
 from pipelines.utils.source_resources import SourceIdentity
@@ -29,85 +28,14 @@ from tests.unit.config_test_helpers import config_path
 from tests.unit.extract_test_helpers import (
     FakePostSession as FakeSession,
     FakeS3ObjectClient,
+    bls_laus_fixture_response,
+    bls_laus_series_configs,
     read_json_file,
     read_summary_manifest,
 )
 
 
 BLS_LAUS_CONFIG_PATH = config_path(BLS_LAUS_CONFIG_FILE)
-
-
-def _series_configs() -> tuple[BLSSeriesConfig, ...]:
-    return (
-        BLSSeriesConfig(
-            state_fips="01",
-            state_abbr="AL",
-            state_name="Alabama",
-            series_id="LASST010000000000003",
-        ),
-        BLSSeriesConfig(
-            state_fips="02",
-            state_abbr="AK",
-            state_name="Alaska",
-            series_id="LASST020000000000003",
-        ),
-    )
-
-
-def _fixture_response() -> dict:
-    return {
-        "status": "REQUEST_SUCCEEDED",
-        "Results": {
-            "series": [
-                {
-                    "seriesID": "LASST010000000000003",
-                    "data": [
-                        {
-                            "year": "2023",
-                            "period": "M02",
-                            "periodName": "February",
-                            "value": "2.7",
-                            "footnotes": [{}],
-                        },
-                        {
-                            "year": "2023",
-                            "period": "M01",
-                            "periodName": "January",
-                            "value": "2.6",
-                            "footnotes": [{"code": "P", "text": "Preliminary"}],
-                        },
-                        {
-                            "year": "2023",
-                            "period": "M13",
-                            "periodName": "Annual",
-                            "value": "2.9",
-                            "footnotes": [{}],
-                        },
-                        {
-                            "year": "2024",
-                            "period": "M01",
-                            "periodName": "January",
-                            "value": "-",
-                            "footnotes": [{}],
-                        },
-                    ],
-                },
-                {
-                    "seriesID": "LASST020000000000003",
-                    "data": [
-                        {
-                            "year": "2023",
-                            "period": "M01",
-                            "periodName": "January",
-                            "value": "3.8",
-                            "footnotes": [{}],
-                        }
-                    ],
-                },
-            ]
-        },
-    }
-
 
 def test_load_bls_laus_config_from_yaml():
     config = load_bls_laus_config(BLS_LAUS_CONFIG_PATH)
@@ -175,7 +103,7 @@ def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
         seasonal_adjustment="seasonally_adjusted",
-        series=_series_configs(),
+        series=bls_laus_series_configs(),
     )
     session = FakeSession(
         [
@@ -212,8 +140,11 @@ def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
 
 def test_normalize_bls_response_excludes_annual_and_parses_values():
     rows = normalize_bls_response(
-        [_fixture_response()],
-        series_by_id={series.series_id: series for series in _series_configs()},
+        [bls_laus_fixture_response()],
+        series_by_id={
+            series.series_id: series
+            for series in bls_laus_series_configs()
+        },
     )
 
     assert rows == [
@@ -259,9 +190,9 @@ def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
         seasonal_adjustment="seasonally_adjusted",
-        series=_series_configs(),
+        series=bls_laus_series_configs(),
     )
-    session = FakeSession([_fixture_response()])
+    session = FakeSession([bls_laus_fixture_response()])
 
     summary = extract_bls_laus(
         config=config,
@@ -313,9 +244,9 @@ def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
         seasonal_adjustment="seasonally_adjusted",
-        series=_series_configs(),
+        series=bls_laus_series_configs(),
     )
-    session = FakeSession([_fixture_response()])
+    session = FakeSession([bls_laus_fixture_response()])
 
     summary = extract_bls_laus(
         config=config,
@@ -351,9 +282,9 @@ def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
         seasonal_adjustment="seasonally_adjusted",
-        series=_series_configs(),
+        series=bls_laus_series_configs(),
     )
-    session = FakeSession([_fixture_response()])
+    session = FakeSession([bls_laus_fixture_response()])
     s3_client = FakeS3ObjectClient()
 
     summary = extract_bls_laus(

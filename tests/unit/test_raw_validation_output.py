@@ -7,6 +7,7 @@ from pipelines.validation.raw_validation_output import (
     check_validation_output_created,
     write_validation_output_for_route,
 )
+from pipelines.validation.raw_validation_models import RawValidationOutput
 from pipelines.validation.raw_validation_resources import (
     VALIDATION_RESULTS_DATASET_NAME,
     VALIDATION_RESULTS_FILENAME,
@@ -18,6 +19,7 @@ from tests.unit.validation_test_helpers import (
     read_json,
     validation_check_ids,
 )
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def test_validation_output_created_check(tmp_path):
@@ -78,14 +80,38 @@ def test_validation_output_route_writer_returns_destination_and_final_results(tm
     assert validation_check_ids(read_json(output_path)) == ["RAW_009"]
 
 
+def test_raw_validation_output_formats_summary_references(tmp_path):
+    local_output = RawValidationOutput(
+        local_path=tmp_path / VALIDATION_RESULTS_FILENAME,
+    )
+    cloud_output = RawValidationOutput(
+        local_path=tmp_path / VALIDATION_RESULTS_FILENAME,
+        artifact_location=ArtifactLocation(
+            storage_backend="s3",
+            artifact_uri="s3://unit-test-bucket/validation/results.json",
+            artifact_key="validation/results.json",
+            s3_uri="s3://unit-test-bucket/validation/results.json",
+        ),
+    )
+
+    assert local_output.local_path_text.endswith(VALIDATION_RESULTS_FILENAME)
+    assert local_output.durable_reference_uri.endswith(VALIDATION_RESULTS_FILENAME)
+    assert (
+        cloud_output.durable_reference_uri
+        == "s3://unit-test-bucket/validation/results.json"
+    )
+
+
 def test_cloud_validation_output_route_writer_uses_provided_store(
     tmp_path,
 ):
     writes = []
+    s3_client = FakeS3ObjectClient()
 
     class FakeStore:
-        def __init__(self, bucket: str):
+        def __init__(self, bucket: str, s3_client: FakeS3ObjectClient):
             self.bucket = bucket
+            self.s3_client = s3_client
 
         def location(self, **kwargs):
             return ArtifactLocation(
@@ -97,6 +123,11 @@ def test_cloud_validation_output_route_writer_uses_provided_store(
 
         def write_bytes(self, location, payload):
             writes.append((location.artifact_uri, payload))
+            self.s3_client.put_object(
+                Bucket=self.bucket,
+                Key=location.artifact_key,
+                Body=payload,
+            )
 
     result = raw_file_exists_result()
 
@@ -105,11 +136,12 @@ def test_cloud_validation_output_route_writer_uses_provided_store(
             tmp_path,
             validation_results=[result],
             validation_path=tmp_path / VALIDATION_RESULTS_FILENAME,
-            is_cloud_route=True,
-            bucket="unit-test-bucket",
-            artifact_store=FakeStore("unit-test-bucket"),
+                is_cloud_route=True,
+                bucket="unit-test-bucket",
+                artifact_store=FakeStore("unit-test-bucket", s3_client),
+                artifact_reader=ArtifactReader(s3_client=s3_client),
+            )
         )
-    )
 
     assert output_write.artifact_location is not None
     assert output_write.artifact_location.artifact_uri == (
@@ -134,6 +166,7 @@ def _validation_output_request(
     is_cloud_route=False,
     bucket=None,
     artifact_store=None,
+    artifact_reader=None,
 ) -> ValidationOutputWriteRequest:
     return ValidationOutputWriteRequest(
         validation_results=validation_results or [],
@@ -144,6 +177,6 @@ def _validation_output_request(
         data_root=tmp_path,
         run_started_at_utc="2026-05-31T00:00:00Z",
         bucket=bucket,
-        artifact_reader=ArtifactReader(),
+        artifact_reader=artifact_reader or ArtifactReader(),
         artifact_store=artifact_store,
     )

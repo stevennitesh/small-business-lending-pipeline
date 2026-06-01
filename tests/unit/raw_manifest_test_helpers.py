@@ -3,12 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from botocore.exceptions import ClientError
-
 from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_validation_models import RawManifest
 from pipelines.validation.raw_validation_resources import CENSUS_BDS_RESOURCE_NAME
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 DEFAULT_RAW_JSON_PAYLOAD = '[["YEAR","state"],["2023","01"]]\n'
@@ -102,34 +101,6 @@ def s3_manifest_for(
         "column_count": 2,
         "file_size_bytes": len(raw_payload),
     }
-
-
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    def read(self) -> bytes:
-        return self.payload
-
-
-class FakeS3ObjectClient:
-    def __init__(self, objects: dict[tuple[str, str], bytes]) -> None:
-        self.objects = objects
-        self.get_calls: list[tuple[str, str]] = []
-
-    def get_object(self, *, Bucket: str, Key: str):
-        self.get_calls.append((Bucket, Key))
-        if (Bucket, Key) not in self.objects:
-            raise ClientError(
-                {
-                    "Error": {
-                        "Code": "NoSuchKey",
-                        "Message": f"The specified key does not exist: {Key}",
-                    }
-                },
-                "GetObject",
-            )
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 
 class CountingRawArtifactReader(RawArtifactReader):

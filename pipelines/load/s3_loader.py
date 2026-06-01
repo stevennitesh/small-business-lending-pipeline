@@ -10,11 +10,15 @@ from typing import Any, Protocol
 import boto3
 from botocore.exceptions import ClientError, EndpointConnectionError
 
-from pipelines.utils.paths import (
-    build_partitioned_artifact_key,
-    build_raw_s3_key,
-    build_s3_uri,
+from pipelines.load.s3_upload_items import (
+    S3UploadItem,
+    build_dbt_artifact_upload_item,
+    build_manifest_upload_item,
+    build_raw_upload_item,
+    build_run_upload_items,
+    build_validation_upload_item,
 )
+from pipelines.utils.paths import build_s3_uri
 
 
 TRANSIENT_ERROR_CODES = {
@@ -34,16 +38,6 @@ class S3ClientProtocol(Protocol):
 
 
 @dataclass(frozen=True)
-class S3UploadItem:
-    local_path: Path
-    s3_key: str
-
-    @property
-    def s3_category(self) -> str:
-        return self.s3_key.split("/", 1)[0]
-
-
-@dataclass(frozen=True)
 class S3UploadSummary:
     bucket: str | None
     uploaded_objects: tuple[str, ...]
@@ -60,103 +54,6 @@ class S3UploadSummary:
 
 class S3UploadRequiredError(RuntimeError):
     pass
-
-
-def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem | None:
-    if str(manifest.get("storage_backend", "local")).lower() == "s3":
-        return None
-    local_path = Path(str(manifest["local_raw_path"]))
-    return S3UploadItem(
-        local_path=local_path,
-        s3_key=build_raw_s3_key(
-            source_system=str(manifest["source_system"]),
-            dataset_name=str(manifest["dataset_name"]),
-            resource_name=str(manifest["resource_name"]),
-            ingestion_date=str(manifest["ingestion_date"]),
-            pipeline_run_id=str(manifest["pipeline_run_id"]),
-            filename=local_path.name,
-        ),
-    )
-
-
-def build_manifest_upload_item(
-    manifest_path: Path | str,
-    manifest: dict[str, Any],
-) -> S3UploadItem:
-    return S3UploadItem(
-        local_path=Path(manifest_path),
-        s3_key=_partitioned_artifact_key(
-            prefix="manifests",
-            manifest=manifest,
-            filename=Path(manifest_path).name,
-        ),
-    )
-
-
-def build_validation_upload_item(
-    validation_path: Path | str,
-    manifest: dict[str, Any],
-) -> S3UploadItem:
-    return S3UploadItem(
-        local_path=Path(validation_path),
-        s3_key=_partitioned_artifact_key(
-            prefix="validation",
-            manifest=manifest,
-            filename=Path(validation_path).name,
-        ),
-    )
-
-
-def build_dbt_artifact_upload_item(
-    artifact_path: Path | str,
-    *,
-    ingestion_date: str,
-    pipeline_run_id: str,
-) -> S3UploadItem:
-    path = Path(artifact_path)
-    return S3UploadItem(
-        local_path=path,
-        s3_key="/".join(
-            [
-                "validation",
-                "dbt",
-                "artifacts",
-                f"ingestion_date={ingestion_date}",
-                f"pipeline_run_id={pipeline_run_id}",
-                path.name,
-            ]
-        ),
-    )
-
-
-def build_run_upload_items(
-    *,
-    manifest_paths: list[Path | str],
-    validation_result_path: Path | str,
-    dbt_artifact_paths: list[Path | str] | None = None,
-) -> list[S3UploadItem]:
-    items: list[S3UploadItem] = []
-    manifests: list[dict[str, Any]] = []
-    for manifest_path in manifest_paths:
-        manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-        manifests.append(manifest)
-        raw_upload_item = build_raw_upload_item(manifest)
-        if raw_upload_item is not None:
-            items.append(raw_upload_item)
-        items.append(build_manifest_upload_item(manifest_path, manifest))
-        items.append(build_validation_upload_item(validation_result_path, manifest))
-
-    if dbt_artifact_paths:
-        ingestion_date, pipeline_run_id = _single_run_partition(manifests)
-        items.extend(
-            build_dbt_artifact_upload_item(
-                artifact_path,
-                ingestion_date=ingestion_date,
-                pipeline_run_id=pipeline_run_id,
-            )
-            for artifact_path in dbt_artifact_paths
-        )
-    return items
 
 
 def upload_run_artifacts_to_s3(
@@ -270,33 +167,6 @@ def _is_transient_upload_error(exc: Exception) -> bool:
         code = str(exc.response.get("Error", {}).get("Code", ""))
         return code in TRANSIENT_ERROR_CODES
     return False
-
-
-def _partitioned_artifact_key(
-    *,
-    prefix: str,
-    manifest: dict[str, Any],
-    filename: str,
-) -> str:
-    return build_partitioned_artifact_key(
-        prefix=prefix,
-        source_system=str(manifest["source_system"]),
-        dataset_name=str(manifest["dataset_name"]),
-        resource_name=str(manifest["resource_name"]),
-        ingestion_date=str(manifest["ingestion_date"]),
-        pipeline_run_id=str(manifest["pipeline_run_id"]),
-        filename=filename,
-    )
-
-
-def _single_run_partition(manifests: list[dict[str, Any]]) -> tuple[str, str]:
-    partitions = {
-        (str(manifest["ingestion_date"]), str(manifest["pipeline_run_id"]))
-        for manifest in manifests
-    }
-    if len(partitions) != 1:
-        raise ValueError("dbt artifact uploads require one ingestion_date and pipeline_run_id.")
-    return next(iter(partitions))
 
 
 def main() -> None:

@@ -8,13 +8,15 @@ from botocore.exceptions import ClientError
 
 from pipelines.load.s3_loader import (
     S3UploadRequiredError,
+    upload_run_artifacts_to_s3,
+    upload_items_to_s3,
+)
+from pipelines.load.s3_upload_items import (
     S3UploadItem,
     build_dbt_artifact_upload_item,
     build_manifest_upload_item,
     build_raw_upload_item,
     build_validation_upload_item,
-    upload_run_artifacts_to_s3,
-    upload_items_to_s3,
 )
 
 

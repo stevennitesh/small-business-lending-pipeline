@@ -5,7 +5,7 @@
   "source_modes": {
     "local_csv": {
       "base_path": "data/exports/powerbi",
-      "notes": "Use the CSV exports written by scripts/export_powerbi_tables.py."
+      "notes": "Use the CSV exports written by pipelines.powerbi.export_contract."
     },
     "snowflake": {
       "database": "${SNOWFLAKE_DATABASE}",

@@ -7,6 +7,7 @@ from pipelines.storage.raw_artifacts import (
     artifact_reader_for_route,
     artifact_store_for_route,
 )
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def test_local_artifact_store_writes_partitioned_manifest(tmp_path):
@@ -96,22 +97,3 @@ def test_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
     assert isinstance(local_reader, ArtifactReader)
     assert local_reader.s3_client is None
     assert cloud_reader.s3_client is client
-
-
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    def read(self) -> bytes:
-        return self.payload
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes):
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}

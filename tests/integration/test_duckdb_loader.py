@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import duckdb
 import pytest
@@ -12,159 +11,18 @@ from pipelines.load.duckdb_loader import (
     RawLoadError,
     load_raw_extracts,
 )
-from pipelines.utils.hashing import calculate_sha256, hash_schema
-from pipelines.validation.validation_result import ValidationResult
 from pipelines.validation.validation_result_io import write_validation_results
-
-
-def _write_manifest(
-    *,
-    raw_file: Path,
-    manifest_path: Path,
-    source_system: str,
-    dataset_name: str,
-    resource_name: str,
-    row_count: int,
-    file_format: str,
-    schema_fields: list[str],
-) -> Path:
-    manifest = {
-        "pipeline_run_id": "run-123",
-        "source_system": source_system,
-        "dataset_name": dataset_name,
-        "resource_name": resource_name,
-        "source_url": "https://example.test/source",
-        "extracted_at_utc": "2026-05-07T12:00:00Z",
-        "ingestion_date": "2026-05-07",
-        "storage_backend": "local",
-        "raw_uri": str(raw_file),
-        "local_raw_path": str(raw_file),
-        "s3_raw_uri": f"s3://bucket/raw/{source_system}/{dataset_name}/{raw_file.name}",
-        "file_format": file_format,
-        "row_count": row_count,
-        "sha256_checksum": calculate_sha256(raw_file),
-        "schema_hash": hash_schema(schema_fields),
-        "validation_status": "passed",
-        "column_count": len(schema_fields),
-        "file_size_bytes": raw_file.stat().st_size,
-    }
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    return manifest_path
-
-
-def _validation_result(status: str = "passed") -> ValidationResult:
-    return ValidationResult(
-        pipeline_run_id="run-123",
-        validation_check_id="RAW_001",
-        validation_scope="raw",
-        source_system="pipeline",
-        source_dataset="raw",
-        source_resource_name="all",
-        check_name="Raw validation gate",
-        check_type="validity",
-        severity="fail",
-        status=status,
-        expected_value="raw validation passed",
-        observed_value=status,
-        message=f"Validation status is {status}.",
-        checked_at_utc="2026-05-07T12:00:00Z",
-    )
-
-
-def _build_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:
-    raw_dir = tmp_path / "raw"
-    manifest_dir = tmp_path / "manifests"
-    raw_dir.mkdir()
-
-    sba_7a = raw_dir / "sba_7a.csv"
-    sba_7a.write_text("LoanNumber,GrossApproval\n1,1000\n2,2000\n", encoding="utf-8")
-    sba_504 = raw_dir / "sba_504.csv"
-    sba_504.write_text("LoanNumber,GrossApproval\n3,3000\n", encoding="utf-8")
-    census = raw_dir / "bds_state_year.json"
-    census.write_text(
-        json.dumps([["YEAR", "state", "ESTAB"], ["2023", "01", "98246"]]),
-        encoding="utf-8",
-    )
-    bls = raw_dir / "bls_laus_state_month.json"
-    bls.write_text(
-        json.dumps(
-            {
-                "normalized_rows": [
-                    {
-                        "series_id": "LASST010000000000003",
-                        "state_fips": "01",
-                        "observed_month": "2023-01-01",
-                        "value": 2.6,
-                    },
-                    {
-                        "series_id": "LASST020000000000003",
-                        "state_fips": "02",
-                        "observed_month": "2023-01-01",
-                        "value": 3.8,
-                    },
-                ]
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    return {
-        "sba_7a": [
-            _write_manifest(
-                raw_file=sba_7a,
-                manifest_path=manifest_dir / "sba_7a.manifest.json",
-                source_system="sba",
-                dataset_name="7a_504_foia",
-                resource_name="sba_7a_fy2020_present",
-                row_count=2,
-                file_format="csv",
-                schema_fields=["LoanNumber", "GrossApproval"],
-            )
-        ],
-        "sba_504": [
-            _write_manifest(
-                raw_file=sba_504,
-                manifest_path=manifest_dir / "sba_504.manifest.json",
-                source_system="sba",
-                dataset_name="7a_504_foia",
-                resource_name="sba_504_fy2010_present",
-                row_count=1,
-                file_format="csv",
-                schema_fields=["LoanNumber", "GrossApproval"],
-            )
-        ],
-        "census": [
-            _write_manifest(
-                raw_file=census,
-                manifest_path=manifest_dir / "census.manifest.json",
-                source_system="census",
-                dataset_name="bds",
-                resource_name="bds_state_year",
-                row_count=1,
-                file_format="json",
-                schema_fields=["YEAR", "state", "ESTAB"],
-            )
-        ],
-        "bls": [
-            _write_manifest(
-                raw_file=bls,
-                manifest_path=manifest_dir / "bls.manifest.json",
-                source_system="bls",
-                dataset_name="laus",
-                resource_name="laus_state_month",
-                row_count=2,
-                file_format="json",
-                schema_fields=["series_id", "state_fips", "observed_month", "value"],
-            )
-        ],
-    }
+from tests.unit.raw_load_test_helpers import (
+    build_raw_load_fixture_manifests,
+    raw_load_validation_result,
+    write_raw_load_manifest,
+)
 
 
 def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
     duckdb_path = tmp_path / "warehouse.duckdb"
@@ -227,14 +85,14 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
 
 
 def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     second_sba_7a = tmp_path / "raw" / "sba_7a_extra.csv"
     second_sba_7a.write_text(
         "GrossApproval,ExtraField,LoanNumber\nnot_available,new-column-value,A-4\n",
         encoding="utf-8",
     )
     manifests["sba_7a"].append(
-        _write_manifest(
+        write_raw_load_manifest(
             raw_file=second_sba_7a,
             manifest_path=tmp_path / "manifests" / "sba_7a_extra.manifest.json",
             source_system="sba",
@@ -246,7 +104,7 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
         )
     )
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
 
@@ -285,9 +143,9 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
     tmp_path,
     monkeypatch,
 ):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
 
@@ -310,7 +168,7 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
 
 
 def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     partitioned_dir = (
         tmp_path
         / "raw"
@@ -324,7 +182,7 @@ def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path)
         encoding="utf-8",
     )
     manifests["sba_7a"] = [
-        _write_manifest(
+        write_raw_load_manifest(
             raw_file=partitioned_sba_7a,
             manifest_path=tmp_path / "manifests" / "partitioned_sba_7a.manifest.json",
             source_system="sba",
@@ -336,7 +194,7 @@ def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path)
         )
     ]
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
 
@@ -374,9 +232,9 @@ def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path)
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
-        [_validation_result(status="failed")],
+        [raw_load_validation_result(status="failed")],
         tmp_path / "validation" / "validation_results.json",
     )
 
@@ -392,9 +250,9 @@ def test_load_raw_extracts_blocks_failed_validation(tmp_path):
 
 
 def test_load_raw_extracts_rejects_empty_required_manifest_group(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
 
@@ -410,9 +268,9 @@ def test_load_raw_extracts_rejects_empty_required_manifest_group(tmp_path):
 
 
 def test_load_raw_extracts_rejects_manifest_row_count_mismatch(tmp_path):
-    manifests = _build_fixture_manifests(tmp_path)
+    manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
-        [_validation_result()],
+        [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
     manifest_path = manifests["sba_7a"][0]
