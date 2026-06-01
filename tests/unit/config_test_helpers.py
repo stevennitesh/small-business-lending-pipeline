@@ -9,7 +9,8 @@ import yaml
 from pipelines.utils.source_config_models import load_yaml_file
 
 
-CONFIG_DIR = Path("config")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = REPO_ROOT / "config"
 
 
 def config_path(filename: str) -> Path:

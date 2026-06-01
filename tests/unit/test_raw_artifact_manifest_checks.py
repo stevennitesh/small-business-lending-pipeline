@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pipelines.utils.config import load_project_config
 from pipelines.utils.source_resources import SourceIdentity
 from pipelines.validation import raw_manifest_artifact_validation
 from pipelines.validation.raw_manifest_artifact_validation import (
@@ -9,6 +10,8 @@ from pipelines.validation.raw_manifest_rule_checks import (
     check_manifest_source_identity,
     check_required_manifest_resource,
 )
+from pipelines.validation.raw_validation_models import RawManifestIndex
+from tests.unit.config_test_helpers import CONFIG_DIR
 from tests.unit.raw_manifest_test_helpers import (
     manifest_for,
     write_manifest,
@@ -161,3 +164,46 @@ def test_manifest_source_identity_check_fails_on_config_mismatch(tmp_path):
         "source_system": "census",
         "dataset_name": "bds",
     }
+
+
+def test_manifest_identity_validation_reports_missing_resource_name(tmp_path):
+    raw_file = write_raw_file(tmp_path)
+    manifest = manifest_for(raw_file)
+    manifest.pop("resource_name")
+    manifest_index = RawManifestIndex(manifests=[manifest], manifests_by_resource={})
+
+    results = raw_manifest_artifact_validation.validate_manifest_identities_and_storage(
+        manifest_index,
+        load_project_config(CONFIG_DIR),
+        is_cloud_route=False,
+    )
+
+    assert len(results) == 1
+    assert results[0].validation_check_id == "RAW_010"
+    assert results[0].status == "failed"
+    assert results[0].source_resource_name == "unknown"
+    assert results[0].observed_value is None
+    assert results[0].message == "Manifest resource_name is missing or invalid."
+
+
+def test_manifest_identity_validation_reports_unknown_resource_name(tmp_path):
+    raw_file = write_raw_file(tmp_path)
+    manifest = manifest_for(raw_file)
+    manifest["resource_name"] = "unknown_resource"
+    manifest_index = RawManifestIndex.from_manifests([manifest])
+
+    results = raw_manifest_artifact_validation.validate_manifest_identities_and_storage(
+        manifest_index,
+        load_project_config(CONFIG_DIR),
+        is_cloud_route=False,
+    )
+
+    assert len(results) == 1
+    assert results[0].validation_check_id == "RAW_010"
+    assert results[0].status == "failed"
+    assert results[0].source_resource_name == "unknown_resource"
+    assert results[0].observed_value == "unknown_resource"
+    assert (
+        results[0].message
+        == "Manifest resource_name is not recognized in source config."
+    )

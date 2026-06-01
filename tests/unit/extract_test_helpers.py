@@ -97,6 +97,10 @@ class FakePostSession:
 
     def post(self, url: str, json: dict[str, object], timeout: int):
         self.calls.append({"url": url, "json": json, "timeout": timeout})
+        if not self.payloads:
+            raise AssertionError(
+                "FakePostSession received more POST calls than configured payloads."
+            )
         return FakeResponse(self.payloads.pop(0))
 
 

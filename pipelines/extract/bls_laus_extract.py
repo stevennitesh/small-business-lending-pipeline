@@ -263,10 +263,12 @@ def resolve_bls_year_window_size(
     year_window_size: int | None = None,
 ) -> int:
     """Choose the BLS year-window limit for public or registered API access."""
+    if year_window_size is not None:
+        if year_window_size < 1:
+            raise ValueError("year_window_size must be at least 1")
+        return year_window_size
     # Registered API access can request wider year windows.
-    return year_window_size or (
-        REGISTERED_YEAR_WINDOW_SIZE if api_key else PUBLIC_YEAR_WINDOW_SIZE
-    )
+    return REGISTERED_YEAR_WINDOW_SIZE if api_key else PUBLIC_YEAR_WINDOW_SIZE
 
 
 # Response normalization keeps BLS source metadata beside each observation.

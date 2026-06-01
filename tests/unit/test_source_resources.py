@@ -17,6 +17,7 @@ from pipelines.utils.source_resources import (
     CENSUS_BDS_SOURCE_IDENTITY,
     SBA_FOIA_SOURCE_IDENTITY,
     fixed_raw_source_resource,
+    sba_dataset_path_name,
     sba_raw_source_resource,
     source_key_for_resource,
 )
@@ -76,6 +77,15 @@ def test_sba_raw_source_resource_builds_dynamic_path_metadata():
     assert resource.resource_name == "sba_504_fy1991_fy2009"
     assert resource.raw_dataset_name == "504_foia"
     assert resource.raw_resource_name == "source_period=fy1991_fy2009"
+
+
+def test_sba_dataset_path_name_rejects_unknown_program():
+    assert sba_dataset_path_name("7a") == "7a_foia"
+    assert sba_dataset_path_name("504") == "504_foia"
+    assert sba_dataset_path_name("all") == "data_dictionary"
+
+    with pytest.raises(ValueError, match="Unsupported SBA program: unknown"):
+        sba_dataset_path_name("unknown")
 
 
 def test_source_identity_constants_match_configured_sources():

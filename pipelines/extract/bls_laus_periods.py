@@ -18,4 +18,8 @@ def parse_monthly_period(year: str, period: str) -> date | None:
     if not 1 <= month <= 12:
         return None
 
-    return date(int(year), month, 1)
+    try:
+        parsed_year = int(year)
+    except ValueError:
+        return None
+    return date(parsed_year, month, 1)

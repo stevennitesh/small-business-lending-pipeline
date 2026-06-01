@@ -73,7 +73,13 @@ def resolve_extraction_bucket(
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> str:
     """Resolve extraction bucket from context/env with a route-specific fallback."""
-    return (s3_bucket_resolver or resolve_s3_bucket)(context) or default_bucket
+    resolved_bucket = (s3_bucket_resolver or resolve_s3_bucket)(context)
+    if context.is_cloud_route and not resolved_bucket:
+        raise RuntimeError(
+            "Cloud extraction route requires a configured S3 bucket; "
+            f"default bucket {default_bucket!r} is only a local fallback."
+        )
+    return resolved_bucket or default_bucket
 
 
 def resolve_raw_artifact_store(

@@ -66,7 +66,9 @@ def sba_dataset_path_name(program: str) -> str:
         return SBA_7A_DATASET_PATH_NAME
     if program == "504":
         return SBA_504_DATASET_PATH_NAME
-    return SBA_DATA_DICTIONARY_DATASET_PATH_NAME
+    if program == "all":
+        return SBA_DATA_DICTIONARY_DATASET_PATH_NAME
+    raise ValueError(f"Unsupported SBA program: {program}")
 
 
 def source_period_resource_path_name(source_period: str) -> str:

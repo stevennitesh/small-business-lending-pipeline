@@ -40,8 +40,20 @@ class ExtractionPaths:
         cloud_route: bool,
     ) -> tuple[Path | ArtifactLocation, ...]:
         """Return cloud manifest locations when available, else local paths."""
-        if cloud_route and self.manifest_locations:
-            return self.manifest_locations
+        if cloud_route:
+            source_specific_references = (
+                *(self.sba_7a_manifest_locations or self.sba_7a_manifest_paths),
+                *(self.sba_504_manifest_locations or self.sba_504_manifest_paths),
+                *(
+                    self.census_bds_manifest_locations
+                    or self.census_bds_manifest_paths
+                ),
+                *(self.bls_laus_manifest_locations or self.bls_laus_manifest_paths),
+            )
+            if source_specific_references:
+                return source_specific_references
+            if self.manifest_locations:
+                return self.manifest_locations
         return self.manifest_paths
 
 

@@ -155,10 +155,19 @@ def test_resolve_bls_year_window_size_uses_override_or_api_access():
     assert resolve_bls_year_window_size(api_key=None) == PUBLIC_YEAR_WINDOW_SIZE
 
 
+def test_resolve_bls_year_window_size_rejects_non_positive_override():
+    with pytest.raises(ValueError, match="year_window_size must be at least 1"):
+        resolve_bls_year_window_size(api_key=None, year_window_size=0)
+
+
 def test_parse_monthly_period_excludes_annual_periods():
     assert parse_monthly_period("2023", "M01") == date(2023, 1, 1)
     assert parse_monthly_period("2023", "M12") == date(2023, 12, 1)
     assert parse_monthly_period("2023", "M13") is None
+
+
+def test_parse_monthly_period_returns_none_for_invalid_year():
+    assert parse_monthly_period("not-a-year", "M01") is None
 
 
 def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():

@@ -20,6 +20,7 @@ from pipelines.utils.source_config_models import (
     load_yaml_file as _load_yaml_file,
     parse_bls_laus_config,
     parse_census_bds_config,
+    parse_config_bool,
     parse_sba_resources_config,
 )
 from pipelines.utils.source_resources import (
@@ -120,7 +121,10 @@ def _project_config_section(
 def _parse_source_configs(raw_sources: dict[str, Any]) -> dict[str, SourceConfig]:
     return {
         source_name: SourceConfig(
-            enabled=bool(source_config["enabled"]),
+            enabled=parse_config_bool(
+                source_config["enabled"],
+                field_name=f"sources.{source_name}.enabled",
+            ),
             source_system=str(source_config["source_system"]),
             publisher=str(source_config["publisher"]),
             dataset_name=str(source_config["dataset_name"]),

@@ -10,6 +10,9 @@ from pipelines.utils.source_config_models import (
 from tests.unit.config_test_helpers import CONFIG_DIR
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
 def test_ref_state_seed_includes_50_states_plus_dc():
     rows = _read_seed("ref_state.csv")
     state_rows = [row for row in rows if row["is_state"] == "true"]
@@ -64,6 +67,6 @@ def test_ref_naics_seed_has_current_sector_rows():
 
 
 def _read_seed(seed_name: str) -> list[dict[str, str]]:
-    seed_path = Path("dbt/seeds", seed_name)
+    seed_path = REPO_ROOT / "dbt" / "seeds" / seed_name
     with seed_path.open("r", encoding="utf-8", newline="") as file:
         return list(csv.DictReader(file))

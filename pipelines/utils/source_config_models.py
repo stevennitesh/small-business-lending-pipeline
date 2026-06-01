@@ -38,6 +38,23 @@ CONFIG_FILE_SECTIONS = {
 CONFIG_FILENAMES = tuple(CONFIG_FILE_SECTIONS)
 
 
+def parse_config_bool(value: Any, *, field_name: str) -> bool:
+    """Parse YAML boolean flags without treating every non-empty string as true."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized_value = value.strip().lower()
+        if normalized_value in {"true", "1"}:
+            return True
+        if normalized_value in {"false", "0"}:
+            return False
+    raise ValueError(f"Expected boolean for {field_name}: {value!r}")
+
+
 @dataclass(frozen=True)
 class SBAResourceSpec:
     logical_name: str
@@ -99,8 +116,9 @@ def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
         discovery=SBADiscoveryConfig(
             strategy=strategy,
             package_url=str(discovery.get("package_url", DEFAULT_SBA_PACKAGE_URL)),
-            allow_dynamic_url_resolution=bool(
-                discovery.get("allow_dynamic_url_resolution", True)
+            allow_dynamic_url_resolution=parse_config_bool(
+                discovery.get("allow_dynamic_url_resolution", True),
+                field_name="sba_resources.discovery.allow_dynamic_url_resolution",
             ),
             cache_subdir=(
                 str(discovery["cache_subdir"])
@@ -114,7 +132,13 @@ def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
                 program=str(resource["program"]),
                 source_period=str(resource["source_period"]),
                 expected_format=str(resource["expected_format"]).lower(),
-                required=bool(resource["required"]),
+                required=parse_config_bool(
+                    resource["required"],
+                    field_name=(
+                        "sba_resources.resources"
+                        f"[{resource.get('logical_name', '?')}].required"
+                    ),
+                ),
                 title_pattern=str(resource["title_pattern"]),
             )
             for resource in config["resources"]
@@ -136,7 +160,10 @@ def parse_census_bds_config(config: Mapping[str, Any]) -> CensusBDSConfig:
     variables = tuple(
         str(variable["name"])
         for variable in config["variables"]
-        if bool(variable.get("required", False))
+        if parse_config_bool(
+            variable.get("required", False),
+            field_name=f"census_bds.variables[{variable.get('name', '?')}].required",
+        )
     )
     return CensusBDSConfig(
         endpoint=str(config["endpoint"]),
