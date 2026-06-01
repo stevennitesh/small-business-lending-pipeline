@@ -87,7 +87,7 @@ small-business-lending-pipeline/
 │   ├── census_bds_variables.yml
 │   ├── bls_laus_state_series.yml
 │   ├── freshness_rules.yml
-│   └── validation_thresholds.yml
+│   └── raw_validation_expectations.yml
 │
 ├── docs/
 │   ├── project_spec.md
@@ -103,7 +103,8 @@ small-business-lending-pipeline/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   ├── extract/
 │   │   ├── sba_extract.py
 │   │   ├── census_bds_extract.py
@@ -113,10 +114,23 @@ small-business-lending-pipeline/
 │   │   ├── s3_loader.py
 │   │   └── snowflake_loader.py
 │   ├── validation/
-│   │   ├── raw_checks.py
-│   │   ├── source_payload_checks.py
-│   │   ├── row_count_checks.py
-│   │   └── freshness_checks.py
+│   │   ├── raw_manifest_artifact_validation.py
+│   │   ├── raw_manifest_collection.py
+│   │   ├── raw_manifest_rule_checks.py
+│   │   ├── raw_payload_resources.py
+│   │   ├── raw_validation_check_catalog.py
+│   │   ├── raw_validation_expectations.py
+│   │   ├── raw_validation_models.py
+│   │   ├── raw_validation_output.py
+│   │   ├── raw_validation_resources.py
+│   │   ├── raw_validation_runner.py
+│   │   ├── raw_validation_sources.py
+│   │   ├── sba_payload_checks.py
+│   │   ├── census_bds_payload_checks.py
+│   │   ├── bls_laus_payload_checks.py
+│   │   ├── validation_failures.py
+│   │   ├── validation_result.py
+│   │   └── validation_result_io.py
 │   └── utils/
 │       ├── hashing.py
 │       ├── manifest.py
@@ -154,6 +168,12 @@ small-business-lending-pipeline/
     ├── export_powerbi_tables.py
     └── reset_local_duckdb.sh
 ```
+
+`raw_validation_runner.py` coordinates the active raw gate. Validation result
+schema, factories, JSON I/O, output persistence, source dispatch/expectations,
+and blocking-failure enforcement live in ownership modules.
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
+and freshness helper checks for a later pipeline-health layer.
 
 ---
 

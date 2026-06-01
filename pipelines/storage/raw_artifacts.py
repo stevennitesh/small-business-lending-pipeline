@@ -74,6 +74,9 @@ class ArtifactLocation:
         }
 
 
+ArtifactReference = Path | str | ArtifactLocation
+
+
 class RawArtifactReader:
     def __init__(self, *, s3_client: S3ObjectClientProtocol | None = None):
         self.s3_client = s3_client
@@ -143,6 +146,30 @@ class ArtifactReader:
         if location.local_path is None:
             raise FileNotFoundError("Local artifact location requires local_path.")
         return location.local_path.read_bytes()
+
+
+def read_artifact_text(
+    reference: ArtifactReference,
+    artifact_reader: ArtifactReader,
+) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return artifact_reader.read_text(reference)
+    return Path(reference).read_text(encoding="utf-8")
+
+
+def artifact_exists(
+    reference: ArtifactReference,
+    artifact_reader: ArtifactReader,
+) -> bool:
+    if isinstance(reference, ArtifactLocation):
+        return artifact_reader.exists(reference)
+    return Path(reference).is_file()
+
+
+def artifact_uri(reference: ArtifactReference) -> str:
+    if isinstance(reference, ArtifactLocation):
+        return reference.artifact_uri
+    return str(reference)
 
 
 class LocalRawArtifactStore:
@@ -387,6 +414,50 @@ class S3ArtifactStore:
     def _require_s3_location(self, location: ArtifactLocation) -> None:
         if location.storage_backend != "s3":
             raise ValueError("S3 artifact store requires an S3 location.")
+
+
+def raw_artifact_store_for_route(
+    *,
+    cloud_route: bool,
+    data_root: Path | str = "data",
+    bucket: str | None = None,
+    s3_client: S3ObjectClientProtocol | None = None,
+) -> LocalRawArtifactStore | S3RawArtifactStore:
+    if cloud_route:
+        if bucket is None:
+            raise ValueError("Cloud raw artifact store requires an S3 bucket.")
+        return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
+    return LocalRawArtifactStore(data_root=data_root, s3_bucket=bucket)
+
+
+def artifact_store_for_route(
+    *,
+    cloud_route: bool,
+    data_root: Path | str = "data",
+    bucket: str | None = None,
+    s3_client: S3ObjectClientProtocol | None = None,
+) -> LocalArtifactStore | S3ArtifactStore:
+    if cloud_route:
+        if bucket is None:
+            raise ValueError("Cloud artifact store requires an S3 bucket.")
+        return S3ArtifactStore(bucket=bucket, s3_client=s3_client)
+    return LocalArtifactStore(data_root=data_root, s3_bucket=bucket)
+
+
+def raw_artifact_reader_for_route(
+    *,
+    cloud_route: bool,
+    s3_client: S3ObjectClientProtocol | None = None,
+) -> RawArtifactReader:
+    return RawArtifactReader(s3_client=s3_client if cloud_route else None)
+
+
+def artifact_reader_for_route(
+    *,
+    cloud_route: bool,
+    s3_client: S3ObjectClientProtocol | None = None,
+) -> ArtifactReader:
+    return ArtifactReader(s3_client=s3_client if cloud_route else None)
 
 
 def _default_s3_client():

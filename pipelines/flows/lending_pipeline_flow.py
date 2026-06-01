@@ -1,250 +1,34 @@
 from __future__ import annotations
 
-import argparse
-import csv
-import io
-import json
-import os
-import shutil
-import subprocess
-import sys
 import time
-import uuid
-from dataclasses import asdict, dataclass, field
-from datetime import date
 from pathlib import Path
 from typing import Any
 
-import duckdb
-from dotenv import load_dotenv
 from prefect import flow, get_run_logger, task
 
-from pipelines.extract.bls_laus_extract import (
-    BLSLAUSExtractionSummary,
-    extract_bls_laus,
-    parse_monthly_period,
+from pipelines.flows import (
+    dbt_bi,
+    raw_loads,
+    raw_validation,
+    run_setup,
+    run_summary,
+    source_extracts,
 )
-from pipelines.extract.census_bds_extract import (
-    CensusBDSExtractionSummary,
-    extract_census_bds,
+from pipelines.flows.run_models import (
+    CLOUD_FLOW_STAGES,
+    LOCAL_FLOW_STAGES,
+    DbtBuildResult,
+    ExtractionPaths,
+    FlowRunState,
+    LocalRunContext,
 )
-from pipelines.extract.sba_extract import (
-    SBAExtractionSummary,
-    extract_sba_foia,
-)
-from pipelines.load.duckdb_loader import RawLoadSummary, load_raw_extracts
-from pipelines.load.s3_loader import (
-    S3UploadSummary,
-    build_dbt_artifact_upload_item,
-    upload_items_to_s3,
-    upload_run_artifacts_to_s3,
-)
-from pipelines.load.snowflake_loader import (
-    SnowflakeConfig,
-    SnowflakeRawLoadSummary,
-    connect_to_snowflake,
-    load_raw_extracts_to_snowflake_from_s3,
-)
-from pipelines.storage.raw_artifacts import (
-    ArtifactLocation,
-    ArtifactReader,
-    LocalArtifactStore,
-    LocalRawArtifactStore,
-    RawArtifactLocation,
-    RawArtifactReader,
-    S3ArtifactStore,
-    S3RawArtifactStore,
-)
-from pipelines.utils.config import ProjectConfig, SourceIdentity, load_project_config
-from pipelines.utils.dates import utc_now_iso
-from pipelines.utils.hashing import hash_bytes, hash_schema
-from pipelines.utils.manifest import (
-    ExtractionManifest,
-    manifest_to_json_bytes,
-    write_manifest,
-)
-from pipelines.validation.raw_checks import (
-    check_cloud_manifest_storage,
-    check_manifest_raw_uri_required,
-    check_manifest_source_identity,
-    check_raw_manifest,
-    check_required_manifest_resource,
-    check_validation_output_created,
-)
-from pipelines.validation.source_payload_checks import (
-    check_bls_laus_payload,
-    check_census_bds_payload,
-    check_sba_required_resources,
-)
-from pipelines.validation.validation_result import (
-    ValidationFailedError,
-    ValidationResult,
-    assert_no_blocking_failures,
-    make_validation_result,
-    validation_results_to_json_bytes,
-    write_validation_results,
-)
-from scripts.export_powerbi_tables import (
-    BI_EXPORT_TABLES,
-    export_powerbi_tables,
-    validate_powerbi_table_contract,
-)
+from pipelines.flows.raw_loads import RawLoadSummary, S3UploadSummary
+from pipelines.flows.raw_loads import SnowflakeRawLoadSummary
+from pipelines.utils.config import ProjectConfig, load_project_config
+from pipelines.validation.raw_validation_models import RawValidationOutput
 
 
-RUN_MODE_ALIASES = {
-    "local": "local",
-    "cloud": "cloud",
-}
-
-LOCAL_FLOW_STAGES = (
-    "initialize_run",
-    "load_config",
-    "extract_sources",
-    "write_manifests",
-    "validate_raw_outputs",
-    "load_duckdb_raw_tables",
-    "run_dbt_build",
-    "collect_dbt_artifacts",
-    "validate_bi_tables",
-    "export_bi_tables",
-    "write_run_summary",
-)
-
-CLOUD_FLOW_STAGES = (
-    "initialize_run",
-    "load_config",
-    "require_cloud_mode_config",
-    "extract_sources",
-    "write_manifests",
-    "validate_raw_outputs",
-    "record_raw_artifact_locations",
-    "load_snowflake_raw_tables",
-    "run_dbt_build",
-    "collect_dbt_artifacts",
-    "upload_dbt_artifacts_to_s3",
-    "validate_bi_tables",
-    "write_run_summary",
-)
-
-FLOW_STAGES = LOCAL_FLOW_STAGES
-
-BI_TABLES = BI_EXPORT_TABLES
-
-
-@dataclass(frozen=True)
-class LocalRunContext:
-    pipeline_run_id: str
-    run_mode: str
-    extract_mode: str
-    data_root: Path
-    duckdb_path: Path
-    dbt_project_dir: Path
-    dbt_profiles_dir: Path
-    dbt_target: str
-    powerbi_export_dir: Path
-    run_started_at_utc: str
-    s3_bucket: str | None = None
-    source_start_year: int | None = None
-    source_end_year: int | None = None
-
-    @property
-    def is_cloud_route(self) -> bool:
-        return self.run_mode == "cloud"
-
-    @property
-    def run_validation_dir(self) -> Path:
-        return self.data_root / "validation" / f"pipeline_run_id={self.pipeline_run_id}"
-
-    @property
-    def run_export_dir(self) -> Path:
-        return self.powerbi_export_dir
-
-    @property
-    def stage_order(self) -> tuple[str, ...]:
-        return CLOUD_FLOW_STAGES if self.is_cloud_route else LOCAL_FLOW_STAGES
-
-
-@dataclass(frozen=True)
-class ExtractionPaths:
-    sba_7a_manifest_paths: tuple[Path, ...]
-    sba_504_manifest_paths: tuple[Path, ...]
-    census_bds_manifest_paths: tuple[Path, ...]
-    bls_laus_manifest_paths: tuple[Path, ...]
-    manifest_paths: tuple[Path, ...]
-    sba_7a_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    sba_504_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    census_bds_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    manifest_locations: tuple[ArtifactLocation, ...] = ()
-
-    def manifest_references_for_validation(
-        self,
-        *,
-        cloud_route: bool,
-    ) -> tuple[Path | ArtifactLocation, ...]:
-        if cloud_route and self.manifest_locations:
-            return self.manifest_locations
-        return self.manifest_paths
-
-
-@dataclass(frozen=True)
-class ValidationOutput:
-    local_path: Path
-    artifact_location: ArtifactLocation | None = None
-
-    @property
-    def durable_reference(self) -> Path | ArtifactLocation:
-        return self.artifact_location or self.local_path
-
-
-@dataclass(frozen=True)
-class LoadedManifestReference:
-    reference: Path | ArtifactLocation
-    manifest: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class RawValidationExpectations:
-    sba_required_resource_names: list[str]
-    census_expected_state_count: int
-    bls_expected_series_ids: tuple[str, ...]
-    bls_required_period_pattern: str
-    bls_unemployment_rate_min: float
-    bls_unemployment_rate_max: float
-
-
-@dataclass(frozen=True)
-class DbtBuildResult:
-    command: tuple[str, ...]
-    returncode: int
-    stdout: str
-    stderr: str
-
-
-@dataclass(frozen=True)
-class PipelineRunSummary:
-    pipeline_run_id: str
-    run_mode: str
-    route: str
-    extract_mode: str
-    dbt_target: str
-    status: str
-    completed_stages: list[str]
-    failed_stage: str | None
-    error_message: str | None
-    started_at_utc: str
-    finished_at_utc: str
-    validation_result_path: str | None = None
-    validation_result_uri: str | None = None
-    manifest_artifact_uris: list[str] = field(default_factory=list)
-    duckdb_path: str | None = None
-    dbt_artifacts: dict[str, str] = field(default_factory=dict)
-    bi_row_counts: dict[str, int] = field(default_factory=dict)
-    export_paths: list[str] = field(default_factory=list)
-    stage_durations_seconds: dict[str, float] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+BI_TABLES = dbt_bi.BI_TABLES
 
 
 @task
@@ -263,36 +47,20 @@ def initialize_run(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> LocalRunContext:
-    run_mode = _normalize_run_mode(run_mode)
-    if extract_mode not in {"fixture", "live"}:
-        raise ValueError("extract_mode must be 'fixture' or 'live'.")
-    if source_start_year and source_end_year and source_start_year > source_end_year:
-        raise ValueError("source_start_year cannot be greater than source_end_year.")
-
-    run_id = pipeline_run_id or f"{run_mode}-{uuid.uuid4()}"
-    resolved_data_root = Path(data_root)
-    context = LocalRunContext(
-        pipeline_run_id=run_id,
+    return run_setup.initialize_run_context(
         run_mode=run_mode,
         extract_mode=extract_mode,
-        data_root=resolved_data_root,
-        duckdb_path=Path(duckdb_path),
-        dbt_project_dir=Path(dbt_project_dir),
-        dbt_profiles_dir=Path(dbt_profiles_dir),
         dbt_target=dbt_target,
-        powerbi_export_dir=_resolve_powerbi_export_dir(
-            resolved_data_root,
-            powerbi_export_dir,
-        ),
-        run_started_at_utc=utc_now_iso(),
+        data_root=data_root,
+        duckdb_path=duckdb_path,
+        dbt_project_dir=dbt_project_dir,
+        dbt_profiles_dir=dbt_profiles_dir,
+        powerbi_export_dir=powerbi_export_dir,
         s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
         source_start_year=source_start_year,
         source_end_year=source_end_year,
     )
-    context.data_root.mkdir(parents=True, exist_ok=True)
-    context.run_validation_dir.mkdir(parents=True, exist_ok=True)
-    context.run_export_dir.mkdir(parents=True, exist_ok=True)
-    return context
 
 
 @task
@@ -302,25 +70,7 @@ def load_config(config_dir: str = "config") -> ProjectConfig:
 
 @task
 def require_cloud_mode_config(context: LocalRunContext) -> str:
-    if not context.is_cloud_route:
-        return context.s3_bucket or ""
-
-    load_dotenv(override=False)
-    bucket = _s3_bucket(context)
-    missing = []
-    if not bucket:
-        missing.append("S3_BUCKET")
-    try:
-        snowflake_config = SnowflakeConfig.from_env()
-    except Exception as exc:
-        raise RuntimeError(f"Missing cloud mode configuration: {exc}") from exc
-    if not snowflake_config.storage_integration:
-        missing.append("SNOWFLAKE_STORAGE_INTEGRATION")
-    if missing:
-        raise RuntimeError(
-            "Missing cloud mode configuration: " + ", ".join(sorted(missing))
-        )
-    return bucket
+    return run_setup.require_cloud_mode_config_for_context(context)
 
 
 @task
@@ -331,8 +81,8 @@ def extract_sources(
     if context.run_mode not in {"local", "cloud"}:
         raise ValueError("run_mode must be 'local' or 'cloud'.")
     if context.extract_mode == "live":
-        return _extract_live_sources(context, project_config)
-    return _write_local_fixture_extracts(context, project_config)
+        return source_extracts.extract_live_sources(context, project_config)
+    return source_extracts.extract_fixture_sources_for_flow(context, project_config)
 
 
 @task
@@ -340,123 +90,11 @@ def validate_raw_outputs(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
     project_config: ProjectConfig,
-) -> ValidationOutput:
-    validation_results: list[ValidationResult] = []
-    manifest_references = _manifest_references_for_validation(context, extraction_paths)
-    manifest_artifact_reader = _artifact_reader(context)
-    loaded_manifest_references, manifest_load_results = _load_manifests_for_validation(
+) -> RawValidationOutput:
+    return raw_validation.validate_raw_outputs_for_flow(
         context,
-        manifest_references,
-        manifest_artifact_reader,
-    )
-    validation_results.extend(manifest_load_results)
-    manifests = [loaded.manifest for loaded in loaded_manifest_references]
-    artifact_reader = _raw_artifact_reader(context)
-    raw_manifest_results: list[ValidationResult] = []
-
-    for loaded_manifest in loaded_manifest_references:
-        raw_manifest_results.extend(
-            check_raw_manifest(
-                loaded_manifest.reference,
-                artifact_reader=artifact_reader,
-                manifest_artifact_reader=manifest_artifact_reader,
-            )
-        )
-    validation_results.extend(raw_manifest_results)
-    readable_resource_names = _readable_resource_names(raw_manifest_results)
-
-    for manifest in manifests:
-        validation_results.append(
-            check_manifest_source_identity(
-                manifest,
-                expected_identity=project_config.source_identity(
-                    _source_name_for_resource(
-                        str(manifest["resource_name"]),
-                        project_config,
-                    )
-                ),
-            )
-        )
-        if context.is_cloud_route:
-            validation_results.append(check_manifest_raw_uri_required(manifest))
-            validation_results.append(check_cloud_manifest_storage(manifest))
-
-    expectations = _raw_validation_expectations(context, project_config)
-
-    manifests_by_name = manifests_by_resource(manifests)
-
-    if project_config.is_source_enabled("sba_foia"):
-        validation_results.extend(
-            check_sba_required_resources(
-                manifests,
-                required_resource_names=expectations.sba_required_resource_names,
-                source_identity=project_config.source_identity("sba_foia"),
-                artifact_reader=artifact_reader,
-                readable_resource_names=readable_resource_names,
-            )
-        )
-
-    if project_config.is_source_enabled("census_bds"):
-        census_manifest_result = check_required_manifest_resource(
-            manifests,
-            resource_name="bds_state_year",
-            pipeline_run_id=context.pipeline_run_id,
-            source_identity=project_config.source_identity("census_bds"),
-        )
-        validation_results.append(census_manifest_result)
-        if census_manifest_result.status == "passed":
-            validation_results.extend(
-                check_census_bds_payload(
-                    json.loads(
-                        artifact_reader.read_text(manifests_by_name["bds_state_year"])
-                    ),
-                    required_variables=tuple(
-                        project_config.validation_thresholds["census_bds"][
-                            "required_columns"
-                        ]
-                    ),
-                    expected_state_count=expectations.census_expected_state_count,
-                    pipeline_run_id=context.pipeline_run_id,
-                    source_identity=project_config.source_identity("census_bds"),
-                )
-            )
-
-    if project_config.is_source_enabled("bls_laus"):
-        bls_manifest_result = check_required_manifest_resource(
-            manifests,
-            resource_name="laus_state_month",
-            pipeline_run_id=context.pipeline_run_id,
-            source_identity=project_config.source_identity("bls_laus"),
-        )
-        validation_results.append(bls_manifest_result)
-        if bls_manifest_result.status == "passed":
-            validation_results.extend(
-                check_bls_laus_payload(
-                    json.loads(
-                        artifact_reader.read_text(manifests_by_name["laus_state_month"])
-                    ),
-                    expected_series_ids=expectations.bls_expected_series_ids,
-                    pipeline_run_id=context.pipeline_run_id,
-                    required_period_pattern=expectations.bls_required_period_pattern,
-                    unemployment_rate_min=expectations.bls_unemployment_rate_min,
-                    unemployment_rate_max=expectations.bls_unemployment_rate_max,
-                    source_identity=project_config.source_identity("bls_laus"),
-                )
-            )
-
-    validation_path = context.run_validation_dir / "validation_results.json"
-    validation_location = _validation_artifact_location(context, manifests)
-    _write_validation_output_with_self_check(
-        context,
-        validation_results,
-        validation_path=validation_path,
-        validation_location=validation_location,
-        artifact_reader=manifest_artifact_reader,
-    )
-    assert_no_blocking_failures(validation_results)
-    return ValidationOutput(
-        local_path=validation_path,
-        artifact_location=validation_location,
+        extraction_paths,
+        project_config,
     )
 
 
@@ -464,15 +102,12 @@ def validate_raw_outputs(
 def load_duckdb_raw_tables(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_output: ValidationOutput,
+    validation_output: RawValidationOutput,
 ) -> RawLoadSummary:
-    return load_raw_extracts(
-        duckdb_path=context.duckdb_path,
-        sba_7a_manifest_paths=extraction_paths.sba_7a_manifest_paths,
-        sba_504_manifest_paths=extraction_paths.sba_504_manifest_paths,
-        census_bds_manifest_paths=extraction_paths.census_bds_manifest_paths,
-        bls_laus_manifest_paths=extraction_paths.bls_laus_manifest_paths,
-        validation_result_paths=[validation_output.local_path],
+    return raw_loads.load_duckdb_raw_tables_for_context(
+        context,
+        extraction_paths,
+        validation_output,
     )
 
 
@@ -480,24 +115,12 @@ def load_duckdb_raw_tables(
 def record_raw_artifact_locations(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_output: ValidationOutput,
+    validation_output: RawValidationOutput,
 ) -> S3UploadSummary:
-    """Record cloud artifact locations or run the legacy local-to-S3 test path."""
-
-    if context.is_cloud_route and validation_output.artifact_location is not None:
-        uploaded_objects = [
-            *(location.artifact_uri for location in extraction_paths.manifest_locations),
-            validation_output.artifact_location.artifact_uri,
-        ]
-        return S3UploadSummary(
-            bucket=_s3_bucket(context),
-            uploaded_objects=tuple(uploaded_objects),
-        )
-    return upload_run_artifacts_to_s3(
-        manifest_paths=list(extraction_paths.manifest_paths),
-        validation_result_path=validation_output.local_path,
-        bucket=_s3_bucket(context),
-        run_mode=context.run_mode,
+    return raw_loads.record_raw_artifact_locations_for_context(
+        context,
+        extraction_paths,
+        validation_output,
     )
 
 
@@ -505,95 +128,23 @@ def record_raw_artifact_locations(
 def load_snowflake_raw_tables(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
-    validation_output: ValidationOutput,
+    validation_output: RawValidationOutput,
 ) -> SnowflakeRawLoadSummary:
-    """Load the cloud route from S3-backed artifacts into Snowflake.
-
-    The local path fallbacks below are compatibility/testing hooks for manual
-    Snowflake connector checks. They are not the intended cloud route contract.
-    Production-style cloud runs should pass S3 artifact locations.
-    """
-
-    config = SnowflakeConfig.from_env()
-    connection = connect_to_snowflake(config)
-    try:
-        return load_raw_extracts_to_snowflake_from_s3(
-            connection=connection,
-            database=config.database,
-            raw_schema=config.raw_schema,
-            audit_schema=config.audit_schema,
-            sba_7a_manifest_paths=(
-                extraction_paths.sba_7a_manifest_locations
-                or extraction_paths.sba_7a_manifest_paths
-            ),
-            sba_504_manifest_paths=(
-                extraction_paths.sba_504_manifest_locations
-                or extraction_paths.sba_504_manifest_paths
-            ),
-            census_bds_manifest_paths=(
-                extraction_paths.census_bds_manifest_locations
-                or extraction_paths.census_bds_manifest_paths
-            ),
-            bls_laus_manifest_paths=(
-                extraction_paths.bls_laus_manifest_locations
-                or extraction_paths.bls_laus_manifest_paths
-            ),
-            validation_result_paths=[
-                validation_output.artifact_location or validation_output.local_path
-            ],
-            storage_integration=config.storage_integration,
-        )
-    finally:
-        connection.close()
+    return raw_loads.load_snowflake_raw_tables_for_context(
+        context,
+        extraction_paths,
+        validation_output,
+    )
 
 
 @task
 def run_dbt_build(context: LocalRunContext) -> DbtBuildResult:
-    load_dotenv(override=False)
-    _ensure_dbt_profile(context)
-    dbt_executable = _dbt_executable()
-    command = (
-        str(dbt_executable),
-        "build",
-        "--target",
-        context.dbt_target,
-    )
-    completed = subprocess.run(
-        command,
-        cwd=context.dbt_project_dir,
-        env={
-            **dict(os.environ),
-            "DBT_PROFILES_DIR": str(context.dbt_profiles_dir.resolve()),
-        },
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    result = DbtBuildResult(
-        command=command,
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            "dbt build failed with exit code "
-            f"{completed.returncode}\n{completed.stdout}\n{completed.stderr}"
-        )
-    return result
+    return dbt_bi.run_dbt_build_for_context(context)
 
 
 @task
 def collect_dbt_artifacts(context: LocalRunContext) -> dict[str, str]:
-    target_dir = context.dbt_project_dir / "target"
-    artifacts = {
-        name: str(target_dir / name)
-        for name in ("manifest.json", "run_results.json")
-        if (target_dir / name).is_file()
-    }
-    if not artifacts:
-        raise RuntimeError("dbt build did not produce target artifacts.")
-    return artifacts
+    return dbt_bi.collect_dbt_artifacts_for_context(context)
 
 
 @task
@@ -602,52 +153,21 @@ def upload_dbt_artifacts_to_s3(
     extraction_paths: ExtractionPaths,
     dbt_artifacts: dict[str, str],
 ) -> S3UploadSummary:
-    if not dbt_artifacts:
-        return S3UploadSummary(bucket=_s3_bucket(context), uploaded_objects=())
-
-    first_manifest = json.loads(
-        extraction_paths.manifest_paths[0].read_text(encoding="utf-8")
-    )
-    items = [
-        build_dbt_artifact_upload_item(
-            artifact_path,
-            ingestion_date=str(first_manifest["ingestion_date"]),
-            pipeline_run_id=str(first_manifest["pipeline_run_id"]),
-        )
-        for artifact_path in dbt_artifacts.values()
-    ]
-    return upload_items_to_s3(
-        items,
-        bucket=_s3_bucket(context),
-        required=context.is_cloud_route,
+    return dbt_bi.upload_dbt_artifacts_for_context(
+        context,
+        extraction_paths,
+        dbt_artifacts,
     )
 
 
 @task
 def validate_bi_tables(context: LocalRunContext) -> dict[str, int]:
-    if context.is_cloud_route:
-        return _validate_snowflake_bi_tables()
-
-    row_counts: dict[str, int] = {}
-    with duckdb.connect(str(context.duckdb_path)) as connection:
-        for table_name in BI_TABLES:
-            validate_powerbi_table_contract(connection, table_name)
-            row_count = int(
-                connection.execute(f"select count(*) from {table_name}").fetchone()[0]
-            )
-            if row_count <= 0:
-                raise RuntimeError(f"BI table {table_name} has no rows.")
-            row_counts[table_name] = row_count
-    return row_counts
+    return dbt_bi.validate_bi_tables_for_context(context)
 
 
 @task
 def export_bi_tables(context: LocalRunContext) -> list[str]:
-    summary = export_powerbi_tables(
-        duckdb_path=context.duckdb_path,
-        export_dir=context.run_export_dir,
-    )
-    return [summary.export_paths[table_name] for table_name in BI_TABLES]
+    return dbt_bi.export_bi_tables_for_context(context)
 
 
 @task
@@ -658,7 +178,7 @@ def write_run_summary(
     completed_stages: list[str],
     failed_stage: str | None = None,
     error_message: str | None = None,
-    validation_result_path: Path | ValidationOutput | None = None,
+    validation_result_path: Path | RawValidationOutput | None = None,
     manifest_artifact_uris: list[str] | None = None,
     dbt_artifacts: dict[str, str] | None = None,
     bi_row_counts: dict[str, int] | None = None,
@@ -667,49 +187,21 @@ def write_run_summary(
     snowflake_raw_load_summary: dict[str, Any] | None = None,
     stage_durations_seconds: dict[str, float] | None = None,
 ) -> Path:
-    summary_started_at = time.perf_counter()
-    stage_durations = dict(stage_durations_seconds or {})
-    summary = PipelineRunSummary(
-        pipeline_run_id=context.pipeline_run_id,
-        run_mode=context.run_mode,
-        route=context.run_mode,
-        extract_mode=context.extract_mode,
-        dbt_target=context.dbt_target,
+    return run_summary.write_run_summary_for_context(
+        context,
         status=status,
         completed_stages=completed_stages,
         failed_stage=failed_stage,
         error_message=error_message,
-        started_at_utc=context.run_started_at_utc,
-        finished_at_utc=utc_now_iso(),
-        validation_result_path=_validation_output_local_path(validation_result_path),
-        validation_result_uri=_validation_output_uri(validation_result_path),
-        manifest_artifact_uris=manifest_artifact_uris or [],
-        duckdb_path=str(context.duckdb_path),
-        dbt_artifacts=dbt_artifacts or {},
-        bi_row_counts=bi_row_counts or {},
-        export_paths=export_paths or [],
-        stage_durations_seconds=stage_durations,
+        validation_result_path=validation_result_path,
+        manifest_artifact_uris=manifest_artifact_uris,
+        dbt_artifacts=dbt_artifacts,
+        bi_row_counts=bi_row_counts,
+        export_paths=export_paths,
+        s3_upload_summary=s3_upload_summary,
+        snowflake_raw_load_summary=snowflake_raw_load_summary,
+        stage_durations_seconds=stage_durations_seconds,
     )
-    summary_path = context.run_validation_dir / "run_summary.json"
-    summary_payload = {
-        **summary.to_dict(),
-        "s3_upload_summary": s3_upload_summary or {},
-        "snowflake_raw_load_summary": snowflake_raw_load_summary or {},
-    }
-    summary_path.write_text(
-        json.dumps(summary_payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    stage_durations["write_run_summary"] = round(
-        time.perf_counter() - summary_started_at,
-        3,
-    )
-    summary_payload["stage_durations_seconds"] = stage_durations
-    summary_path.write_text(
-        json.dumps(summary_payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return summary_path
 
 
 @flow(name="small-business-lending-local-pipeline")
@@ -729,7 +221,7 @@ def lending_pipeline_flow(
     source_end_year: int | None = None,
 ) -> str:
     logger = get_run_logger()
-    completed_stages: list[str] = []
+    state = FlowRunState()
     context = initialize_run(
         run_mode=run_mode,
         extract_mode=extract_mode,
@@ -744,125 +236,120 @@ def lending_pipeline_flow(
         source_start_year=source_start_year,
         source_end_year=source_end_year,
     )
-    completed_stages.append("initialize_run")
-
-    validation_result_path: ValidationOutput | None = None
-    manifest_artifact_uris: list[str] = []
-    dbt_artifacts: dict[str, str] = {}
-    bi_row_counts: dict[str, int] = {}
-    export_paths: list[str] = []
-    s3_upload_summary: dict[str, Any] = {}
-    snowflake_raw_load_summary: dict[str, Any] = {}
-    failed_stage: str | None = None
-    stage_durations_seconds: dict[str, float] = {}
+    state.complete("initialize_run")
 
     try:
         project_config = load_config()
-        completed_stages.append("load_config")
+        state.complete("load_config")
 
         if context.is_cloud_route:
             require_cloud_mode_config(context)
-            completed_stages.append("require_cloud_mode_config")
+            state.complete("require_cloud_mode_config")
 
         extraction_paths = _run_timed_stage(
-            stage_durations_seconds,
+            state.stage_durations_seconds,
             "extract_sources",
             extract_sources,
             context,
             project_config,
         )
-        manifest_artifact_uris = [
+        state.manifest_artifact_uris = [
             location.artifact_uri for location in extraction_paths.manifest_locations
         ]
-        completed_stages.extend(["extract_sources", "write_manifests"])
+        state.complete_many(["extract_sources", "write_manifests"])
 
-        validation_result_path = _run_timed_stage(
-            stage_durations_seconds,
+        state.validation_output = _run_timed_stage(
+            state.stage_durations_seconds,
             "validate_raw_outputs",
             validate_raw_outputs,
             context,
             extraction_paths,
             project_config,
         )
-        completed_stages.append("validate_raw_outputs")
+        state.complete("validate_raw_outputs")
 
         if context.is_cloud_route:
             raw_s3_summary = _run_timed_stage(
-                stage_durations_seconds,
+                state.stage_durations_seconds,
                 "record_raw_artifact_locations",
                 record_raw_artifact_locations,
                 context,
                 extraction_paths,
-                validation_result_path,
+                state.validation_output,
             )
-            s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
-            completed_stages.append("record_raw_artifact_locations")
+            state.s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
+            state.complete("record_raw_artifact_locations")
 
             snowflake_summary = _run_timed_stage(
-                stage_durations_seconds,
+                state.stage_durations_seconds,
                 "load_snowflake_raw_tables",
                 load_snowflake_raw_tables,
                 context,
                 extraction_paths,
-                validation_result_path,
+                state.validation_output,
             )
-            snowflake_raw_load_summary = snowflake_summary.to_dict()
-            completed_stages.append("load_snowflake_raw_tables")
+            state.snowflake_raw_load_summary = snowflake_summary.to_dict()
+            state.complete("load_snowflake_raw_tables")
         else:
             _run_timed_stage(
-                stage_durations_seconds,
+                state.stage_durations_seconds,
                 "load_duckdb_raw_tables",
                 load_duckdb_raw_tables,
                 context,
                 extraction_paths,
-                validation_result_path,
+                state.validation_output,
             )
-            completed_stages.append("load_duckdb_raw_tables")
+            state.complete("load_duckdb_raw_tables")
 
-        _run_timed_stage(stage_durations_seconds, "run_dbt_build", run_dbt_build, context)
-        completed_stages.append("run_dbt_build")
+        _run_timed_stage(
+            state.stage_durations_seconds,
+            "run_dbt_build",
+            run_dbt_build,
+            context,
+        )
+        state.complete("run_dbt_build")
 
-        dbt_artifacts = collect_dbt_artifacts(context)
-        completed_stages.append("collect_dbt_artifacts")
+        state.dbt_artifacts = collect_dbt_artifacts(context)
+        state.complete("collect_dbt_artifacts")
 
         if context.is_cloud_route:
             dbt_s3_summary = upload_dbt_artifacts_to_s3(
                 context,
                 extraction_paths,
-                dbt_artifacts,
+                state.dbt_artifacts,
             )
-            s3_upload_summary["dbt_artifacts"] = dbt_s3_summary.to_dict()
-            completed_stages.append("upload_dbt_artifacts_to_s3")
+            state.s3_upload_summary["dbt_artifacts"] = dbt_s3_summary.to_dict()
+            state.complete("upload_dbt_artifacts_to_s3")
 
-        bi_row_counts = _run_timed_stage(
-            stage_durations_seconds,
+        state.bi_row_counts = _run_timed_stage(
+            state.stage_durations_seconds,
             "validate_bi_tables",
             validate_bi_tables,
             context,
         )
-        completed_stages.append("validate_bi_tables")
+        state.complete("validate_bi_tables")
 
         if context.run_mode == "local":
-            export_paths = _run_timed_stage(
-                stage_durations_seconds,
+            state.export_paths = _run_timed_stage(
+                state.stage_durations_seconds,
                 "export_bi_tables",
                 export_bi_tables,
                 context,
             )
-            completed_stages.append("export_bi_tables")
+            state.complete("export_bi_tables")
 
         summary_path = write_run_summary(
             context,
             status="success",
-            completed_stages=completed_stages + ["write_run_summary"],
-            validation_result_path=validation_result_path,
-            manifest_artifact_uris=manifest_artifact_uris,
-            dbt_artifacts=dbt_artifacts,
-            bi_row_counts=bi_row_counts,
-            export_paths=export_paths,
-            s3_upload_summary=s3_upload_summary,
-            snowflake_raw_load_summary=snowflake_raw_load_summary,
-            stage_durations_seconds=stage_durations_seconds,
+            completed_stages=state.completed_with_summary(),
+            validation_result_path=state.validation_output,
+            manifest_artifact_uris=state.manifest_artifact_uris,
+            dbt_artifacts=state.dbt_artifacts,
+            bi_row_counts=state.bi_row_counts,
+            export_paths=state.export_paths,
+            s3_upload_summary=state.s3_upload_summary,
+            snowflake_raw_load_summary=state.snowflake_raw_load_summary,
+            stage_durations_seconds=state.stage_durations_seconds,
         )
         logger.info(
             "%s lending pipeline completed: %s",
@@ -871,21 +358,21 @@ def lending_pipeline_flow(
         )
         return str(summary_path)
     except Exception as exc:
-        failed_stage = _failed_stage(completed_stages, context.stage_order)
+        failed_stage = state.failed_stage(context.stage_order)
         summary_path = write_run_summary(
             context,
             status="failed",
-            completed_stages=completed_stages + ["write_run_summary"],
+            completed_stages=state.completed_with_summary(),
             failed_stage=failed_stage,
             error_message=str(exc),
-            validation_result_path=validation_result_path,
-            manifest_artifact_uris=manifest_artifact_uris,
-            dbt_artifacts=dbt_artifacts,
-            bi_row_counts=bi_row_counts,
-            export_paths=export_paths,
-            s3_upload_summary=s3_upload_summary,
-            snowflake_raw_load_summary=snowflake_raw_load_summary,
-            stage_durations_seconds=stage_durations_seconds,
+            validation_result_path=state.validation_output,
+            manifest_artifact_uris=state.manifest_artifact_uris,
+            dbt_artifacts=state.dbt_artifacts,
+            bi_row_counts=state.bi_row_counts,
+            export_paths=state.export_paths,
+            s3_upload_summary=state.s3_upload_summary,
+            snowflake_raw_load_summary=state.snowflake_raw_load_summary,
+            stage_durations_seconds=state.stage_durations_seconds,
         )
         logger.error(
             "%s lending pipeline failed at %s: %s",
@@ -914,999 +401,10 @@ def _run_timed_stage(
         )
 
 
-def manifests_by_resource(manifests: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {str(manifest["resource_name"]): manifest for manifest in manifests}
-
-
-def _normalize_run_mode(run_mode: str) -> str:
-    try:
-        return RUN_MODE_ALIASES[run_mode]
-    except KeyError as exc:
-        allowed = ", ".join(sorted(RUN_MODE_ALIASES))
-        raise ValueError(f"run_mode must be one of: {allowed}") from exc
-
-
-def _extract_live_sources(
-    context: LocalRunContext,
-    project_config: ProjectConfig,
-) -> ExtractionPaths:
-    load_dotenv(override=False)
-    bucket = _s3_bucket(context) or "local-live"
-    raw_artifact_store = _raw_artifact_store(context, bucket)
-    manifest_artifact_store = (
-        _artifact_store(context, bucket) if context.is_cloud_route else None
-    )
-    sba_manifest_paths: dict[str, Path] = {}
-    sba_manifest_locations: dict[str, ArtifactLocation] = {}
-    census_bds_manifest_paths: tuple[Path, ...] = ()
-    census_bds_manifest_locations: tuple[ArtifactLocation, ...] = ()
-    bls_laus_manifest_paths: tuple[Path, ...] = ()
-    bls_laus_manifest_locations: tuple[ArtifactLocation, ...] = ()
-
-    if project_config.is_source_enabled("sba_foia"):
-        sba_summary = extract_sba_foia(
-            config=project_config.sba,
-            source_identity=project_config.source_identity("sba_foia"),
-            data_root=context.data_root,
-            s3_bucket=bucket,
-            pipeline_run_id=context.pipeline_run_id,
-            raw_artifact_store=raw_artifact_store,
-            manifest_artifact_store=manifest_artifact_store,
-        )
-        sba_manifest_paths = sba_summary.manifest_paths
-        sba_manifest_locations = sba_summary.manifest_locations
-
-    if project_config.is_source_enabled("census_bds"):
-        census_summary = extract_census_bds(
-            config=project_config.census_bds,
-            source_identity=project_config.source_identity("census_bds"),
-            data_root=context.data_root,
-            s3_bucket=bucket,
-            pipeline_run_id=context.pipeline_run_id,
-            start_year=context.source_start_year,
-            end_year=context.source_end_year,
-            raw_artifact_store=raw_artifact_store,
-            manifest_artifact_store=manifest_artifact_store,
-        )
-        census_bds_manifest_paths = (census_summary.manifest_path,)
-        if census_summary.manifest_location is not None:
-            census_bds_manifest_locations = (census_summary.manifest_location,)
-
-    if project_config.is_source_enabled("bls_laus"):
-        requested_bls_start_year = (
-            context.source_start_year or project_config.bls_laus.start_year
-        )
-        bls_start_year = max(requested_bls_start_year - 1, 1976)
-        bls_summary = extract_bls_laus(
-            config=project_config.bls_laus,
-            source_identity=project_config.source_identity("bls_laus"),
-            data_root=context.data_root,
-            s3_bucket=bucket,
-            pipeline_run_id=context.pipeline_run_id,
-            start_year=bls_start_year,
-            end_year=context.source_end_year,
-            raw_artifact_store=raw_artifact_store,
-            manifest_artifact_store=manifest_artifact_store,
-        )
-        bls_laus_manifest_paths = (bls_summary.manifest_path,)
-        if bls_summary.manifest_location is not None:
-            bls_laus_manifest_locations = (bls_summary.manifest_location,)
-
-    sba_7a_manifest_paths = _sba_manifest_paths_by_program(
-        sba_manifest_paths,
-        "sba_7a_",
-    )
-    sba_7a_manifest_locations = _sba_manifest_paths_by_program(
-        sba_manifest_locations,
-        "sba_7a_",
-    )
-    sba_504_manifest_paths = _sba_manifest_paths_by_program(
-        sba_manifest_paths,
-        "sba_504_",
-    )
-    sba_504_manifest_locations = _sba_manifest_paths_by_program(
-        sba_manifest_locations,
-        "sba_504_",
-    )
-    if project_config.is_source_enabled("sba_foia") and (
-        not sba_7a_manifest_paths or not sba_504_manifest_paths
-    ):
-        raise RuntimeError(
-            "Live SBA extraction did not produce both 7(a) and 504 manifests."
-        )
-
-    return ExtractionPaths(
-        sba_7a_manifest_paths=sba_7a_manifest_paths,
-        sba_504_manifest_paths=sba_504_manifest_paths,
-        census_bds_manifest_paths=census_bds_manifest_paths,
-        bls_laus_manifest_paths=bls_laus_manifest_paths,
-        manifest_paths=tuple(
-            [
-                *sba_manifest_paths.values(),
-                *census_bds_manifest_paths,
-                *bls_laus_manifest_paths,
-            ]
-        ),
-        sba_7a_manifest_locations=sba_7a_manifest_locations,
-        sba_504_manifest_locations=sba_504_manifest_locations,
-        census_bds_manifest_locations=census_bds_manifest_locations,
-        bls_laus_manifest_locations=bls_laus_manifest_locations,
-        manifest_locations=tuple(
-            [
-                *sba_manifest_locations.values(),
-                *census_bds_manifest_locations,
-                *bls_laus_manifest_locations,
-            ]
-        ),
-    )
-
-
-def _sba_manifest_paths_by_program(
-    manifest_paths: dict[str, Path],
-    logical_name_prefix: str,
-) -> tuple[Path, ...]:
-    return tuple(
-        manifest_path
-        for logical_name, manifest_path in sorted(manifest_paths.items())
-        if logical_name.startswith(logical_name_prefix)
-    )
-
-
-def _raw_artifact_store(
-    context: LocalRunContext,
-    bucket: str,
-    s3_client=None,
-) -> LocalRawArtifactStore | S3RawArtifactStore:
-    if context.is_cloud_route:
-        return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
-    return LocalRawArtifactStore(data_root=context.data_root, s3_bucket=bucket)
-
-
-def _artifact_store(
-    context: LocalRunContext,
-    bucket: str,
-    s3_client=None,
-) -> LocalArtifactStore | S3ArtifactStore:
-    if context.is_cloud_route:
-        return S3ArtifactStore(bucket=bucket, s3_client=s3_client)
-    return LocalArtifactStore(data_root=context.data_root, s3_bucket=bucket)
-
-
-def _artifact_reader(
-    context: LocalRunContext,
-    s3_client=None,
-) -> ArtifactReader:
-    return ArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
-
-
-def _raw_artifact_reader(
-    context: LocalRunContext,
-    s3_client=None,
-) -> RawArtifactReader:
-    return RawArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
-
-
-def _manifest_references_for_validation(
-    context: LocalRunContext,
-    extraction_paths: ExtractionPaths,
-) -> tuple[Path | ArtifactLocation, ...]:
-    return extraction_paths.manifest_references_for_validation(
-        cloud_route=context.is_cloud_route,
-    )
-
-
-def _read_artifact_text(
-    reference: Path | ArtifactLocation,
-    artifact_reader: ArtifactReader,
-) -> str:
-    if isinstance(reference, ArtifactLocation):
-        return artifact_reader.read_text(reference)
-    return reference.read_text(encoding="utf-8")
-
-
-def _manifest_reference_uri(reference: Path | ArtifactLocation) -> str:
-    if isinstance(reference, ArtifactLocation):
-        return reference.artifact_uri
-    return str(reference)
-
-
-def _load_manifests_for_validation(
-    context: LocalRunContext,
-    manifest_references: tuple[Path | ArtifactLocation, ...],
-    manifest_artifact_reader: ArtifactReader,
-) -> tuple[list[LoadedManifestReference], list[ValidationResult]]:
-    loaded_manifest_references: list[LoadedManifestReference] = []
-    validation_results: list[ValidationResult] = []
-    for reference in manifest_references:
-        try:
-            manifest_text = _read_artifact_text(reference, manifest_artifact_reader)
-        except Exception:
-            validation_results.append(
-                _manifest_reference_failure(
-                    context,
-                    reference,
-                    validation_check_id="RAW_004",
-                    check_name="Manifest created",
-                    expected_value="manifest file exists",
-                    failed_message="Manifest file is missing.",
-                )
-            )
-            continue
-        try:
-            manifest = json.loads(manifest_text)
-        except json.JSONDecodeError:
-            validation_results.append(
-                _manifest_reference_failure(
-                    context,
-                    reference,
-                    validation_check_id="RAW_014",
-                    check_name="Manifest readable JSON",
-                    expected_value="manifest file contains valid JSON",
-                    failed_message="Manifest file is not valid JSON.",
-                )
-            )
-            continue
-        loaded_manifest_references.append(
-            LoadedManifestReference(reference=reference, manifest=manifest)
-        )
-    return loaded_manifest_references, validation_results
-
-
-def _manifest_reference_failure(
-    context: LocalRunContext,
-    reference: Path | ArtifactLocation,
-    *,
-    validation_check_id: str,
-    check_name: str,
-    expected_value: str,
-    failed_message: str,
-) -> ValidationResult:
-    return make_validation_result(
-        pipeline_run_id=context.pipeline_run_id,
-        validation_check_id=validation_check_id,
-        validation_scope="raw",
-        source_system="pipeline",
-        source_dataset="raw_validation",
-        source_resource_name="manifest_reference",
-        check_name=check_name,
-        check_type="lineage",
-        severity="fail",
-        passed=False,
-        expected_value=expected_value,
-        observed_value=_manifest_reference_uri(reference),
-        passed_message=f"{check_name} check passed.",
-        failed_message=failed_message,
-    )
-
-
-def _readable_resource_names(results: list[ValidationResult]) -> set[str]:
-    return {
-        result.source_resource_name
-        for result in results
-        if result.validation_check_id == "RAW_001" and result.status == "passed"
-    }
-
-
-def _validation_artifact_location(
-    context: LocalRunContext,
-    manifests: list[dict[str, Any]],
-) -> ArtifactLocation | None:
-    if not context.is_cloud_route:
-        return None
-    ingestion_date = (
-        str(manifests[0]["ingestion_date"])
-        if manifests
-        else context.run_started_at_utc[:10]
-    )
-    return _artifact_store(
-        context,
-        _s3_bucket(context) or "local-validation",
-    ).location(
-        prefix="validation",
-        source_system="pipeline",
-        dataset_name="raw_validation",
-        resource_name="validation_results",
-        ingestion_date=ingestion_date,
-        pipeline_run_id=context.pipeline_run_id,
-        filename="validation_results.json",
-    )
-
-
-def _write_validation_output(
-    context: LocalRunContext,
-    validation_results: list[ValidationResult],
-    *,
-    validation_path: Path,
-    validation_location: ArtifactLocation | None,
-) -> None:
-    write_validation_results(validation_results, validation_path)
-    if validation_location is None:
-        return
-    _artifact_store(
-        context,
-        _s3_bucket(context) or "local-validation",
-    ).write_bytes(
-        validation_location,
-        validation_results_to_json_bytes(validation_results),
-    )
-
-
-def _write_validation_output_with_self_check(
-    context: LocalRunContext,
-    validation_results: list[ValidationResult],
-    *,
-    validation_path: Path,
-    validation_location: ArtifactLocation | None,
-    artifact_reader: ArtifactReader,
-) -> None:
-    _write_validation_output(
-        context,
-        validation_results,
-        validation_path=validation_path,
-        validation_location=validation_location,
-    )
-    validation_results.append(
-        check_validation_output_created(
-            validation_location or validation_path,
-            pipeline_run_id=context.pipeline_run_id,
-            source_system="pipeline",
-            source_dataset="raw_validation",
-            source_resource_name="validation_results",
-            artifact_reader=artifact_reader,
-        )
-    )
-    _write_validation_output(
-        context,
-        validation_results,
-        validation_path=validation_path,
-        validation_location=validation_location,
-    )
-
-
-def _validation_output_local_path(
-    validation_output: Path | ValidationOutput | None,
-) -> str | None:
-    if validation_output is None:
-        return None
-    if isinstance(validation_output, ValidationOutput):
-        return str(validation_output.local_path)
-    return str(validation_output)
-
-
-def _validation_output_uri(
-    validation_output: Path | ValidationOutput | None,
-) -> str | None:
-    if validation_output is None:
-        return None
-    if isinstance(validation_output, ValidationOutput):
-        return str(validation_output.durable_reference.artifact_uri) if isinstance(
-            validation_output.durable_reference,
-            ArtifactLocation,
-        ) else str(validation_output.durable_reference)
-    return str(validation_output)
-
-
-def _raw_validation_expectations(
-    context: LocalRunContext,
-    project_config: ProjectConfig,
-) -> RawValidationExpectations:
-    if context.extract_mode == "fixture":
-        return RawValidationExpectations(
-            sba_required_resource_names=[
-                "sba_7a_fy2020_present",
-                "sba_504_fy2010_present",
-            ],
-            census_expected_state_count=2,
-            bls_expected_series_ids=(
-                "LASST010000000000003",
-                "LASST170000000000003",
-            ),
-            bls_required_period_pattern=r"^M(0[1-9]|1[0-2])$",
-            bls_unemployment_rate_min=0,
-            bls_unemployment_rate_max=100,
-        )
-
-    required_sba_programs = (
-        {
-            str(program)
-            for program in project_config.validation_thresholds["sba_foia"].get(
-                "required_programs",
-                (),
-            )
-        }
-        if project_config.is_source_enabled("sba_foia")
-        else set()
-    )
-    required_sba_resources = [
-        spec.logical_name
-        for spec in project_config.sba.resources
-        if project_config.is_source_enabled("sba_foia")
-        and spec.required
-        and spec.program in required_sba_programs
-    ]
-    bls_thresholds = project_config.validation_thresholds.get("bls_laus", {})
-    return RawValidationExpectations(
-        sba_required_resource_names=required_sba_resources,
-        census_expected_state_count=(
-            int(project_config.validation_thresholds["census_bds"]["min_state_count"])
-            if project_config.is_source_enabled("census_bds")
-            else 0
-        ),
-        bls_expected_series_ids=tuple(
-            series.series_id for series in project_config.bls_laus.series
-        )
-        if project_config.is_source_enabled("bls_laus")
-        else (),
-        bls_required_period_pattern=str(
-            bls_thresholds.get("required_period_pattern", r"^M(0[1-9]|1[0-2])$")
-        ),
-        bls_unemployment_rate_min=float(
-            bls_thresholds.get("unemployment_rate_min", 0)
-        ),
-        bls_unemployment_rate_max=float(
-            bls_thresholds.get("unemployment_rate_max", 100)
-        ),
-    )
-
-
-def _write_local_fixture_extracts(
-    context: LocalRunContext,
-    project_config: ProjectConfig,
-) -> ExtractionPaths:
-    raw_paths = _write_fixture_raw_files(context)
-    manifest_outputs = {
-        resource_name: _write_fixture_manifest(
-            context=context,
-            resource_name=resource_name,
-            raw_location=raw_location,
-            raw_payload=raw_payload,
-            row_count=row_count,
-            file_format=file_format,
-            schema_fields=schema_fields,
-            source_identity=project_config.source_identity(
-                _source_name_for_resource(resource_name, project_config)
-            ),
-        )
-        for resource_name, (
-            raw_location,
-            raw_payload,
-            row_count,
-            file_format,
-            schema_fields,
-        ) in raw_paths.items()
-    }
-    manifest_paths = {
-        resource_name: manifest_path
-        for resource_name, (manifest_path, _) in manifest_outputs.items()
-    }
-    manifest_locations = {
-        resource_name: manifest_location
-        for resource_name, (_, manifest_location) in manifest_outputs.items()
-        if manifest_location is not None
-    }
-    return ExtractionPaths(
-        sba_7a_manifest_paths=(manifest_paths["sba_7a_fy2020_present"],),
-        sba_504_manifest_paths=(manifest_paths["sba_504_fy2010_present"],),
-        census_bds_manifest_paths=(manifest_paths["bds_state_year"],),
-        bls_laus_manifest_paths=(manifest_paths["laus_state_month"],),
-        manifest_paths=tuple(manifest_paths.values()),
-        sba_7a_manifest_locations=tuple(
-            [manifest_locations["sba_7a_fy2020_present"]]
-        )
-        if "sba_7a_fy2020_present" in manifest_locations
-        else (),
-        sba_504_manifest_locations=tuple(
-            [manifest_locations["sba_504_fy2010_present"]]
-        )
-        if "sba_504_fy2010_present" in manifest_locations
-        else (),
-        census_bds_manifest_locations=tuple([manifest_locations["bds_state_year"]])
-        if "bds_state_year" in manifest_locations
-        else (),
-        bls_laus_manifest_locations=tuple([manifest_locations["laus_state_month"]])
-        if "laus_state_month" in manifest_locations
-        else (),
-        manifest_locations=tuple(manifest_locations.values()),
-    )
-
-
-def _write_fixture_raw_files(
-    context: LocalRunContext,
-) -> dict[str, tuple[RawArtifactLocation, bytes, int, str, list[str]]]:
-    output: dict[str, tuple[RawArtifactLocation, bytes, int, str, list[str]]] = {}
-    ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
-    store = _raw_artifact_store(context, _s3_bucket(context) or "local-fixtures")
-
-    def write_fixture_artifact(
-        *,
-        output_name: str,
-        source_system: str,
-        dataset_name: str,
-        resource_name: str,
-        filename: str,
-        payload: bytes,
-        row_count: int,
-        file_format: str,
-        schema_fields: list[str],
-    ) -> None:
-        location = store.location(
-            source_system=source_system,
-            dataset_name=dataset_name,
-            resource_name=resource_name,
-            ingestion_date=ingestion_date,
-            pipeline_run_id=context.pipeline_run_id,
-            filename=filename,
-        )
-        store.write_bytes(location, payload)
-        output[output_name] = (
-            location,
-            payload,
-            row_count,
-            file_format,
-            schema_fields,
-        )
-
-    sba_7a_rows = [_sba_7a_row()]
-    write_fixture_artifact(
-        output_name="sba_7a_fy2020_present",
-        source_system="sba",
-        dataset_name="7a_foia",
-        resource_name="source_period=fy2020_present",
-        filename="sba_7a_fixture.csv",
-        payload=_csv_bytes(sba_7a_rows),
-        row_count=len(sba_7a_rows),
-        file_format="csv",
-        schema_fields=list(sba_7a_rows[0]),
-    )
-
-    sba_504_rows = [_sba_504_row()]
-    write_fixture_artifact(
-        output_name="sba_504_fy2010_present",
-        source_system="sba",
-        dataset_name="504_foia",
-        resource_name="source_period=fy2010_present",
-        filename="sba_504_fixture.csv",
-        payload=_csv_bytes(sba_504_rows),
-        row_count=len(sba_504_rows),
-        file_format="csv",
-        schema_fields=list(sba_504_rows[0]),
-    )
-
-    census_payload = [
-        [
-            "NAME",
-            "YEAR",
-            "ESTAB",
-            "ESTABS_ENTRY",
-            "ESTABS_ENTRY_RATE",
-            "ESTABS_EXIT",
-            "ESTABS_EXIT_RATE",
-            "FIRM",
-            "JOB_CREATION",
-            "JOB_DESTRUCTION",
-            "time",
-            "state",
-        ],
-        [
-            "Alabama",
-            "2026",
-            "10",
-            "2",
-            "20.0",
-            "1",
-            "10.0",
-            "8",
-            "30",
-            "15",
-            "2026",
-            "01",
-        ],
-        [
-            "Illinois",
-            "2026",
-            "20",
-            "3",
-            "15.0",
-            "2",
-            "10.0",
-            "15",
-            "40",
-            "20",
-            "2026",
-            "17",
-        ],
-    ]
-    write_fixture_artifact(
-        output_name="bds_state_year",
-        source_system="census",
-        dataset_name="bds",
-        resource_name="grain=state_year",
-        filename="bds_state_year_fixture.json",
-        payload=_json_bytes(census_payload),
-        row_count=len(census_payload) - 1,
-        file_format="json",
-        schema_fields=census_payload[0],
-    )
-
-    bls_payload = {
-        "normalized_rows": [
-            _bls_row(
-                "LASST010000000000003",
-                "01",
-                "AL",
-                "Alabama",
-                "2025",
-                "M01",
-                3.4,
-            ),
-            _bls_row(
-                "LASST010000000000003",
-                "01",
-                "AL",
-                "Alabama",
-                "2026",
-                "M01",
-                3.1,
-            ),
-            _bls_row(
-                "LASST170000000000003",
-                "17",
-                "IL",
-                "Illinois",
-                "2025",
-                "M01",
-                4.5,
-            ),
-            _bls_row(
-                "LASST170000000000003",
-                "17",
-                "IL",
-                "Illinois",
-                "2026",
-                "M01",
-                4.2,
-            ),
-        ]
-    }
-    write_fixture_artifact(
-        output_name="laus_state_month",
-        source_system="bls",
-        dataset_name="laus",
-        resource_name="grain=state_month",
-        filename="bls_laus_state_month_fixture.json",
-        payload=_json_bytes(bls_payload),
-        row_count=len(bls_payload["normalized_rows"]),
-        file_format="json",
-        schema_fields=list(bls_payload["normalized_rows"][0]),
-    )
-    return output
-
-
-def _write_fixture_manifest(
-    *,
-    context: LocalRunContext,
-    resource_name: str,
-    raw_location: RawArtifactLocation,
-    raw_payload: bytes,
-    row_count: int,
-    file_format: str,
-    schema_fields: list[str],
-    source_identity: SourceIdentity,
-) -> tuple[Path, ArtifactLocation | None]:
-    source_system = source_identity.source_system
-    dataset_name = source_identity.dataset_name
-    ingestion_date = date.fromisoformat(context.run_started_at_utc[:10]).isoformat()
-    manifest_fields = raw_location.manifest_fields()
-    manifest = ExtractionManifest(
-        pipeline_run_id=context.pipeline_run_id,
-        source_system=source_system,
-        dataset_name=dataset_name,
-        resource_name=resource_name,
-        source_url=f"fixture://{resource_name}",
-        extracted_at_utc=context.run_started_at_utc,
-        ingestion_date=ingestion_date,
-        local_raw_path=manifest_fields["local_raw_path"],
-        s3_raw_uri=manifest_fields["s3_raw_uri"],
-        file_format=file_format,
-        row_count=row_count,
-        sha256_checksum=hash_bytes(raw_payload),
-        schema_hash=hash_schema(schema_fields),
-        validation_status="passed",
-        request_parameters={"run_mode": context.run_mode},
-        column_count=len(schema_fields),
-        file_size_bytes=len(raw_payload),
-        validation_messages=[],
-        storage_backend=manifest_fields["storage_backend"],
-        raw_uri=manifest_fields["raw_uri"],
-    )
-    manifest_path = (
-        context.data_root
-        / "manifests"
-        / source_system
-        / f"pipeline_run_id={context.pipeline_run_id}"
-        / f"{resource_name}.manifest.json"
-    )
-    write_manifest(manifest, manifest_path)
-    manifest_location = None
-    if context.is_cloud_route:
-        manifest_location = _artifact_store(
-            context,
-            _s3_bucket(context) or "local-fixtures",
-        ).location(
-            prefix="manifests",
-            source_system=manifest.source_system,
-            dataset_name=manifest.dataset_name,
-            resource_name=manifest.resource_name,
-            ingestion_date=manifest.ingestion_date,
-            pipeline_run_id=manifest.pipeline_run_id,
-            filename=manifest_path.name,
-        )
-        _artifact_store(
-            context,
-            _s3_bucket(context) or "local-fixtures",
-        ).write_bytes(
-            manifest_location,
-            manifest_to_json_bytes(manifest),
-        )
-    return manifest_path, manifest_location
-
-
-def _csv_bytes(rows: list[dict[str, Any]]) -> bytes:
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
-    writer.writeheader()
-    writer.writerows(rows)
-    return output.getvalue().encode("utf-8")
-
-
-def _json_bytes(payload: Any) -> bytes:
-    return (json.dumps(payload, indent=2) + "\n").encode("utf-8")
-
-
-def _sba_7a_row() -> dict[str, Any]:
-    return {
-        "asofdate": "3/31/2026",
-        "program": "7A",
-        "locationid": "1",
-        "borrname": "Fixture 7A LLC",
-        "borrstreet": "1 Main St",
-        "borrcity": "Birmingham",
-        "borrstate": "AL",
-        "borrzip": "35203",
-        "bankname": "Fixture Bank, Inc.",
-        "bankfdicnumber": "123",
-        "bankncuanumber": "",
-        "bankstreet": "2 Bank St",
-        "bankcity": "Birmingham",
-        "bankstate": "AL",
-        "bankzip": "35203",
-        "grossapproval": "1000",
-        "sbaguaranteedapproval": "750",
-        "approvaldate": "1/15/2026",
-        "approvalfy": "2026",
-        "firstdisbursementdate": "2/1/2026",
-        "processingmethod": "Preferred Lenders Program",
-        "subprogram": "Guaranty",
-        "initialinterestrate": "6",
-        "fixedorvariableinterestind": "V",
-        "terminmonths": "120",
-        "naicscode": "541611",
-        "naicsdescription": "Administrative Management",
-        "franchisecode": "",
-        "franchisename": "",
-        "projectcounty": "JEFFERSON",
-        "projectstate": "AL",
-        "sbadistrictoffice": "ALABAMA DISTRICT OFFICE",
-        "congressionaldistrict": "7",
-        "businesstype": "CORPORATION",
-        "businessage": "Existing",
-        "loanstatus": "PIF",
-        "paidinfulldate": "",
-        "chargeoffdate": "",
-        "grosschargeoffamount": "0",
-        "revolverstatus": "FALSE",
-        "jobssupported": "4",
-        "collateralind": "TRUE",
-        "soldsecmrktind": "Y",
-    }
-
-
-def _sba_504_row() -> dict[str, Any]:
-    return {
-        "asofdate": "3/31/2026",
-        "program": "504",
-        "locationid": "2",
-        "borrname": "Fixture 504 Inc.",
-        "borrstreet": "10 Market St",
-        "borrcity": "Chicago",
-        "borrstate": "IL",
-        "borrzip": "60601",
-        "cdc_name": "Fixture CDC",
-        "cdc_street": "20 CDC St",
-        "cdc_city": "Chicago",
-        "cdc_state": "IL",
-        "cdc_zip": "60601",
-        "thirdpartylender_name": "Third Party Bank",
-        "thirdpartylender_city": "Chicago",
-        "thirdpartylender_state": "IL",
-        "thirdpartydollars": "2500",
-        "grossapproval": "3000",
-        "approvaldate": "2/20/2026",
-        "approvalfy": "2026",
-        "firstdisbursementdate": "3/1/2026",
-        "processingmethod": "504 Basic",
-        "subprogram": "Sec. 504",
-        "terminmonths": "240",
-        "naicscode": "721110",
-        "naicsdescription": "Hotels",
-        "franchisecode": "",
-        "franchisename": "",
-        "projectcounty": "COOK",
-        "projectstate": "IL",
-        "sbadistrictoffice": "ILLINOIS DISTRICT OFFICE",
-        "congressionaldistrict": "1",
-        "businesstype": "CORPORATION",
-        "businessage": "Existing",
-        "loanstatus": "PIF",
-        "paidinfulldate": "",
-        "chargeoffdate": "",
-        "grosschargeoffamount": "0",
-        "jobssupported": "8",
-        "collateralind": "TRUE",
-    }
-
-
-def _bls_row(
-    series_id: str,
-    state_fips: str,
-    state_abbr: str,
-    state_name: str,
-    year: str,
-    period: str,
-    value: float,
-) -> dict[str, Any]:
-    observed_month = parse_monthly_period(year, period)
-    if observed_month is None:
-        raise ValueError(f"Invalid fixture BLS monthly period: {period}")
-    return {
-        "series_id": series_id,
-        "state_fips": state_fips,
-        "state_abbr": state_abbr,
-        "state_name": state_name,
-        "year": int(year),
-        "period": period,
-        "observed_month": observed_month.isoformat(),
-        "value": value,
-        "footnotes": [],
-    }
-
-
-def _source_name_for_resource(resource_name: str, project_config: ProjectConfig) -> str:
-    sba_resource_names = {spec.logical_name for spec in project_config.sba.resources}
-    if resource_name in sba_resource_names:
-        return "sba_foia"
-    if resource_name == "bds_state_year":
-        return "census_bds"
-    if resource_name == "laus_state_month":
-        return "bls_laus"
-    raise ValueError(f"Unsupported raw resource: {resource_name}")
-
-
-def _ensure_dbt_profile(context: LocalRunContext) -> None:
-    context.dbt_profiles_dir.mkdir(parents=True, exist_ok=True)
-    profile_path = context.dbt_profiles_dir / "profiles.yml"
-    if context.is_cloud_route or context.dbt_target == "prod_snowflake":
-        example_profile = context.dbt_project_dir / "profiles.yml.example"
-        shutil.copyfile(example_profile, profile_path)
-        return
-
-    profile_path.write_text(
-        f"""small_business_lending_pipeline:
-  target: {context.dbt_target}
-  outputs:
-    {context.dbt_target}:
-      type: duckdb
-      path: {context.duckdb_path.resolve()}
-      threads: 1
-""",
-        encoding="utf-8",
-    )
-
-
-def _dbt_executable() -> Path:
-    executable = Path(sys.executable).with_name("dbt")
-    if executable.is_file():
-        return executable
-    return Path("dbt")
-
-
-def _validate_snowflake_bi_tables() -> dict[str, int]:
-    config = SnowflakeConfig.from_env()
-    bi_schema = _snowflake_bi_schema()
-    connection = connect_to_snowflake(config)
-    try:
-        row_counts: dict[str, int] = {}
-        with connection.cursor() as cursor:
-            for table_name in BI_TABLES:
-                cursor.execute(f"select count(*) from {bi_schema}.{table_name.upper()}")
-                row_count = int(cursor.fetchone()[0])
-                if row_count <= 0:
-                    raise RuntimeError(
-                        f"BI table {bi_schema}.{table_name.upper()} has no rows."
-                    )
-                row_counts[table_name] = row_count
-        return row_counts
-    finally:
-        connection.close()
-
-
-def _snowflake_bi_schema() -> str:
-    load_dotenv(override=False)
-    schema_prefix = os.getenv("DBT_SCHEMA_PREFIX", "").strip()
-    return os.getenv("SNOWFLAKE_BI_SCHEMA") or (
-        f"{schema_prefix}_BI" if schema_prefix else "BI"
-    )
-
-
-def _resolve_powerbi_export_dir(data_root: Path, configured_dir: str | None) -> Path:
-    configured = configured_dir or os.getenv("POWERBI_EXPORT_DIR")
-    if configured:
-        return Path(configured)
-    return data_root / "exports" / "powerbi"
-
-
-def _s3_bucket(context: LocalRunContext) -> str | None:
-    return context.s3_bucket or os.getenv("S3_BUCKET") or None
-
-
-def _failed_stage(
-    completed_stages: list[str],
-    stage_order: tuple[str, ...] = FLOW_STAGES,
-) -> str:
-    for stage in stage_order:
-        if stage not in completed_stages and stage != "write_run_summary":
-            return stage
-    return "unknown"
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the local lending pipeline flow.")
-    parser.add_argument("--run-mode", default="local")
-    parser.add_argument(
-        "--extract-mode",
-        choices=("fixture", "live"),
-        default=os.getenv("SOURCE_EXTRACT_MODE", "fixture"),
-    )
-    parser.add_argument("--dbt-target", default="dev_duckdb")
-    parser.add_argument("--data-root", default="data")
-    parser.add_argument(
-        "--duckdb-path",
-        default="data/warehouse/small_business_lending.duckdb",
-    )
-    parser.add_argument("--dbt-project-dir", default="dbt")
-    parser.add_argument("--dbt-profiles-dir", default=".tmp/dbt_profiles")
-    parser.add_argument("--powerbi-export-dir")
-    parser.add_argument("--s3-bucket")
-    parser.add_argument("--pipeline-run-id")
-    parser.add_argument("--source-start-year", type=int)
-    parser.add_argument("--source-end-year", type=int)
-    args = parser.parse_args()
+    from pipelines.cli.run_lending_pipeline import main as cli_main
 
-    summary_path = lending_pipeline_flow(
-        run_mode=args.run_mode,
-        extract_mode=args.extract_mode,
-        dbt_target=args.dbt_target,
-        data_root=args.data_root,
-        duckdb_path=args.duckdb_path,
-        dbt_project_dir=args.dbt_project_dir,
-        dbt_profiles_dir=args.dbt_profiles_dir,
-        powerbi_export_dir=args.powerbi_export_dir,
-        s3_bucket=args.s3_bucket,
-        pipeline_run_id=args.pipeline_run_id,
-        source_start_year=args.source_start_year,
-        source_end_year=args.source_end_year,
-    )
-    print(summary_path)
+    cli_main()
 
 
 if __name__ == "__main__":

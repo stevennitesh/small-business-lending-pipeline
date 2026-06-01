@@ -52,7 +52,7 @@ Different tools should own different testing concerns.
 
 | Tool | Responsibility | Examples |
 |---|---|---|
-| Python validation | Source-level and raw-file validation | API status, file exists, schema check, row count, checksum, freshness |
+| Python validation | Source-level and raw-file validation | artifact existence, manifest metadata, checksums, source resource coverage, payload shape |
 | pytest | Automated tests for Python code | extractor behavior, config parsing, manifest generation, validation utilities |
 | dbt tests | Warehouse/model-level validation | not-null, uniqueness, relationships, accepted values, business-rule tests |
 | Prefect | Pipeline gating and run status | stop pipeline on critical failure, retry transient failures, record run metadata |
@@ -128,23 +128,28 @@ Raw validation confirms that the source extraction produced the expected files o
 
 Raw validation should be implemented in Python.
 
-## Common Raw Checks
+## Active Common Raw Checks
 
-Every source extract should run these checks.
+The current raw validation runner emits these common checks for loaded manifest
+references. Additional row-drift and freshness checks are planned for the
+pipeline-health layer rather than the raw gate.
 
 | Check ID | Check | Tool | Severity | Notes |
 |---|---|---|---|---|
-| `RAW_001` | Source request completed successfully | Python | Fail | HTTP status, file download, or API response status |
-| `RAW_002` | Raw file exists locally | Python | Fail | Required before S3 upload |
-| `RAW_003` | Raw file size greater than zero | Python | Fail | Prevent empty files |
-| `RAW_004` | SHA-256 checksum generated | Python | Fail | Required for manifest lineage |
-| `RAW_005` | Manifest created | Python | Fail | Required for audit trail |
-| `RAW_006` | Required metadata fields populated | Python | Fail | `source_system`, `dataset_name`, `ingestion_date`, `raw_file_uri` |
-| `RAW_007` | Row count captured | Python | Fail | Required for drift checks |
-| `RAW_008` | Column count or response field count captured | Python | Warning | Some API payloads may vary |
-| `RAW_009` | Schema hash generated | Python | Warning | Used for schema drift monitoring |
-| `RAW_010` | Raw extract uploaded to S3 | Python | Fail in final mode, warning in local-only mode | AWS usage is S3-focused |
-| `RAW_011` | Previous successful run comparison completed | Python | Warning | Used for row-count drift and freshness |
+| `RAW_001` | Raw file exists | Python | Fail | Works for local files and S3-backed artifacts |
+| `RAW_002` | Raw file size is positive | Python | Fail | Prevents empty or unavailable payloads |
+| `RAW_003` | SHA-256 checksum generated | Python | Fail | Verifies manifest checksum against the artifact |
+| `RAW_004` | Manifest created | Python | Fail | Also emitted when a manifest reference is missing |
+| `RAW_005` | Required metadata populated | Python | Fail | Manifest schema and storage identity fields |
+| `RAW_006` | Row count captured | Python | Fail | Confirms the manifest captured a non-negative row count |
+| `RAW_007` | Schema hash generated | Python | Warning | Used for schema drift monitoring |
+| `RAW_008` | Column count captured | Python | Warning | Optional for payloads where column count is not meaningful |
+| `RAW_009` | Validation result created | Python | Fail | Self-check that validation JSON was written |
+| `RAW_010` | Manifest source identity matches config | Python | Fail | Prevents source/resource misrouting |
+| `RAW_011` | Required raw manifest resource present | Python | Fail | Ensures source payload validators have required resources |
+| `RAW_012` | Cloud raw manifest is S3-backed | Python | Fail | Cloud route guard |
+| `RAW_013` | Raw artifact identity populated | Python | Fail | Requires `raw_uri` identity |
+| `RAW_014` | Manifest readable JSON | Python | Fail | Structured malformed-manifest failure |
 
 ## Raw Validation Output
 
@@ -183,6 +188,9 @@ Recommended validation result schema:
 ## SBA FOIA Raw Checks
 
 SBA FOIA is the core lending source, so its checks should be strict.
+
+Current active SBA raw checks are `SBA_RAW_001` and `SBA_RAW_002`.
+The remaining rows are planned profiling and data-quality checks.
 
 | Check ID | Check | Severity | Handling |
 |---|---|---|---|
@@ -229,18 +237,18 @@ config/source_expectations.yml
 
 Census BDS is an annual context source. It should be validated for API response shape, variable availability, state-year coverage, and numeric parsing.
 
+Current active Census BDS raw checks are `BDS_RAW_001` and `BDS_RAW_002`.
+Additional profiling and data-quality checks should receive new IDs after the
+active range.
+
 | Check ID | Check | Severity | Handling |
 |---|---|---|---|
-| `BDS_RAW_001` | API response status successful | Fail | Stop source ingestion |
-| `BDS_RAW_002` | Response contains header row | Fail | Cannot normalize without header |
-| `BDS_RAW_003` | Response contains data rows | Fail | Empty response cannot support marts |
-| `BDS_RAW_004` | Required variables returned | Fail | Required for KPI definitions |
-| `BDS_RAW_005` | Expected state coverage returned | Fail | Expect states/DC based on configured geography list |
-| `BDS_RAW_006` | Expected years returned | Warning or fail | Depends on requested year range |
-| `BDS_RAW_007` | State FIPS values valid | Fail | Must map to `dim_state` |
-| `BDS_RAW_008` | Numeric fields parseable | Fail | Establishments/rates must be numeric |
-| `BDS_RAW_009` | Latest available year recorded | Warning | Used for freshness reporting |
-| `BDS_RAW_010` | No duplicate state-year rows in MVP extract | Fail | Required for annual joins |
+| `BDS_RAW_001` | Required variables returned | Fail | Required for KPI definitions |
+| `BDS_RAW_002` | Expected state coverage returned | Fail | Expect states/DC based on configured geography list |
+
+Planned Census checks include response status, header/data row shape, expected
+years, State FIPS validity, numeric parsing, latest available year, and duplicate
+state-year detection.
 
 ### Census BDS Coverage Rule
 
@@ -258,18 +266,19 @@ The project should allow some configurability because source query constraints m
 
 BLS LAUS is a monthly context source. It should be validated for series coverage, month parsing, and expected observation counts.
 
+Current active BLS LAUS raw checks are `BLS_RAW_001` through `BLS_RAW_004`.
+Additional profiling and data-quality checks should receive new IDs after the
+active range.
+
 | Check ID | Check | Severity | Handling |
 |---|---|---|---|
-| `BLS_RAW_001` | API response status successful | Fail | Stop source ingestion |
-| `BLS_RAW_002` | Expected series IDs requested | Fail | Validate against local series config |
-| `BLS_RAW_003` | Returned series IDs match config | Fail | Prevent state mapping errors |
-| `BLS_RAW_004` | Monthly periods are `M01` through `M12` | Fail | Filter annual rows unless explicitly requested |
-| `BLS_RAW_005` | Observation values numeric | Fail | Required for unemployment KPIs |
-| `BLS_RAW_006` | Observation months parse to `month_start_date` | Fail | Required for joins |
-| `BLS_RAW_007` | Expected state coverage returned | Fail | 50 states + DC unless configured otherwise |
-| `BLS_RAW_008` | Latest month recorded | Warning | Used for freshness reporting |
-| `BLS_RAW_009` | Footnotes preserved where present | Warning | Useful for revisions/preliminary flags |
-| `BLS_RAW_010` | No duplicate state-month-measure records | Fail | Required for monthly marts |
+| `BLS_RAW_001` | Expected series returned | Fail | Validate against local series config |
+| `BLS_RAW_002` | Monthly periods valid | Fail | Requires `M01` through `M12` and month-start dates |
+| `BLS_RAW_003` | Observation values numeric | Fail | Required for unemployment KPIs |
+| `BLS_RAW_004` | Unemployment rates in configured range | Fail | Uses configured min/max bounds |
+
+Planned BLS checks include API response status, explicit state coverage, latest
+month, footnote preservation, and duplicate state-month-measure detection.
 
 ### BLS Expected Count Rule
 
@@ -1125,7 +1134,10 @@ tests/
 │   ├── test_manifest.py
 │   ├── test_paths.py
 │   ├── test_checksums.py
-│   ├── test_raw_validation.py
+│   ├── test_raw_validation_flow.py
+│   ├── test_raw_validation_sources.py
+│   ├── test_raw_validation_manifest_failures.py
+│   ├── test_raw_validation_output.py
 │   ├── test_sba_extract.py
 │   ├── test_census_extract.py
 │   ├── test_bls_extract.py
@@ -1151,8 +1163,11 @@ tests/
 | `extract/census_extract.py` | API URL construction, response normalization, variable validation |
 | `extract/bls_extract.py` | request chunking, series mapping, monthly period parsing |
 | `load/s3_loader.py` | S3 key construction, upload function behavior with mock client |
-| `validation/raw_checks.py` | row count, schema, null, checksum, freshness logic |
-| `validation/freshness_checks.py` | source-specific lag thresholds |
+| `validation/raw_manifest_artifact_validation.py` and `validation/raw_manifest_rule_checks.py` | raw artifact existence, checksum, manifest artifact metadata, and storage-reference checks |
+| `validation/validation_failures.py` | blocking validation failure policy before downstream loads |
+| `validation/raw_validation_resources.py` | shared raw validation resource and output names |
+| source-specific payload modules under `validation/` | SBA resource coverage, Census BDS payload shape, and BLS LAUS normalized rows |
+| `flows/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
 | `utils/manifest.py` | manifest schema and required fields |
 | `utils/hashing.py` | deterministic checksums and row hashes |
 | `utils/paths.py` | local/S3 path generation |
@@ -1480,7 +1495,7 @@ Those require credentials and make CI brittle.
 
 # Test Configuration Files
 
-The project should centralize thresholds and expectations.
+The project should centralize freshness thresholds and raw validation expectations.
 
 Recommended files:
 
@@ -1491,7 +1506,7 @@ config/
 ├── required_sba_resources.yml
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
-└── validation_thresholds.yml
+└── raw_validation_expectations.yml
 ```
 
 ## Example `source_expectations.yml`
@@ -1616,7 +1631,7 @@ dbt build --target snowflake_prod
 ## Suggested Full Local Validation Command
 
 ```bash
-python -m pipelines.validation.run_raw_checks \
+make run-local-fixture \
   && pytest \
   && dbt build --target duckdb_dev
 ```
@@ -1628,7 +1643,7 @@ test:
 	pytest
 
 validate-raw:
-	python -m pipelines.validation.run_raw_checks
+	$(MAKE) run-local-fixture
 
 dbt-build-local:
 	dbt build --target duckdb_dev

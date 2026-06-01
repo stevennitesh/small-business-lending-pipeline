@@ -152,15 +152,15 @@ Changes:
 Likely files:
 
 - `pipelines/utils/manifest.py`
-- `pipelines/validation/raw_checks.py`
-- `pipelines/validation/schema_checks.py`
+- `pipelines/validation/raw_manifest_artifact_validation.py`
+- source-specific payload check modules under `pipelines/validation/`
 - `pipelines/load/raw_load_common.py`
 - dbt staging models that read `raw_ingestion_manifest`
 
 Verification:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_manifest.py tests/unit/test_raw_validation.py tests/integration/test_duckdb_loader.py
+.venv/bin/python -m pytest tests/unit/test_manifest.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_raw_manifest_storage_checks.py tests/integration/test_duckdb_loader.py
 ```
 
 ### 4. Make cloud extraction land raw artifacts directly in S3
@@ -203,15 +203,15 @@ Changes:
 
 Likely files:
 
-- `pipelines/validation/raw_checks.py`
-- `pipelines/validation/schema_checks.py`
+- `pipelines/validation/raw_manifest_artifact_validation.py`
+- source-specific payload check modules under `pipelines/validation/`
 - `pipelines/flows/lending_pipeline_flow.py`
 - new storage resolver module if introduced
 
 Verification:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py
+.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_sources.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_prefect_local_flow.py
 ```
 
 ### 6. Load Snowflake raw tables from S3

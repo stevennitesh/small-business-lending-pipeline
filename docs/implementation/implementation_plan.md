@@ -143,7 +143,7 @@ make dbt-local
 
 ### Goal
 
-Centralize source settings, validation thresholds, freshness rules, and reference data.
+Centralize source settings, raw validation expectations, freshness rules, and reference data.
 
 ### Deliverables
 
@@ -154,7 +154,7 @@ config/
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
 ├── freshness_rules.yml
-└── validation_thresholds.yml
+└── raw_validation_expectations.yml
 
 dbt/seeds/
 ├── ref_state.csv
@@ -385,12 +385,31 @@ Validate source extracts before they enter DuckDB, Snowflake, dbt models, or Pow
 
 ```text
 pipelines/validation/
-├── raw_checks.py
-├── schema_checks.py
-├── row_count_checks.py
-├── freshness_checks.py
-└── validation_result.py
+├── raw_manifest_artifact_validation.py
+├── raw_manifest_collection.py
+├── raw_manifest_rule_checks.py
+├── raw_payload_resources.py
+├── raw_validation_check_catalog.py
+├── raw_validation_expectations.py
+├── raw_validation_models.py
+├── raw_validation_output.py
+├── raw_validation_resources.py
+├── raw_validation_runner.py
+├── raw_validation_sources.py
+├── sba_payload_checks.py
+├── census_bds_payload_checks.py
+├── bls_laus_payload_checks.py
+├── validation_failures.py
+├── validation_result.py
+└── validation_result_io.py
 ```
+
+`raw_validation_runner.py` coordinates the active raw gate. Validation check
+catalog metadata, manifest/artifact checks, result schema/factories, JSON I/O,
+output persistence, source dispatch, source expectations, and blocking-failure
+enforcement live in ownership modules. `pipelines/flows/pipeline_health.py`
+contains future row-count and freshness helper checks for a later
+pipeline-health layer.
 
 ### Non-Goals
 

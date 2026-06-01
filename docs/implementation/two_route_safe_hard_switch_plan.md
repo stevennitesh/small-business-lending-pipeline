@@ -193,8 +193,8 @@ Parallel groups:
   - `RawArtifactReader`
   - `validate_raw_outputs`
 - Existing logic to reuse or extend:
-  - `pipelines/validation/raw_checks.py`
-  - `pipelines/validation/schema_checks.py`
+  - `pipelines/validation/raw_manifest_artifact_validation.py`
+  - source-specific payload check modules under `pipelines/validation/`
   - cloud flow tests in `tests/unit/test_prefect_local_flow.py`
 - Public contract or state/data change:
   - Cloud route requires S3-backed raw manifests for source data.
@@ -202,15 +202,17 @@ Parallel groups:
 - Depends on: Tasks 2 and 3.
 - Likely files/modules:
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `pipelines/validation/raw_checks.py`
-  - `tests/unit/test_raw_validation.py`
+  - `pipelines/validation/raw_manifest_artifact_validation.py`
+  - `tests/unit/test_raw_validation_flow.py`
+  - `tests/unit/test_raw_validation_manifest_failures.py`
+  - `tests/unit/test_raw_manifest_storage_checks.py`
   - `tests/unit/test_prefect_local_flow.py`
 - Change boundary:
   - Add route-aware validation expectations for storage backend.
   - Make failures blocking and human-readable.
   - Do not reject local manifests in fixture/local mode.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_manifest_storage_checks.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
   - The guard catches mixed local/S3 cloud manifests before Snowflake load starts.
   - The guard does not make local development require AWS.
@@ -261,7 +263,7 @@ Parallel groups:
 Run after all tasks:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py tests/unit/test_raw_validation.py tests/unit/test_snowflake_loader.py tests/integration/test_duckdb_loader.py
+.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_manifest_storage_checks.py tests/unit/test_snowflake_loader.py tests/integration/test_duckdb_loader.py
 make dbt-local
 make test
 git diff --check

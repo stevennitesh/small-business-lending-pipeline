@@ -13,10 +13,8 @@ from pipelines.load.duckdb_loader import (
     load_raw_extracts,
 )
 from pipelines.utils.hashing import calculate_sha256, hash_schema
-from pipelines.validation.validation_result import (
-    ValidationResult,
-    write_validation_results,
-)
+from pipelines.validation.validation_result import ValidationResult
+from pipelines.validation.validation_result_io import write_validation_results
 
 
 def _write_manifest(

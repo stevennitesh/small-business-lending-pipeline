@@ -781,7 +781,7 @@ config/
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
 ├── freshness_rules.yml
-└── validation_thresholds.yml
+└── raw_validation_expectations.yml
 ```
 
 | Config File | Purpose |
@@ -791,7 +791,7 @@ config/
 | `census_bds_variables.yml` | BDS variables requested from the Census API |
 | `bls_laus_state_series.yml` | State-to-BLS-series mapping |
 | `freshness_rules.yml` | Source freshness thresholds |
-| `validation_thresholds.yml` | Row-count, null-rate, and schema checks |
+| `raw_validation_expectations.yml` | Active raw source payload expectations and value bounds |
 
 ---
 
@@ -814,7 +814,7 @@ small-business-lending-pipeline/
 │   ├── census_bds_variables.yml
 │   ├── bls_laus_state_series.yml
 │   ├── freshness_rules.yml
-│   └── validation_thresholds.yml
+│   └── raw_validation_expectations.yml
 │
 ├── docs/
 │   ├── project_spec.md
@@ -827,7 +827,8 @@ small-business-lending-pipeline/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   │
 │   ├── extract/
 │   │   ├── sba_extract.py
@@ -840,10 +841,23 @@ small-business-lending-pipeline/
 │   │   └── snowflake_loader.py
 │   │
 │   ├── validation/
-│   │   ├── raw_checks.py
-│   │   ├── source_payload_checks.py
-│   │   ├── row_count_checks.py
-│   │   └── freshness_checks.py
+│   │   ├── raw_manifest_artifact_validation.py
+│   │   ├── raw_manifest_collection.py
+│   │   ├── raw_manifest_rule_checks.py
+│   │   ├── raw_payload_resources.py
+│   │   ├── raw_validation_check_catalog.py
+│   │   ├── raw_validation_expectations.py
+│   │   ├── raw_validation_models.py
+│   │   ├── raw_validation_output.py
+│   │   ├── raw_validation_resources.py
+│   │   ├── raw_validation_runner.py
+│   │   ├── raw_validation_sources.py
+│   │   ├── sba_payload_checks.py
+│   │   ├── census_bds_payload_checks.py
+│   │   ├── bls_laus_payload_checks.py
+│   │   ├── validation_failures.py
+│   │   ├── validation_result.py
+│   │   └── validation_result_io.py
 │   │
 │   └── utils/
 │       ├── hashing.py
@@ -864,7 +878,7 @@ small-business-lending-pipeline/
 │   ├── test_census_bds_extract.py
 │   ├── test_bls_laus_extract.py
 │   ├── test_manifest.py
-│   ├── test_raw_checks.py
+│   ├── test_raw_artifact_manifest_checks.py
 │   └── test_loaders.py
 │
 ├── data/
@@ -883,6 +897,12 @@ small-business-lending-pipeline/
     ├── run_dbt_local.sh
     └── export_powerbi_tables.py
 ```
+
+`raw_validation_runner.py` coordinates the active raw gate. Validation result
+schema, factories, JSON I/O, output persistence, source dispatch/expectations,
+and blocking-failure enforcement live in ownership modules.
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
+and freshness helper checks for a later pipeline-health layer.
 
 The `data/` directory should usually be excluded from Git except for placeholder `.gitkeep` files and small sample fixtures.
 

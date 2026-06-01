@@ -19,7 +19,7 @@ CONFIG_FILENAMES = (
     "census_bds_variables.yml",
     "bls_laus_state_series.yml",
     "freshness_rules.yml",
-    "validation_thresholds.yml",
+    "raw_validation_expectations.yml",
 )
 
 
@@ -52,7 +52,7 @@ class ProjectConfig:
     files: dict[str, dict[str, Any]]
     sources: dict[str, SourceConfig]
     freshness_rules: dict[str, dict[str, Any]]
-    validation_thresholds: dict[str, dict[str, Any]]
+    raw_validation_expectations: dict[str, dict[str, Any]]
     sba: SBAResourcesConfig
     census_bds: CensusBDSConfig
     bls_laus: BLSLAUSConfig
@@ -89,8 +89,8 @@ def load_project_config(config_dir: Path | str = "config") -> ProjectConfig:
     }
     sources = _parse_source_configs(files["sources.yml"]["sources"])
     freshness_rules = files["freshness_rules.yml"]["freshness_rules"]
-    validation_thresholds = files["validation_thresholds.yml"][
-        "validation_thresholds"
+    raw_validation_expectations = files["raw_validation_expectations.yml"][
+        "raw_validation_expectations"
     ]
     sba = parse_sba_resources_config(files["sba_resources.yml"]["sba_resources"])
     census_bds = parse_census_bds_config(
@@ -102,7 +102,7 @@ def load_project_config(config_dir: Path | str = "config") -> ProjectConfig:
     _validate_project_config_contract(
         sources=sources,
         freshness_rules=freshness_rules,
-        validation_thresholds=validation_thresholds,
+        raw_validation_expectations=raw_validation_expectations,
         sba=sba,
         census_bds=census_bds,
         bls_laus=bls_laus,
@@ -113,7 +113,7 @@ def load_project_config(config_dir: Path | str = "config") -> ProjectConfig:
         files=files,
         sources=sources,
         freshness_rules=freshness_rules,
-        validation_thresholds=validation_thresholds,
+        raw_validation_expectations=raw_validation_expectations,
         sba=sba,
         census_bds=census_bds,
         bls_laus=bls_laus,
@@ -138,7 +138,7 @@ def _validate_project_config_contract(
     *,
     sources: dict[str, SourceConfig],
     freshness_rules: dict[str, dict[str, Any]],
-    validation_thresholds: dict[str, dict[str, Any]],
+    raw_validation_expectations: dict[str, dict[str, Any]],
     sba: SBAResourcesConfig,
     census_bds: CensusBDSConfig,
     bls_laus: BLSLAUSConfig,
@@ -150,7 +150,7 @@ def _validate_project_config_contract(
         if source_config.enabled
     }
     freshness_names = set(freshness_rules)
-    validation_names = set(validation_thresholds)
+    expectation_names = set(raw_validation_expectations)
 
     unknown_freshness = sorted(freshness_names - source_names)
     if unknown_freshness:
@@ -159,11 +159,11 @@ def _validate_project_config_contract(
             + ", ".join(unknown_freshness)
         )
 
-    unknown_validation = sorted(validation_names - source_names)
-    if unknown_validation:
+    unknown_expectations = sorted(expectation_names - source_names)
+    if unknown_expectations:
         raise ValueError(
-            "validation_thresholds.yml contains unknown source keys: "
-            + ", ".join(unknown_validation)
+            "raw_validation_expectations.yml contains unknown source keys: "
+            + ", ".join(unknown_expectations)
         )
 
     missing_freshness = sorted(enabled_source_names - freshness_names)
@@ -173,11 +173,11 @@ def _validate_project_config_contract(
             + ", ".join(missing_freshness)
         )
 
-    missing_validation = sorted(enabled_source_names - validation_names)
-    if missing_validation:
+    missing_expectations = sorted(enabled_source_names - expectation_names)
+    if missing_expectations:
         raise ValueError(
-            "Enabled sources are missing validation thresholds: "
-            + ", ".join(missing_validation)
+            "Enabled sources are missing raw validation expectations: "
+            + ", ".join(missing_expectations)
         )
 
     for source_name in sorted(enabled_source_names & freshness_names):
@@ -195,34 +195,38 @@ def _validate_project_config_contract(
             f"{sba.dataset_name} != {sources['sba_foia'].dataset_name}"
         )
 
-    if "census_bds" in validation_thresholds:
-        required_columns = set(validation_thresholds["census_bds"]["required_columns"])
+    if "census_bds" in raw_validation_expectations:
+        required_variables = set(
+            raw_validation_expectations["census_bds"]["required_variables"]
+        )
         requested_variables = set(census_bds.required_variables)
-        missing_requested_columns = sorted(required_columns - requested_variables)
-        if missing_requested_columns:
+        missing_requested_variables = sorted(required_variables - requested_variables)
+        if missing_requested_variables:
             raise ValueError(
-                "Census BDS validation required_columns are not requested variables: "
-                + ", ".join(missing_requested_columns)
+                "Census BDS raw validation required_variables are not requested variables: "
+                + ", ".join(missing_requested_variables)
             )
 
-    if "sba_foia" in validation_thresholds:
+    if "sba_foia" in raw_validation_expectations:
         required_programs = {
             str(program)
-            for program in validation_thresholds["sba_foia"]["required_programs"]
+            for program in raw_validation_expectations["sba_foia"][
+                "required_programs"
+            ]
         }
         configured_programs = {resource.program for resource in sba.resources}
         unknown_programs = sorted(required_programs - configured_programs)
         if unknown_programs:
             raise ValueError(
-                "SBA validation required_programs are not configured resources: "
+                "SBA raw validation required_programs are not configured resources: "
                 + ", ".join(unknown_programs)
             )
 
-    if "bls_laus" in validation_thresholds:
-        bls_thresholds = validation_thresholds["bls_laus"]
-        re.compile(str(bls_thresholds["required_period_pattern"]))
-        unemployment_rate_min = float(bls_thresholds["unemployment_rate_min"])
-        unemployment_rate_max = float(bls_thresholds["unemployment_rate_max"])
+    if "bls_laus" in raw_validation_expectations:
+        bls_expectations = raw_validation_expectations["bls_laus"]
+        re.compile(str(bls_expectations["required_period_pattern"]))
+        unemployment_rate_min = float(bls_expectations["unemployment_rate_min"])
+        unemployment_rate_max = float(bls_expectations["unemployment_rate_max"])
         if unemployment_rate_min > unemployment_rate_max:
             raise ValueError(
                 "BLS LAUS unemployment_rate_min cannot exceed unemployment_rate_max."
