@@ -74,6 +74,14 @@ class LiveExtractionManifests:
             and self.sba_paths_by_program("sba_504_")
         )
 
+    def discovered_sba_programs(self) -> tuple[str, ...]:
+        discovered_programs = []
+        if self.sba_paths_by_program("sba_7a_"):
+            discovered_programs.append("7(a)")
+        if self.sba_paths_by_program("sba_504_"):
+            discovered_programs.append("504")
+        return tuple(discovered_programs)
+
     def to_extraction_paths(self) -> ExtractionPaths:
         return ExtractionPaths(
             sba_7a_manifest_paths=self.sba_paths_by_program("sba_7a_"),
@@ -190,8 +198,10 @@ def extract_live_sources(
         project_config.is_source_enabled(SBA_FOIA_SOURCE_KEY)
         and not manifest_state.has_required_sba_program_manifests()
     ):
+        found_programs = manifest_state.discovered_sba_programs()
         raise RuntimeError(
-            "Live SBA extraction did not produce both 7(a) and 504 manifests."
+            "Live SBA extraction did not produce both 7(a) and 504 manifests. "
+            f"Found programs: {', '.join(found_programs) if found_programs else 'none'}."
         )
 
     return manifest_state.to_extraction_paths()

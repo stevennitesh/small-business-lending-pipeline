@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,7 @@ from scripts.export_powerbi_tables import (
 
 BI_TABLES = BI_EXPORT_TABLES
 BucketResolver = Callable[[LocalRunContext], str | None]
+_SNOWFLAKE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
 def run_dbt_build_for_context(context: LocalRunContext) -> DbtBuildResult:
@@ -153,12 +155,16 @@ def dbt_executable_path() -> Path:
 def validate_snowflake_bi_tables() -> dict[str, int]:
     config = SnowflakeConfig.from_env()
     bi_schema = snowflake_bi_schema()
+    quoted_bi_schema = quote_snowflake_identifier(bi_schema)
     connection = connect_to_snowflake(config)
     try:
         row_counts: dict[str, int] = {}
         with connection.cursor() as cursor:
             for table_name in BI_TABLES:
-                cursor.execute(f"select count(*) from {bi_schema}.{table_name.upper()}")
+                quoted_table_name = quote_snowflake_identifier(table_name.upper())
+                cursor.execute(
+                    f"select count(*) from {quoted_bi_schema}.{quoted_table_name}"
+                )
                 row_count = int(cursor.fetchone()[0])
                 if row_count <= 0:
                     raise RuntimeError(
@@ -168,6 +174,12 @@ def validate_snowflake_bi_tables() -> dict[str, int]:
         return row_counts
     finally:
         connection.close()
+
+
+def quote_snowflake_identifier(identifier: str) -> str:
+    if not _SNOWFLAKE_IDENTIFIER_PATTERN.fullmatch(identifier):
+        raise ValueError(f"Invalid Snowflake identifier: {identifier}")
+    return f'"{identifier.upper()}"'
 
 
 def snowflake_bi_schema() -> str:

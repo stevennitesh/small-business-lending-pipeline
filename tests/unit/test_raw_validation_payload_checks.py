@@ -54,6 +54,21 @@ def test_sba_required_resources_reuses_raw_file_exists_resource_names(tmp_path):
     assert all(result.status == "passed" for result in results)
 
 
+def test_sba_required_resources_reports_empty_local_raw_path_unreadable(tmp_path):
+    manifest = sba_manifest_for(write_raw_file(tmp_path, "a,b\n1,2\n"))
+    manifest["local_raw_path"] = ""
+
+    results = check_sba_required_resources(
+        [manifest],
+        required_resource_names=["sba_7a_fy2020_present"],
+    )
+
+    assert results[1].status == "failed"
+    assert results[1].observed_value == {
+        "unreadable_resources": ["sba_7a_fy2020_present"]
+    }
+
+
 def test_source_validation_checks_use_configured_identity(tmp_path):
     source_identity = SourceIdentity(
         source_system="custom_source",

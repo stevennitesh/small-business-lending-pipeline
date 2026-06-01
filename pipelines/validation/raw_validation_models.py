@@ -69,7 +69,12 @@ class RawManifestIndex:
         )
 
     def manifest_for(self, resource_name: str) -> RawManifest:
-        return self.manifests_by_resource[resource_name]
+        try:
+            return self.manifests_by_resource[resource_name]
+        except KeyError as exc:
+            raise ValueError(
+                f"No manifest found for resource: {resource_name}"
+            ) from exc
 
 
 @dataclass(frozen=True)

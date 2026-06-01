@@ -73,7 +73,10 @@ def _manifest_artifact_exists(
 ) -> bool:
     if artifact_reader is not None:
         return artifact_reader.exists(manifest)
-    return Path(str(manifest.get("local_raw_path", ""))).is_file()
+    local_raw_path = manifest.get("local_raw_path")
+    if not local_raw_path:
+        return False
+    return Path(str(local_raw_path)).is_file()
 
 
 def _unreadable_required_resources(

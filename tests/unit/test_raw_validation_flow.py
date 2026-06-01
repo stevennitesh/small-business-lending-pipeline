@@ -208,3 +208,27 @@ def test_live_validation_expectations_skip_disabled_sources():
     assert expectations.census_required_variables == ()
     assert expectations.census_expected_state_count == 0
     assert expectations.bls_expected_series_ids == ()
+
+
+def test_fixture_validation_expectations_allow_disabled_census_without_config():
+    project_config = local_flow.load_config.fn()
+    project_config = replace(
+        project_config,
+        sources={
+            **project_config.sources,
+            CENSUS_BDS_SOURCE_KEY: replace(
+                project_config.sources[CENSUS_BDS_SOURCE_KEY],
+                enabled=False,
+            ),
+        },
+        raw_validation_expectations={
+            source_key: expectations
+            for source_key, expectations in project_config.raw_validation_expectations.items()
+            if source_key != CENSUS_BDS_SOURCE_KEY
+        },
+    )
+
+    expectations = raw_validation_expectations("fixture", project_config)
+
+    assert expectations.census_required_variables == ()
+    assert expectations.census_expected_state_count == 0

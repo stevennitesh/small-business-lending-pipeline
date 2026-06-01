@@ -96,6 +96,8 @@ def _census_required_variables(
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
     if _is_fixture_extract(extract_mode):
+        if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
+            return ()
         return _census_required_variables_from(
             _configured_census_expectations(project_config)
         )
@@ -111,6 +113,8 @@ def _census_expected_state_count(
     project_config: ProjectConfig,
 ) -> int:
     if _is_fixture_extract(extract_mode):
+        if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
+            return 0
         return 2
 
     census_expectations = _enabled_census_expectations(project_config)

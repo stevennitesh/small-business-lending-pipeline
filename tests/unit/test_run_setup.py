@@ -109,8 +109,12 @@ def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
         pipeline_run_id="cloud-missing-config",
     )
 
-    with pytest.raises(RuntimeError, match="Missing cloud mode configuration"):
+    with pytest.raises(RuntimeError) as exc_info:
         local_flow.require_cloud_mode_config.fn(context)
+    message = str(exc_info.value)
+    assert "Missing cloud mode configuration" in message
+    assert "S3_BUCKET" in message
+    assert "SNOWFLAKE_CONFIG" in message
 
 
 def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):

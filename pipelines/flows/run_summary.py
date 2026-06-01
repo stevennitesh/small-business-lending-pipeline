@@ -35,6 +35,7 @@ def write_run_summary_for_context(
     summary = PipelineRunSummary(
         pipeline_run_id=context.pipeline_run_id,
         run_mode=context.run_mode,
+        # `route` is retained for the existing summary contract.
         route=context.run_mode,
         extract_mode=context.extract_mode,
         dbt_target=context.dbt_target,

@@ -19,7 +19,7 @@ PayloadValidator = Callable[[JsonPayload], list[ValidationResult]]
 @dataclass(frozen=True)
 class RequiredPayloadResource:
     manifest_result: ValidationResult
-    payload: JsonPayload
+    payload: JsonPayload | None
 
 
 def validate_required_json_payload_resource(

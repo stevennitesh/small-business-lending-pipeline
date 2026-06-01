@@ -170,7 +170,16 @@ def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(mon
 
     assert row_counts == {table_name: 1 for table_name in local_flow.BI_TABLES}
     for table_name in EXTRA_SBA_KPI_BI_TABLES:
-        assert f"SMOKE_BI.{table_name.upper()}" in "\n".join(executed_sql)
+        assert f'"SMOKE_BI"."{table_name.upper()}"' in "\n".join(executed_sql)
+
+
+def test_cloud_bi_validation_rejects_invalid_schema_identifier(monkeypatch):
+    monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI;drop table BI")
+    monkeypatch.setattr(dbt_bi.SnowflakeConfig, "from_env", lambda: object())
+    monkeypatch.setattr(dbt_bi, "load_dotenv", lambda override=True: None)
+
+    with pytest.raises(ValueError, match="Invalid Snowflake identifier"):
+        dbt_bi.validate_snowflake_bi_tables()
 
 
 def test_raw_artifact_store_matches_route(tmp_path):

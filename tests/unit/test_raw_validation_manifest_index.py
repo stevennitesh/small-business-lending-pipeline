@@ -41,5 +41,6 @@ def test_raw_manifest_index_raises_for_absent_resource(tmp_path):
     raw_file.write_text('[["YEAR","state"],["2026","01"]]\n', encoding="utf-8")
     index = RawManifestIndex.from_manifests([manifest_for(raw_file)])
 
-    with pytest.raises(KeyError):
+    expected_message = f"No manifest found for resource: {BLS_LAUS_RESOURCE_NAME}"
+    with pytest.raises(ValueError, match=expected_message):
         index.manifest_for(BLS_LAUS_RESOURCE_NAME)

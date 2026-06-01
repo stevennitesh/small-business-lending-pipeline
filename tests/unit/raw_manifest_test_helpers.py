@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from botocore.exceptions import ClientError
+
 from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_validation_models import RawManifest
@@ -117,6 +119,16 @@ class FakeS3ObjectClient:
 
     def get_object(self, *, Bucket: str, Key: str):
         self.get_calls.append((Bucket, Key))
+        if (Bucket, Key) not in self.objects:
+            raise ClientError(
+                {
+                    "Error": {
+                        "Code": "NoSuchKey",
+                        "Message": f"The specified key does not exist: {Key}",
+                    }
+                },
+                "GetObject",
+            )
         return {"Body": FakeBody(self.objects[(Bucket, Key)])}
 
 

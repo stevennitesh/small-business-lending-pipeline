@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from botocore.exceptions import BotoCoreError, ClientError
+
 from pipelines.storage.raw_artifacts import (
     ArtifactLocation,
     ArtifactReader,
@@ -65,7 +67,7 @@ def load_manifest_for_validation(
 ) -> ManifestLoadResult:
     try:
         manifest_text = read_artifact_text(reference, manifest_artifact_reader)
-    except Exception:
+    except (BotoCoreError, ClientError, OSError):
         return ManifestLoadResult(
             failure=_manifest_reference_failure(
                 pipeline_run_id,

@@ -74,8 +74,9 @@ def require_cloud_mode_config_for_context(context: LocalRunContext) -> str:
     try:
         snowflake_config = SnowflakeConfig.from_env()
     except Exception as exc:
-        raise RuntimeError(f"Missing cloud mode configuration: {exc}") from exc
-    if not snowflake_config.storage_integration:
+        snowflake_config = None
+        missing.append(f"SNOWFLAKE_CONFIG: {exc}")
+    if snowflake_config is not None and not snowflake_config.storage_integration:
         missing.append("SNOWFLAKE_STORAGE_INTEGRATION")
     if missing:
         raise RuntimeError(
