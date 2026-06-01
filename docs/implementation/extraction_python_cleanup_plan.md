@@ -1,5 +1,9 @@
 # Plan: Clean Up Extraction Python Helpers
 
+## Current Status Note
+
+This cleanup is completed. The findings and baseline below are historical context for the extraction helper consolidation that introduced shared manifest/date helpers and removed stale SBA compatibility/test code.
+
 ## Goal
 
 Simplify the extraction Python subsystem by consolidating duplicated manifest/date helper code and removing small stale compatibility/test code, while preserving the current extraction contracts for SBA, Census BDS, and BLS LAUS.

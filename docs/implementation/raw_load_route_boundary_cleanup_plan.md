@@ -1,5 +1,9 @@
 # Plan: Clarify Raw Load Route Boundaries
 
+## Current Status Note
+
+This plan is historical. The follow-up removal cleanup completed after this route-boundary pass, so Snowflake raw loading is now S3-stage only; the local-file Snowflake compatibility loader is no longer available.
+
 ## Goal
 
 Finish the raw-load cleanup so local-only, cloud-only, and testing/compatibility paths are obvious in code, tests, docs, and run summaries.
@@ -36,7 +40,7 @@ Parallel groups:
 ## Acceptance Checks
 
 - Cloud stage names and run summaries no longer imply that the active cloud route uploads already-S3-backed raw artifacts.
-- Local-file Snowflake loading remains available but is clearly named or wrapped as testing/compatibility behavior.
+- Local-file Snowflake loading is no longer advertised as available; Snowflake raw loading uses the S3-stage cloud path.
 - Local-source-frame loading is named as local-only behavior.
 - Tests assert the canonical cloud route names and preserve compatibility helpers.
 - README and implementation docs explain local-only, cloud-only, and testing/compatibility ownership.

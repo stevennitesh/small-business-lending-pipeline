@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, NotRequired, TypeAlias, TypedDict
 
-from pipelines.storage.raw_artifacts import ArtifactLocation
+from pipelines.storage.raw_artifacts import ArtifactLocation, artifact_uri
 
 
 class RawManifest(TypedDict):
@@ -111,6 +111,16 @@ class RawValidationOutput:
     def durable_reference(self) -> Path | ArtifactLocation:
         """Return the cloud artifact location when present, otherwise local path."""
         return self.artifact_location or self.local_path
+
+    @property
+    def local_path_text(self) -> str:
+        """Return the local validation result path as summary-ready text."""
+        return str(self.local_path)
+
+    @property
+    def durable_reference_uri(self) -> str:
+        """Return the best durable URI or path for summary output."""
+        return artifact_uri(self.durable_reference)
 
 
 @dataclass(frozen=True)

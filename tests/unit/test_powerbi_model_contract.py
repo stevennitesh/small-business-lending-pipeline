@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from scripts.export_powerbi_tables import BI_EXPORT_TABLES, REQUIRED_EXPORT_COLUMNS
-from scripts.validate_powerbi_model import REQUIRED_FILTERS, validate_powerbi_model
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES, REQUIRED_EXPORT_COLUMNS
+from pipelines.powerbi.model_contract import REQUIRED_FILTERS, validate_powerbi_model
 
 
 MODEL_PATH = Path("powerbi/lending_dashboard_model.json")

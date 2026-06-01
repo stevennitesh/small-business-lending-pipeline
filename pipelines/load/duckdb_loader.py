@@ -7,17 +7,15 @@ from typing import Iterable
 import duckdb
 import pandas as pd
 
-from pipelines.load.raw_load_common import (
+from pipelines.load.raw_load_inputs import (
+    expected_manifest_row_count,
+    prepare_raw_load_inputs,
+)
+from pipelines.load.raw_load_local_sources import load_local_source_frame
+from pipelines.load.raw_load_metadata import (
     RAW_ROW_METADATA_COLUMNS,
-    assert_validation_passed,
-    flatten_manifest_groups,
-    load_local_source_frame,
-    load_manifests,
-    load_validation_results,
     manifest_raw_row_metadata,
-    normalize_records,
-    pipeline_run_ids_from_manifest_groups,
-    require_manifest_groups,
+    raw_load_metadata_frames,
 )
 from pipelines.utils.dates import utc_now_iso
 
@@ -31,13 +29,6 @@ RAW_TABLES = (
     "raw_validation_result",
     "raw_pipeline_run_summary",
 )
-
-SOURCE_TABLES = {
-    "raw.raw_sba_7a_foia": "sba_7a",
-    "raw.raw_sba_504_foia": "sba_504",
-    "raw.raw_census_bds_state_year": "census_bds",
-    "raw.raw_bls_laus_state_month": "bls_laus",
-}
 
 LOCAL_DUCKDB_NATIVE_CSV_TABLES = {
     "raw.raw_sba_7a_foia",
@@ -75,21 +66,19 @@ def load_raw_extracts(
     resolved_duckdb_path = Path(duckdb_path)
     resolved_duckdb_path.parent.mkdir(parents=True, exist_ok=True)
 
-    validation_results = load_validation_results(
-        validation_result_paths,
+    prepared_inputs = prepare_raw_load_inputs(
+        sba_7a_manifest_paths=sba_7a_manifest_paths,
+        sba_504_manifest_paths=sba_504_manifest_paths,
+        census_bds_manifest_paths=census_bds_manifest_paths,
+        bls_laus_manifest_paths=bls_laus_manifest_paths,
+        validation_result_paths=validation_result_paths,
         error_cls=RawLoadError,
-        missing_message="At least one validation result file is required before loading.",
+        missing_validation_message=(
+            "At least one validation result file is required before loading."
+        ),
+        table_prefix="raw.",
     )
-    assert_validation_passed(validation_results, error_cls=RawLoadError)
-
-    manifest_groups = {
-        "raw.raw_sba_7a_foia": load_manifests(sba_7a_manifest_paths),
-        "raw.raw_sba_504_foia": load_manifests(sba_504_manifest_paths),
-        "raw.raw_census_bds_state_year": load_manifests(census_bds_manifest_paths),
-        "raw.raw_bls_laus_state_month": load_manifests(bls_laus_manifest_paths),
-    }
-    require_manifest_groups(manifest_groups, error_cls=RawLoadError)
-    pipeline_run_ids = pipeline_run_ids_from_manifest_groups(manifest_groups)
+    manifest_groups = prepared_inputs.manifest_groups
 
     with duckdb.connect(str(resolved_duckdb_path)) as connection:
         connection.execute("create schema if not exists raw")
@@ -98,7 +87,7 @@ def load_raw_extracts(
         for table_name, manifests in manifest_groups.items():
             _load_local_source_table(connection, table_name, manifests)
             row_count = _table_count(connection, table_name)
-            expected_row_count = sum(int(manifest["row_count"]) for manifest in manifests)
+            expected_row_count = expected_manifest_row_count(manifests)
             if row_count != expected_row_count:
                 raise RawLoadError(
                     f"Row count mismatch for {table_name}: "
@@ -106,41 +95,37 @@ def load_raw_extracts(
                 )
             table_row_counts[table_name] = row_count
 
-        manifest_frame = normalize_records(
-            [
-                manifest
-                for manifest in flatten_manifest_groups(manifest_groups)
-            ]
+        loaded_at_utc = utc_now_iso()
+        metadata_frames = raw_load_metadata_frames(
+            manifest_groups=manifest_groups,
+            validation_results=prepared_inputs.validation_results,
+            pipeline_run_ids=prepared_inputs.pipeline_run_ids,
+            loaded_at_utc=loaded_at_utc,
         )
-        _create_or_replace_table(connection, "raw.raw_ingestion_manifest", manifest_frame)
+        _create_or_replace_table(
+            connection,
+            "raw.raw_ingestion_manifest",
+            metadata_frames.manifest,
+        )
         table_row_counts["raw.raw_ingestion_manifest"] = _table_count(
             connection,
             "raw.raw_ingestion_manifest",
         )
 
-        validation_frame = normalize_records(
-            [result.to_dict() for result in validation_results]
+        _create_or_replace_table(
+            connection,
+            "raw.raw_validation_result",
+            metadata_frames.validation,
         )
-        _create_or_replace_table(connection, "raw.raw_validation_result", validation_frame)
         table_row_counts["raw.raw_validation_result"] = _table_count(
             connection,
             "raw.raw_validation_result",
         )
 
-        summary_frame = pd.DataFrame(
-            [
-                {
-                    "pipeline_run_ids": ",".join(pipeline_run_ids),
-                    "loaded_at_utc": utc_now_iso(),
-                    "raw_table_count": len(SOURCE_TABLES),
-                    "validation_status": "passed",
-                }
-            ]
-        )
         _create_or_replace_table(
             connection,
             "raw.raw_pipeline_run_summary",
-            summary_frame,
+            metadata_frames.summary,
         )
         table_row_counts["raw.raw_pipeline_run_summary"] = _table_count(
             connection,
@@ -150,7 +135,7 @@ def load_raw_extracts(
     return RawLoadSummary(
         duckdb_path=resolved_duckdb_path,
         table_row_counts=table_row_counts,
-        pipeline_run_ids=pipeline_run_ids,
+        pipeline_run_ids=prepared_inputs.pipeline_run_ids,
     )
 
 

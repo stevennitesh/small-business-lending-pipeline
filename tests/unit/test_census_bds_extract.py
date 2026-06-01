@@ -20,74 +20,13 @@ from tests.unit.config_test_helpers import config_path
 from tests.unit.extract_test_helpers import (
     FakeGetSession as FakeSession,
     FakeS3ObjectClient,
+    census_bds_fixture_response,
     read_json_file,
     read_summary_manifest,
 )
 
 
 CENSUS_BDS_CONFIG_PATH = config_path(CENSUS_BDS_CONFIG_FILE)
-
-
-def _fixture_response() -> list[list[str]]:
-    return [
-        [
-            "NAME",
-            "YEAR",
-            "ESTAB",
-            "ESTABS_ENTRY",
-            "ESTABS_ENTRY_RATE",
-            "ESTABS_EXIT",
-            "ESTABS_EXIT_RATE",
-            "FIRM",
-            "JOB_CREATION",
-            "JOB_DESTRUCTION",
-            "time",
-            "state",
-        ],
-        [
-            "Alabama",
-            "2022",
-            "97218",
-            "8966",
-            "9.260",
-            "8190",
-            "8.459",
-            "70912",
-            "226550",
-            "177056",
-            "2022",
-            "01",
-        ],
-        [
-            "Alabama",
-            "2023",
-            "98246",
-            "9094",
-            "9.306",
-            "8044",
-            "8.232",
-            "71429",
-            "223092",
-            "179480",
-            "2023",
-            "01",
-        ],
-        [
-            "Alaska",
-            "2022",
-            "18583",
-            "1896",
-            "10.250",
-            "1633",
-            "8.827",
-            "14667",
-            "36076",
-            "27925",
-            "2022",
-            "02",
-        ],
-    ]
-
 
 def test_load_census_bds_config_from_yaml():
     config = load_census_bds_config(CENSUS_BDS_CONFIG_PATH)
@@ -118,7 +57,7 @@ def test_build_census_bds_params_for_year_range():
 
 def test_validate_bds_response_requires_header_and_data_rows():
     summary = validate_bds_response(
-        _fixture_response(),
+        census_bds_fixture_response(),
         required_variables=("YEAR", "NAME", "state", "ESTAB"),
     )
 
@@ -136,7 +75,10 @@ def test_validate_bds_response_rejects_missing_required_variables():
 
 
 def test_validate_bds_response_rejects_duplicate_state_year_grain():
-    duplicate_response = _fixture_response() + [_fixture_response()[1]]
+    duplicate_response = (
+        census_bds_fixture_response()
+        + [census_bds_fixture_response()[1]]
+    )
 
     with pytest.raises(ValueError, match="Duplicate Census BDS state-year rows"):
         validate_bds_response(
@@ -165,7 +107,7 @@ def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatc
             "JOB_DESTRUCTION",
         ),
     )
-    session = FakeSession(_fixture_response())
+    session = FakeSession(census_bds_fixture_response())
 
     summary = extract_census_bds(
         config=config,
@@ -197,7 +139,7 @@ def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatc
         "raw/census/bds/grain=state_year/ingestion_date=2026-05-07/"
         "pipeline_run_id=run-123/bds_state_year_2022_2023.json"
     )
-    assert read_json_file(summary.result.local_raw_path) == _fixture_response()
+    assert read_json_file(summary.result.local_raw_path) == census_bds_fixture_response()
     assert summary.result.manifest.row_count == 3
     assert summary.latest_available_year == 2023
 
@@ -216,7 +158,7 @@ def test_extract_census_bds_uses_passed_source_identity(tmp_path, monkeypatch):
         start_year=2020,
         required_variables=("YEAR", "NAME", "state", "ESTAB"),
     )
-    session = FakeSession(_fixture_response())
+    session = FakeSession(census_bds_fixture_response())
 
     summary = extract_census_bds(
         config=config,
@@ -254,7 +196,7 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
         start_year=2020,
         required_variables=("YEAR", "NAME", "state", "ESTAB"),
     )
-    session = FakeSession(_fixture_response())
+    session = FakeSession(census_bds_fixture_response())
     s3_client = FakeS3ObjectClient()
 
     summary = extract_census_bds(
@@ -282,7 +224,9 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
     assert manifest["storage_backend"] == "s3"
     assert manifest["raw_uri"] == manifest["s3_raw_uri"]
     key = manifest["raw_uri"].removeprefix("s3://cloud-bucket/")
-    assert json.loads(s3_client.objects[("cloud-bucket", key)]) == _fixture_response()
+    assert json.loads(s3_client.objects[("cloud-bucket", key)]) == (
+        census_bds_fixture_response()
+    )
     assert summary.manifest_location is not None
     assert summary.manifest_location.artifact_uri.startswith(
         "s3://cloud-bucket/manifests/census/bds/"

@@ -1,5 +1,9 @@
 # Plan: Remove Local-File Snowflake Loader
 
+## Current Status Note
+
+This cleanup is completed. The baseline below is historical and describes the state before the local-file Snowflake loader, compatibility alias, and `scripts/load_snowflake.sh` entry point were removed.
+
 ## Goal
 
 Remove the old local-file-to-Snowflake compatibility path so raw load has only two intentional routes:

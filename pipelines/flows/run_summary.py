@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from pipelines.flows.run_models import (
+    FlowRunState,
     LocalRunContext,
     PipelineRunSummary,
 )
-from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.utils.dates import utc_now_iso
 from pipelines.validation.raw_validation_models import RawValidationOutput
 
@@ -79,6 +79,32 @@ def write_run_summary_for_context(
     return summary_path
 
 
+def write_state_run_summary_for_context(
+    context: LocalRunContext,
+    state: FlowRunState,
+    *,
+    status: str,
+    failed_stage: str | None = None,
+    error_message: str | None = None,
+) -> Path:
+    """Write a run summary from accumulated flow state."""
+    return write_run_summary_for_context(
+        context,
+        status=status,
+        completed_stages=state.completed_with_summary(),
+        failed_stage=failed_stage,
+        error_message=error_message,
+        validation_result_path=state.validation_output,
+        manifest_artifact_uris=state.manifest_artifact_uris,
+        dbt_artifacts=state.dbt_artifacts,
+        bi_row_counts=state.bi_row_counts,
+        export_paths=state.export_paths,
+        s3_upload_summary=state.s3_upload_summary,
+        snowflake_raw_load_summary=state.snowflake_raw_load_summary,
+        stage_durations_seconds=state.stage_durations_seconds,
+    )
+
+
 def validation_output_local_path(
     validation_output: Path | RawValidationOutput | None,
 ) -> str | None:
@@ -86,7 +112,7 @@ def validation_output_local_path(
     if validation_output is None:
         return None
     if isinstance(validation_output, RawValidationOutput):
-        return str(validation_output.local_path)
+        return validation_output.local_path_text
     return str(validation_output)
 
 
@@ -97,10 +123,5 @@ def validation_output_uri(
     if validation_output is None:
         return None
     if isinstance(validation_output, RawValidationOutput):
-        durable_reference = validation_output.durable_reference
-        return (
-            str(durable_reference.artifact_uri)
-            if isinstance(durable_reference, ArtifactLocation)
-            else str(durable_reference)
-        )
+        return validation_output.durable_reference_uri
     return str(validation_output)

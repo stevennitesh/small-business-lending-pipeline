@@ -6,11 +6,11 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from scripts.export_powerbi_tables import (
+from pipelines.powerbi.export_contract import export_powerbi_tables
+from pipelines.powerbi.export_schema import (
     BI_EXPORT_TABLES,
     PROHIBITED_EXPORT_FIELDS,
     REQUIRED_EXPORT_COLUMNS,
-    export_powerbi_tables,
 )
 
 

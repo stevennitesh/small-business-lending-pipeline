@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +23,7 @@ from pipelines.flows.run_models import (
     FlowRunState,
     LocalRunContext,
 )
+from pipelines.flows.stage_execution import run_timed_flow_stage
 from pipelines.flows.extraction_manifests import ExtractionPaths
 from pipelines.flows.raw_loads import RawLoadSummary, S3UploadSummary
 from pipelines.flows.raw_loads import SnowflakeRawLoadSummary
@@ -224,6 +224,25 @@ def write_run_summary(
     )
 
 
+@task
+def write_state_run_summary(
+    context: LocalRunContext,
+    state: FlowRunState,
+    *,
+    status: str,
+    failed_stage: str | None = None,
+    error_message: str | None = None,
+) -> Path:
+    """Write the durable run summary from accumulated flow state."""
+    return run_summary.write_state_run_summary_for_context(
+        context,
+        state,
+        status=status,
+        failed_stage=failed_stage,
+        error_message=error_message,
+    )
+
+
 @flow(name="small-business-lending-local-pipeline")
 def lending_pipeline_flow(
     *,
@@ -267,31 +286,30 @@ def lending_pipeline_flow(
             require_cloud_mode_config(context)
             state.complete("require_cloud_mode_config")
 
-        extraction_paths = _run_timed_stage(
-            state.stage_durations_seconds,
+        extraction_paths = run_timed_flow_stage(
+            state,
             "extract_sources",
             extract_sources,
             context,
             project_config,
+            completed_stages=("extract_sources", "write_manifests"),
         )
         state.manifest_artifact_uris = [
             location.artifact_uri for location in extraction_paths.manifest_locations
         ]
-        state.complete_many(["extract_sources", "write_manifests"])
 
-        state.validation_output = _run_timed_stage(
-            state.stage_durations_seconds,
+        state.validation_output = run_timed_flow_stage(
+            state,
             "validate_raw_outputs",
             validate_raw_outputs,
             context,
             extraction_paths,
             project_config,
         )
-        state.complete("validate_raw_outputs")
 
         if context.is_cloud_route:
-            raw_s3_summary = _run_timed_stage(
-                state.stage_durations_seconds,
+            raw_s3_summary = run_timed_flow_stage(
+                state,
                 "record_raw_artifact_locations",
                 record_raw_artifact_locations,
                 context,
@@ -299,10 +317,9 @@ def lending_pipeline_flow(
                 state.validation_output,
             )
             state.s3_upload_summary["raw_artifacts"] = raw_s3_summary.to_dict()
-            state.complete("record_raw_artifact_locations")
 
-            snowflake_summary = _run_timed_stage(
-                state.stage_durations_seconds,
+            snowflake_summary = run_timed_flow_stage(
+                state,
                 "load_snowflake_raw_tables",
                 load_snowflake_raw_tables,
                 context,
@@ -310,25 +327,22 @@ def lending_pipeline_flow(
                 state.validation_output,
             )
             state.snowflake_raw_load_summary = snowflake_summary.to_dict()
-            state.complete("load_snowflake_raw_tables")
         else:
-            _run_timed_stage(
-                state.stage_durations_seconds,
+            run_timed_flow_stage(
+                state,
                 "load_duckdb_raw_tables",
                 load_duckdb_raw_tables,
                 context,
                 extraction_paths,
                 state.validation_output,
             )
-            state.complete("load_duckdb_raw_tables")
 
-        _run_timed_stage(
-            state.stage_durations_seconds,
+        run_timed_flow_stage(
+            state,
             "run_dbt_build",
             run_dbt_build,
             context,
         )
-        state.complete("run_dbt_build")
 
         state.dbt_artifacts = collect_dbt_artifacts(context)
         state.complete("collect_dbt_artifacts")
@@ -342,35 +356,25 @@ def lending_pipeline_flow(
             state.s3_upload_summary["dbt_artifacts"] = dbt_s3_summary.to_dict()
             state.complete("upload_dbt_artifacts_to_s3")
 
-        state.bi_row_counts = _run_timed_stage(
-            state.stage_durations_seconds,
+        state.bi_row_counts = run_timed_flow_stage(
+            state,
             "validate_bi_tables",
             validate_bi_tables,
             context,
         )
-        state.complete("validate_bi_tables")
 
         if context.run_mode == "local":
-            state.export_paths = _run_timed_stage(
-                state.stage_durations_seconds,
+            state.export_paths = run_timed_flow_stage(
+                state,
                 "export_bi_tables",
                 export_bi_tables,
                 context,
             )
-            state.complete("export_bi_tables")
 
-        summary_path = write_run_summary(
+        summary_path = write_state_run_summary(
             context,
             status="success",
-            completed_stages=state.completed_with_summary(),
-            validation_result_path=state.validation_output,
-            manifest_artifact_uris=state.manifest_artifact_uris,
-            dbt_artifacts=state.dbt_artifacts,
-            bi_row_counts=state.bi_row_counts,
-            export_paths=state.export_paths,
-            s3_upload_summary=state.s3_upload_summary,
-            snowflake_raw_load_summary=state.snowflake_raw_load_summary,
-            stage_durations_seconds=state.stage_durations_seconds,
+            state=state,
         )
         logger.info(
             "%s lending pipeline completed: %s",
@@ -380,20 +384,12 @@ def lending_pipeline_flow(
         return str(summary_path)
     except Exception as exc:
         failed_stage = state.failed_stage(context.stage_order)
-        summary_path = write_run_summary(
+        summary_path = write_state_run_summary(
             context,
             status="failed",
-            completed_stages=state.completed_with_summary(),
+            state=state,
             failed_stage=failed_stage,
             error_message=str(exc),
-            validation_result_path=state.validation_output,
-            manifest_artifact_uris=state.manifest_artifact_uris,
-            dbt_artifacts=state.dbt_artifacts,
-            bi_row_counts=state.bi_row_counts,
-            export_paths=state.export_paths,
-            s3_upload_summary=state.s3_upload_summary,
-            snowflake_raw_load_summary=state.snowflake_raw_load_summary,
-            stage_durations_seconds=state.stage_durations_seconds,
         )
         logger.error(
             "%s lending pipeline failed at %s: %s",
@@ -403,24 +399,6 @@ def lending_pipeline_flow(
         )
         logger.error("Failure summary written to %s", summary_path)
         raise
-
-
-def _run_timed_stage(
-    stage_durations_seconds: dict[str, float],
-    stage_name: str,
-    stage_callable,
-    *args,
-    **kwargs,
-):
-    """Execute a stage and record its elapsed wall-clock duration."""
-    started_at = time.perf_counter()
-    try:
-        return stage_callable(*args, **kwargs)
-    finally:
-        stage_durations_seconds[stage_name] = round(
-            time.perf_counter() - started_at,
-            3,
-        )
 
 
 def main() -> None:

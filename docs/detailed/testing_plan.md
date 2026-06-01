@@ -1167,7 +1167,7 @@ tests/
 | `validation/validation_failures.py` | blocking validation failure policy before downstream loads |
 | `validation/raw_validation_resources.py` | shared raw validation resource and output names |
 | source-specific payload modules under `validation/` | SBA resource coverage, Census BDS payload shape, and BLS LAUS normalized rows |
-| `flows/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
+| `validation/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
 | `utils/manifest.py` | manifest schema and required fields |
 | `utils/hashing.py` | deterministic checksums and row hashes |
 | `utils/paths.py` | local/S3 path generation |

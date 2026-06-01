@@ -7,6 +7,7 @@ from pipelines.validation.raw_validation_output import (
     check_validation_output_created,
     write_validation_output_for_route,
 )
+from pipelines.validation.raw_validation_models import RawValidationOutput
 from pipelines.validation.raw_validation_resources import (
     VALIDATION_RESULTS_DATASET_NAME,
     VALIDATION_RESULTS_FILENAME,
@@ -76,6 +77,28 @@ def test_validation_output_route_writer_returns_destination_and_final_results(tm
     assert output_write.artifact_location is None
     assert validation_check_ids(output_write.validation_results) == ["RAW_009"]
     assert validation_check_ids(read_json(output_path)) == ["RAW_009"]
+
+
+def test_raw_validation_output_formats_summary_references(tmp_path):
+    local_output = RawValidationOutput(
+        local_path=tmp_path / VALIDATION_RESULTS_FILENAME,
+    )
+    cloud_output = RawValidationOutput(
+        local_path=tmp_path / VALIDATION_RESULTS_FILENAME,
+        artifact_location=ArtifactLocation(
+            storage_backend="s3",
+            artifact_uri="s3://unit-test-bucket/validation/results.json",
+            artifact_key="validation/results.json",
+            s3_uri="s3://unit-test-bucket/validation/results.json",
+        ),
+    )
+
+    assert local_output.local_path_text.endswith(VALIDATION_RESULTS_FILENAME)
+    assert local_output.durable_reference_uri.endswith(VALIDATION_RESULTS_FILENAME)
+    assert (
+        cloud_output.durable_reference_uri
+        == "s3://unit-test-bucket/validation/results.json"
+    )
 
 
 def test_cloud_validation_output_route_writer_uses_provided_store(

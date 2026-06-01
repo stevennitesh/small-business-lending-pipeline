@@ -25,64 +25,13 @@ from tests.unit.extract_test_helpers import (
     FakeS3ObjectClient,
     read_json_file,
     read_sba_manifest,
+    sample_sba_package_metadata,
     sba_7a_fy2020_present_spec,
     sba_foia_data_dictionary_spec,
 )
 
 
 SBA_RESOURCES_CONFIG_PATH = config_path(SBA_RESOURCES_CONFIG_FILE)
-
-
-def _sample_package_metadata() -> dict:
-    resources = [
-        (
-            "7a_504_FOIA Data Dictionary as of 260331.xlsx",
-            "xlsx",
-            "https://example.test/dictionary.xlsx",
-        ),
-        (
-            "FOIA - 7(a)(FY1991-FY1999) asof 260331.csv",
-            "csv",
-            "https://example.test/7a_1991_1999.csv",
-        ),
-        (
-            "FOIA - 7(a)(FY2000-FY2009) asof 260331.csv",
-            "csv",
-            "https://example.test/7a_2000_2009.csv",
-        ),
-        (
-            "FOIA - 7(a) (FY2010-FY2019) asof 260331.csv",
-            "csv",
-            "https://example.test/7a_2010_2019.csv",
-        ),
-        (
-            "FOIA - 7(a) (FY2020-Present) asof 260331.csv",
-            "csv",
-            "https://example.test/7a_2020_present.csv",
-        ),
-        (
-            "FOIA - 504 (FY1991-FY2009) asof 260331.csv",
-            "csv",
-            "https://example.test/504_1991_2009.csv",
-        ),
-        (
-            "FOIA - 504 (FY2010-Present) asof 260331.csv",
-            "csv",
-            "https://example.test/504_2010_present.csv",
-        ),
-    ]
-    return {
-        "resources": [
-            {
-                "name": name,
-                "format": file_format,
-                "url": url,
-                "size": len(url),
-            }
-            for name, file_format, url in resources
-        ]
-    }
-
 
 def test_load_sba_resources_config_includes_discovery_settings():
     config = load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH)
@@ -124,7 +73,7 @@ def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
     session = FakeSession(
         {
             "https://example.test/custom-package": {
-                "result": _sample_package_metadata()
+                "result": sample_sba_package_metadata()
             },
             "https://example.test/7a_2020_present.csv": b"col\n1\n",
         }
@@ -145,7 +94,7 @@ def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
     ]
     cached_metadata = tmp_path / "metadata-cache" / "sba_package_metadata.json"
     assert cached_metadata.is_file()
-    assert read_json_file(cached_metadata) == _sample_package_metadata()
+    assert read_json_file(cached_metadata) == sample_sba_package_metadata()
     assert list(summary.results) == ["sba_7a_fy2020_present"]
 
 
@@ -172,7 +121,7 @@ def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp
 
 def test_resolve_sba_resources_matches_expected_metadata():
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
-    resolved = resolve_sba_resources(specs, _sample_package_metadata())
+    resolved = resolve_sba_resources(specs, sample_sba_package_metadata())
 
     assert len(resolved) == 7
     assert resolved["sba_7a_fy2020_present"].url.endswith("7a_2020_present.csv")
@@ -182,7 +131,7 @@ def test_resolve_sba_resources_matches_expected_metadata():
 
 def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
-    metadata = _sample_package_metadata()
+    metadata = sample_sba_package_metadata()
     downloads = {
         resource["url"]: b"col_a,col_b\n1,2\n3,4\n"
         if resource["format"] == "csv"
@@ -227,7 +176,7 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
 
 def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_path):
     spec = sba_7a_fy2020_present_spec()
-    metadata = _sample_package_metadata()
+    metadata = sample_sba_package_metadata()
     chunks = [b"col_a,", b"col_b\n", b"1,2\n", b"3,4\n"]
     expected_payload = b"".join(chunks)
     session = FakeSession({"https://example.test/7a_2020_present.csv": chunks})
@@ -254,7 +203,7 @@ def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_pat
 
 def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
     spec = sba_7a_fy2020_present_spec()
-    metadata = _sample_package_metadata()
+    metadata = sample_sba_package_metadata()
     session = FakeSession(
         {"https://example.test/7a_2020_present.csv": b"col_a,col_b\n1,2\n"}
     )
@@ -289,7 +238,7 @@ def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
 
 def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
     spec = sba_7a_fy2020_present_spec()
-    metadata = _sample_package_metadata()
+    metadata = sample_sba_package_metadata()
     payload = b"col_a,col_b\n1,2\n"
     session = FakeSession({"https://example.test/7a_2020_present.csv": payload})
     s3_client = FakeS3ObjectClient()

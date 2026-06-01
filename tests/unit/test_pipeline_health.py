@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pipelines.flows.pipeline_health import (
+from pipelines.validation.pipeline_health import (
     check_latest_observation_not_future,
     check_row_count_captured,
 )
