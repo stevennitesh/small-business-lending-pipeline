@@ -29,7 +29,9 @@ def test_project_config_loader_returns_named_configs():
     assert project_config.bls_laus.start_year == 1990
     assert project_config.bls_laus.measure_name == "unemployment_rate"
     assert project_config.freshness_rules["sba_foia"]["expected_cadence"] == "quarterly"
-    assert project_config.validation_thresholds["census_bds"]["min_state_count"] == 51
+    assert project_config.raw_validation_expectations["census_bds"][
+        "expected_state_count"
+    ] == 51
     assert project_config.source_identity("bls_laus").source_system == "bls"
     assert project_config.source_identity("bls_laus").dataset_name == "laus"
 
@@ -41,7 +43,7 @@ def test_config_files_have_required_top_level_keys():
         "census_bds_variables.yml": "census_bds",
         "bls_laus_state_series.yml": "bls_laus",
         "freshness_rules.yml": "freshness_rules",
-        "validation_thresholds.yml": "validation_thresholds",
+        "raw_validation_expectations.yml": "raw_validation_expectations",
     }
 
     project_config = load_project_config(CONFIG_DIR)
@@ -67,11 +69,20 @@ def test_mvp_freshness_rules_only_declare_active_cadence_contracts():
         assert set(rule) == {"expected_cadence"}
 
 
-def test_sba_validation_thresholds_only_declare_active_raw_validation_controls():
+def test_sba_raw_validation_expectations_only_declare_active_controls():
     project_config = load_project_config(CONFIG_DIR)
 
-    assert set(project_config.validation_thresholds["sba_foia"]) == {
+    assert set(project_config.raw_validation_expectations["sba_foia"]) == {
         "required_programs",
+    }
+
+
+def test_census_raw_validation_expectations_only_declare_active_controls():
+    project_config = load_project_config(CONFIG_DIR)
+
+    assert set(project_config.raw_validation_expectations["census_bds"]) == {
+        "expected_state_count",
+        "required_variables",
     }
 
 
@@ -79,8 +90,10 @@ def test_enabled_sources_have_freshness_and_validation_config():
     project_config = load_project_config(CONFIG_DIR)
     sources = project_config.get("sources.yml")["sources"]
     freshness_rules = project_config.get("freshness_rules.yml")["freshness_rules"]
-    validation_thresholds = project_config.get("validation_thresholds.yml")[
-        "validation_thresholds"
+    raw_validation_expectations = project_config.get(
+        "raw_validation_expectations.yml"
+    )[
+        "raw_validation_expectations"
     ]
     enabled_source_names = {
         source_name
@@ -89,14 +102,16 @@ def test_enabled_sources_have_freshness_and_validation_config():
     }
 
     assert enabled_source_names <= set(freshness_rules)
-    assert enabled_source_names <= set(validation_thresholds)
+    assert enabled_source_names <= set(raw_validation_expectations)
 
 
 def test_project_config_rejects_unknown_policy_source(tmp_path):
     config_dir = _copy_config_dir(tmp_path)
-    validation_path = config_dir / "validation_thresholds.yml"
+    validation_path = config_dir / "raw_validation_expectations.yml"
     validation_config = load_yaml_file(validation_path)
-    validation_config["validation_thresholds"]["unknown_source"] = {"min_state_count": 1}
+    validation_config["raw_validation_expectations"]["unknown_source"] = {
+        "expected_state_count": 1
+    }
     _write_yaml_config(validation_path, validation_config)
 
     with pytest.raises(ValueError, match="unknown source keys: unknown_source"):
@@ -114,12 +129,12 @@ def test_project_config_rejects_cadence_drift(tmp_path):
         load_project_config(config_dir)
 
 
-def test_project_config_rejects_census_validation_columns_not_requested(tmp_path):
+def test_project_config_rejects_census_validation_variables_not_requested(tmp_path):
     config_dir = _copy_config_dir(tmp_path)
-    validation_path = config_dir / "validation_thresholds.yml"
+    validation_path = config_dir / "raw_validation_expectations.yml"
     validation_config = load_yaml_file(validation_path)
-    validation_config["validation_thresholds"]["census_bds"][
-        "required_columns"
+    validation_config["raw_validation_expectations"]["census_bds"][
+        "required_variables"
     ].append("NOT_REQUESTED")
     _write_yaml_config(validation_path, validation_config)
 
@@ -127,10 +142,10 @@ def test_project_config_rejects_census_validation_columns_not_requested(tmp_path
         load_project_config(config_dir)
 
 
-def test_bls_validation_thresholds_only_declare_active_raw_validation_controls():
+def test_bls_raw_validation_expectations_only_declare_active_controls():
     project_config = load_project_config(CONFIG_DIR)
 
-    assert set(project_config.validation_thresholds["bls_laus"]) == {
+    assert set(project_config.raw_validation_expectations["bls_laus"]) == {
         "required_period_pattern",
         "unemployment_rate_min",
         "unemployment_rate_max",

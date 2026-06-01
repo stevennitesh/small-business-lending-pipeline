@@ -151,22 +151,23 @@ This should be issue-driven implementation. Each task should become one GitHub i
   - `validate_raw_outputs`
   - `check_raw_manifest`
   - `RawArtifactReader`
-  - `write_validation_results`
+  - `write_validation_output`
 - Public contract or state/data change: validation output should become a route-aware artifact reference rather than only a local `Path`.
 - Likely files/modules:
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `pipelines/validation/raw_checks.py`
+  - `pipelines/validation/raw_manifest_artifact_validation.py`
+  - `pipelines/validation/raw_validation_output.py`
   - `pipelines/validation/validation_result.py`
   - raw validation unit tests
   - flow tests
 - Change boundary:
   - Do not change validation check semantics.
-  - Preserve `RAW_001` through `RAW_013` behavior.
+  - Preserve `RAW_001` through `RAW_014` behavior.
   - Add route-aware artifact writing and reading around the existing checks.
 - Verification command:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py
+.venv/bin/python -m pytest tests/unit/test_raw_validation_output.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_prefect_local_flow.py
 ```
 
 - Review focus: missing S3 manifests or validation output should fail with structured validation or flow errors, not incidental `FileNotFoundError`/`KeyError`.
@@ -235,7 +236,7 @@ git diff --check
 Run the focused test set first:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_s3_loader.py tests/unit/test_sba_extract.py tests/unit/test_census_bds_extract.py tests/unit/test_bls_laus_extract.py tests/unit/test_raw_validation.py tests/unit/test_snowflake_loader.py tests/unit/test_prefect_local_flow.py
+.venv/bin/python -m pytest tests/unit/test_s3_loader.py tests/unit/test_sba_extract.py tests/unit/test_census_bds_extract.py tests/unit/test_bls_laus_extract.py tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_output.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_snowflake_loader.py tests/unit/test_prefect_local_flow.py
 ```
 
 Then run repo-level checks that fit WSL resource limits:

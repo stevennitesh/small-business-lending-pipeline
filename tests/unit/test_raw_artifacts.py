@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from pipelines.storage.raw_artifacts import (
+    ArtifactReader,
     LocalArtifactStore,
     S3ArtifactStore,
+    artifact_reader_for_route,
+    artifact_store_for_route,
 )
 
 
@@ -64,6 +67,35 @@ def test_s3_artifact_store_writes_partitioned_validation_result():
             "validation_results.json",
         )
     ] == b"[]\n"
+
+
+def test_artifact_store_for_route_selects_local_or_s3_store(tmp_path):
+    local_store = artifact_store_for_route(
+        cloud_route=False,
+        data_root=tmp_path,
+        bucket="mirror-bucket",
+    )
+    s3_store = artifact_store_for_route(
+        cloud_route=True,
+        bucket="cloud-bucket",
+        s3_client=FakeS3ObjectClient(),
+    )
+
+    assert isinstance(local_store, LocalArtifactStore)
+    assert local_store.storage_backend == "local"
+    assert isinstance(s3_store, S3ArtifactStore)
+    assert s3_store.storage_backend == "s3"
+
+
+def test_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
+    client = FakeS3ObjectClient()
+
+    local_reader = artifact_reader_for_route(cloud_route=False, s3_client=client)
+    cloud_reader = artifact_reader_for_route(cloud_route=True, s3_client=client)
+
+    assert isinstance(local_reader, ArtifactReader)
+    assert local_reader.s3_client is None
+    assert cloud_reader.s3_client is client
 
 
 class FakeBody:

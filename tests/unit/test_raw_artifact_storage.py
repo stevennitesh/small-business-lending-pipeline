@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from pipelines.storage.raw_artifacts import LocalRawArtifactStore, S3RawArtifactStore
+from pipelines.storage.raw_artifacts import (
+    LocalRawArtifactStore,
+    RawArtifactReader,
+    S3RawArtifactStore,
+    raw_artifact_reader_for_route,
+    raw_artifact_store_for_route,
+)
 
 
 def test_local_raw_artifact_store_writes_and_reads_local_payload(tmp_path):
@@ -65,6 +71,35 @@ def test_s3_raw_artifact_store_writes_to_s3_payload():
         "local_raw_path": None,
         "s3_raw_uri": location.raw_uri,
     }
+
+
+def test_raw_artifact_store_for_route_selects_local_or_s3_store(tmp_path):
+    local_store = raw_artifact_store_for_route(
+        cloud_route=False,
+        data_root=tmp_path / "data",
+        bucket="mirror-bucket",
+    )
+    s3_store = raw_artifact_store_for_route(
+        cloud_route=True,
+        bucket="cloud-bucket",
+        s3_client=FakeS3ObjectClient(),
+    )
+
+    assert isinstance(local_store, LocalRawArtifactStore)
+    assert local_store.storage_backend == "local"
+    assert isinstance(s3_store, S3RawArtifactStore)
+    assert s3_store.storage_backend == "s3"
+
+
+def test_raw_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
+    client = FakeS3ObjectClient()
+
+    local_reader = raw_artifact_reader_for_route(cloud_route=False, s3_client=client)
+    cloud_reader = raw_artifact_reader_for_route(cloud_route=True, s3_client=client)
+
+    assert isinstance(local_reader, RawArtifactReader)
+    assert local_reader.s3_client is None
+    assert cloud_reader.s3_client is client
 
 
 class FakeBody:

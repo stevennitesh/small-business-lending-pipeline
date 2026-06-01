@@ -1,14 +1,34 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+import pipelines.cli.run_lending_pipeline as run_lending_pipeline_cli
+from pipelines.extract.bls_laus_extract import BLSLAUSExtractionSummary
+from pipelines.extract.census_bds_extract import CensusBDSExtractionSummary
+from pipelines.extract.sba_extract import SBAExtractionSummary
+from pipelines.flows import dbt_bi, raw_loads, source_extracts
 import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.storage.raw_artifacts import RawArtifactReader, S3RawArtifactStore
-from pipelines.validation.validation_result import ValidationFailedError
+from pipelines.flows.run_models import (
+    ExtractionPaths,
+    FlowRunState,
+)
+from pipelines.storage.raw_artifacts import (
+    ArtifactLocation,
+    artifact_store_for_route,
+    raw_artifact_store_for_route,
+)
+from pipelines.validation.raw_validation_models import RawValidationOutput
+from pipelines.validation.raw_validation_expectations import raw_validation_expectations
+from pipelines.validation.raw_validation_resources import (
+    BLS_LAUS_SOURCE_KEY,
+    CENSUS_BDS_SOURCE_KEY,
+    SBA_FOIA_SOURCE_KEY,
+)
 from scripts.export_powerbi_tables import BI_EXPORT_TABLES
 
 
@@ -81,66 +101,6 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path):
     assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
 
 
-def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="expanded-powerbi-contract",
-    )
-    bi_row_counts = {table_name: 1 for table_name in local_flow.BI_TABLES}
-    export_paths = [
-        str(context.run_export_dir / f"{table_name}.csv")
-        for table_name in local_flow.BI_TABLES
-    ]
-
-    summary_path = local_flow.write_run_summary.fn(
-        context,
-        status="success",
-        completed_stages=["validate_bi_tables", "export_bi_tables"],
-        bi_row_counts=bi_row_counts,
-        export_paths=export_paths,
-    )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-
-    assert EXTRA_SBA_KPI_BI_TABLES <= set(summary["bi_row_counts"])
-    assert {
-        f"{table_name}.csv"
-        for table_name in EXTRA_SBA_KPI_BI_TABLES
-    } <= {Path(path).name for path in summary["export_paths"]}
-
-
-def test_flow_summary_records_stage_durations(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="local-stage-durations",
-    )
-
-    summary_path = local_flow.write_run_summary.fn(
-        context,
-        status="success",
-        completed_stages=["extract_sources", "write_run_summary"],
-        stage_durations_seconds={"extract_sources": 1.25},
-    )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-
-    assert summary["stage_durations_seconds"]["extract_sources"] == 1.25
-    assert summary["stage_durations_seconds"]["write_run_summary"] >= 0
-    assert summary["status"] == "success"
-
-
 def test_timed_stage_records_duration_when_stage_fails():
     stage_durations: dict[str, float] = {}
 
@@ -154,130 +114,28 @@ def test_timed_stage_records_duration_when_stage_fails():
     assert stage_durations["validate_raw_outputs"] >= 0
 
 
-def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
-    export_dir = tmp_path / "custom-powerbi"
-    monkeypatch.setenv("POWERBI_EXPORT_DIR", str(export_dir))
+def test_flow_run_state_tracks_failed_stage():
+    state = FlowRunState()
+    state.complete("initialize_run")
+    state.complete("load_config")
 
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="local-powerbi-env-override",
-    )
-
-    assert context.run_export_dir == export_dir
-    assert export_dir.is_dir()
-
-
-def test_flow_powerbi_export_dir_argument_overrides_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("POWERBI_EXPORT_DIR", str(tmp_path / "env-powerbi"))
-    export_dir = tmp_path / "arg-powerbi"
-
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        powerbi_export_dir=str(export_dir),
-        s3_bucket=None,
-        pipeline_run_id="local-powerbi-arg-override",
-    )
-
-    assert context.run_export_dir == export_dir
-    assert export_dir.is_dir()
-
-
-def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
-    for variable_name in (
-        "S3_BUCKET",
-        "SNOWFLAKE_ACCOUNT",
-        "SNOWFLAKE_USER",
-        "SNOWFLAKE_PASSWORD",
-        "SNOWFLAKE_ROLE",
-        "SNOWFLAKE_WAREHOUSE",
-        "SNOWFLAKE_DATABASE",
-    ):
-        monkeypatch.setenv(variable_name, "")
-    monkeypatch.setenv("SNOWFLAKE_STORAGE_INTEGRATION", "")
-    monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
-
-    context = local_flow.initialize_run.fn(
-        run_mode="cloud",
-        extract_mode="fixture",
-        dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="cloud-missing-config",
-    )
-
-    with pytest.raises(RuntimeError, match="Missing cloud mode configuration"):
-        local_flow.require_cloud_mode_config.fn(context)
-
-
-def test_cloud_summary_records_cloud_outputs(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="cloud",
-        extract_mode="fixture",
-        dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket="unit-test-bucket",
-        pipeline_run_id="cloud-run",
-    )
-
-    summary_path = local_flow.write_run_summary.fn(
-        context,
-        status="success",
-        completed_stages=["initialize_run", "write_run_summary"],
-        s3_upload_summary={
-            "bucket": "unit-test-bucket",
-            "uploaded_objects": ["s3://unit-test-bucket/raw/example.csv"],
-        },
-        snowflake_raw_load_summary={
-            "database": "SMALL_BUSINESS_LENDING",
-            "raw_schema": "RAW",
-            "table_row_counts": {"RAW.RAW_SBA_7A_FOIA": 1},
-        },
-        manifest_artifact_uris=[
-            "s3://unit-test-bucket/manifests/sba/manifest.json"
-        ],
-    )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-
-    assert summary["run_mode"] == "cloud"
-    assert summary["route"] == "cloud"
-    assert summary["dbt_target"] == "prod_snowflake"
-    assert summary["s3_upload_summary"]["bucket"] == "unit-test-bucket"
-    assert summary["manifest_artifact_uris"] == [
-        "s3://unit-test-bucket/manifests/sba/manifest.json"
+    assert state.completed_with_summary() == [
+        "initialize_run",
+        "load_config",
+        "write_run_summary",
     ]
-    assert summary["snowflake_raw_load_summary"]["table_row_counts"] == {
-        "RAW.RAW_SBA_7A_FOIA": 1
-    }
+    assert state.failed_stage(local_flow.LOCAL_FLOW_STAGES) == "extract_sources"
 
 
 def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
     monkeypatch.delenv("SNOWFLAKE_BI_SCHEMA", raising=False)
     monkeypatch.setenv("DBT_SCHEMA_PREFIX", "SMOKE")
 
-    assert local_flow._snowflake_bi_schema() == "SMOKE_BI"
+    assert dbt_bi.snowflake_bi_schema() == "SMOKE_BI"
 
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "CUSTOM_BI")
 
-    assert local_flow._snowflake_bi_schema() == "CUSTOM_BI"
+    assert dbt_bi.snowflake_bi_schema() == "CUSTOM_BI"
 
 
 def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(monkeypatch):
@@ -304,11 +162,11 @@ def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(mon
             return None
 
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI")
-    monkeypatch.setattr(local_flow.SnowflakeConfig, "from_env", lambda: object())
-    monkeypatch.setattr(local_flow, "connect_to_snowflake", lambda config: FakeConnection())
-    monkeypatch.setattr(local_flow, "load_dotenv", lambda override=True: None)
+    monkeypatch.setattr(dbt_bi.SnowflakeConfig, "from_env", lambda: object())
+    monkeypatch.setattr(dbt_bi, "connect_to_snowflake", lambda config: FakeConnection())
+    monkeypatch.setattr(dbt_bi, "load_dotenv", lambda override=True: None)
 
-    row_counts = local_flow._validate_snowflake_bi_tables()
+    row_counts = dbt_bi.validate_snowflake_bi_tables()
 
     assert row_counts == {table_name: 1 for table_name in local_flow.BI_TABLES}
     for table_name in EXTRA_SBA_KPI_BI_TABLES:
@@ -339,328 +197,80 @@ def test_raw_artifact_store_matches_route(tmp_path):
         pipeline_run_id="cloud-route",
     )
 
-    assert local_flow._raw_artifact_store(
-        local_context,
-        "local-live",
+    assert raw_artifact_store_for_route(
+        cloud_route=local_context.is_cloud_route,
+        data_root=local_context.data_root,
+        bucket="local-live",
     ).storage_backend == "local"
-    assert local_flow._raw_artifact_store(
-        cloud_context,
-        "cloud-bucket",
+    assert raw_artifact_store_for_route(
+        cloud_route=cloud_context.is_cloud_route,
+        data_root=cloud_context.data_root,
+        bucket="cloud-bucket",
         s3_client=object(),
     ).storage_backend == "s3"
-    assert local_flow._artifact_store(
-        local_context,
-        "local-live",
+    assert artifact_store_for_route(
+        cloud_route=local_context.is_cloud_route,
+        data_root=local_context.data_root,
+        bucket="local-live",
     ).storage_backend == "local"
-    assert local_flow._artifact_store(
-        cloud_context,
-        "cloud-bucket",
+    assert artifact_store_for_route(
+        cloud_route=cloud_context.is_cloud_route,
+        data_root=cloud_context.data_root,
+        bucket="cloud-bucket",
         s3_client=object(),
     ).storage_backend == "s3"
 
 
-def test_fixture_extraction_and_validation_are_local_only(tmp_path):
-    project_config = local_flow.load_config.fn()
+def test_raw_loads_record_cloud_artifact_locations_without_reupload(tmp_path):
     context = local_flow.initialize_run.fn(
-        run_mode="local",
+        run_mode="cloud",
         extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
+        dbt_target="prod_snowflake",
+        data_root=str(tmp_path / "cloud-data"),
         duckdb_path=str(tmp_path / "warehouse.duckdb"),
         dbt_project_dir="dbt",
         dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="test-run",
+        s3_bucket="cloud-bucket",
+        pipeline_run_id="cloud-artifact-record",
+    )
+    manifest_location = ArtifactLocation(
+        storage_backend="s3",
+        artifact_uri="s3://cloud-bucket/manifests/example.json",
+        artifact_key="manifests/example.json",
+        local_path=None,
+        s3_uri="s3://cloud-bucket/manifests/example.json",
+    )
+    validation_location = ArtifactLocation(
+        storage_backend="s3",
+        artifact_uri="s3://cloud-bucket/validation/results.json",
+        artifact_key="validation/results.json",
+        local_path=None,
+        s3_uri="s3://cloud-bucket/validation/results.json",
+    )
+    extraction_paths = ExtractionPaths(
+        sba_7a_manifest_paths=(),
+        sba_504_manifest_paths=(),
+        census_bds_manifest_paths=(),
+        bls_laus_manifest_paths=(),
+        manifest_paths=(),
+        manifest_locations=(manifest_location,),
+    )
+    validation_output = RawValidationOutput(
+        local_path=tmp_path / "validation_results.json",
+        artifact_location=validation_location,
     )
 
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    validation_output = local_flow.validate_raw_outputs.fn(
+    summary = raw_loads.record_raw_artifact_locations_for_context(
         context,
         extraction_paths,
-        project_config,
-    )
-    validation_payload = json.loads(
-        validation_output.local_path.read_text(encoding="utf-8")
+        validation_output,
     )
 
-    assert validation_output.local_path.is_file()
-    assert validation_output.artifact_location is None
-    assert len(extraction_paths.manifest_paths) == 4
-    assert all(Path(path).is_file() for path in extraction_paths.manifest_paths)
-    assert {record["status"] for record in validation_payload} == {"passed"}
-    assert "RAW_009" in {
-        record["validation_check_id"]
-        for record in validation_payload
-    }
-    bls_manifest = json.loads(
-        extraction_paths.bls_laus_manifest_paths[0].read_text(encoding="utf-8")
+    assert summary.bucket == "cloud-bucket"
+    assert summary.uploaded_objects == (
+        "s3://cloud-bucket/manifests/example.json",
+        "s3://cloud-bucket/validation/results.json",
     )
-    bls_payload = json.loads(
-        Path(bls_manifest["local_raw_path"]).read_text(encoding="utf-8")
-    )
-    assert bls_manifest["row_count"] == 4
-    assert {
-        str(row["year"])
-        for row in bls_payload["normalized_rows"]
-    } == {"2025", "2026"}
-
-
-def test_fixture_manifests_use_source_config_identity(tmp_path):
-    project_config = local_flow.load_config.fn()
-    sources = {
-        **project_config.sources,
-        "census_bds": replace(
-            project_config.sources["census_bds"],
-            source_system="custom_census",
-            dataset_name="custom_bds",
-        ),
-        "bls_laus": replace(
-            project_config.sources["bls_laus"],
-            source_system="custom_bls",
-            dataset_name="custom_laus",
-        ),
-    }
-    project_config = replace(project_config, sources=sources)
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="fixture-identity-run",
-    )
-
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    census_manifest = json.loads(
-        extraction_paths.census_bds_manifest_paths[0].read_text(encoding="utf-8")
-    )
-    bls_manifest = json.loads(
-        extraction_paths.bls_laus_manifest_paths[0].read_text(encoding="utf-8")
-    )
-
-    assert census_manifest["source_system"] == "custom_census"
-    assert census_manifest["dataset_name"] == "custom_bds"
-    assert bls_manifest["source_system"] == "custom_bls"
-    assert bls_manifest["dataset_name"] == "custom_laus"
-
-
-def test_raw_validation_passes_source_config_identity_to_payload_checks(
-    tmp_path,
-    monkeypatch,
-):
-    project_config = local_flow.load_config.fn()
-    sources = {
-        **project_config.sources,
-        "sba_foia": replace(
-            project_config.sources["sba_foia"],
-            source_system="custom_sba",
-            dataset_name="custom_sba_dataset",
-        ),
-        "census_bds": replace(
-            project_config.sources["census_bds"],
-            source_system="custom_census",
-            dataset_name="custom_bds",
-        ),
-        "bls_laus": replace(
-            project_config.sources["bls_laus"],
-            source_system="custom_bls",
-            dataset_name="custom_laus",
-        ),
-    }
-    project_config = replace(project_config, sources=sources)
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="validation-identity-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    captured_identities = {}
-
-    def fake_sba_check(
-        manifests,
-        *,
-        required_resource_names,
-        source_identity,
-        artifact_reader,
-        readable_resource_names,
-    ):
-        captured_identities["sba_foia"] = source_identity
-        return []
-
-    def fake_census_check(
-        payload,
-        *,
-        required_variables,
-        expected_state_count,
-        pipeline_run_id,
-        source_identity,
-    ):
-        captured_identities["census_bds"] = source_identity
-        return []
-
-    def fake_bls_check(
-        payload,
-        *,
-        expected_series_ids,
-        pipeline_run_id,
-        required_period_pattern,
-        unemployment_rate_min,
-        unemployment_rate_max,
-        source_identity,
-    ):
-        captured_identities["bls_laus"] = source_identity
-        return []
-
-    monkeypatch.setattr(local_flow, "check_sba_required_resources", fake_sba_check)
-    monkeypatch.setattr(local_flow, "check_census_bds_payload", fake_census_check)
-    monkeypatch.setattr(local_flow, "check_bls_laus_payload", fake_bls_check)
-
-    local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-    assert captured_identities == {
-        "sba_foia": project_config.source_identity("sba_foia"),
-        "census_bds": project_config.source_identity("census_bds"),
-        "bls_laus": project_config.source_identity("bls_laus"),
-    }
-
-
-def test_raw_validation_blocks_manifest_identity_mismatch(tmp_path):
-    project_config = local_flow.load_config.fn()
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="identity-mismatch-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    broken_manifest = extraction_paths.census_bds_manifest_paths[0]
-    manifest_payload = json.loads(broken_manifest.read_text(encoding="utf-8"))
-    manifest_payload["dataset_name"] = "wrong_dataset"
-    broken_manifest.write_text(
-        json.dumps(manifest_payload, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValidationFailedError, match="RAW_010"):
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-
-def test_raw_validation_blocks_missing_expected_manifest_resource(tmp_path):
-    project_config = local_flow.load_config.fn()
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="missing-manifest-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    extraction_paths = replace(
-        extraction_paths,
-        census_bds_manifest_paths=(),
-        manifest_paths=tuple(
-            path
-            for path in extraction_paths.manifest_paths
-            if path not in extraction_paths.census_bds_manifest_paths
-        ),
-    )
-
-    with pytest.raises(ValidationFailedError, match="RAW_011"):
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-
-def test_raw_validation_writes_results_for_missing_manifest_reference(tmp_path):
-    project_config = local_flow.load_config.fn()
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="missing-manifest-reference-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    missing_manifest = extraction_paths.census_bds_manifest_paths[0]
-    missing_manifest.unlink()
-
-    with pytest.raises(ValidationFailedError, match="RAW_004"):
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-    validation_payload = json.loads(
-        (context.run_validation_dir / "validation_results.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    failed_ids = {
-        record["validation_check_id"]
-        for record in validation_payload
-        if record["status"] == "failed"
-    }
-
-    assert "RAW_004" in failed_ids
-    assert "RAW_009" in {
-        record["validation_check_id"]
-        for record in validation_payload
-    }
-
-
-def test_raw_validation_writes_results_for_malformed_manifest_json(tmp_path):
-    project_config = local_flow.load_config.fn()
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="malformed-manifest-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    malformed_manifest = extraction_paths.census_bds_manifest_paths[0]
-    malformed_manifest.write_text("{not-json", encoding="utf-8")
-
-    with pytest.raises(ValidationFailedError, match="RAW_014"):
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-    validation_payload = json.loads(
-        (context.run_validation_dir / "validation_results.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    failed_ids = {
-        record["validation_check_id"]
-        for record in validation_payload
-        if record["status"] == "failed"
-    }
-
-    assert "RAW_014" in failed_ids
-    assert "RAW_009" in {
-        record["validation_check_id"]
-        for record in validation_payload
-    }
 
 
 def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
@@ -682,7 +292,7 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
 
     def fake_sba_extract(**kwargs):
         calls.append(("sba", kwargs))
-        return local_flow.SBAExtractionSummary(
+        return SBAExtractionSummary(
             results={},
             manifest_paths={
                 "sba_7a_fy2020_present": _write_manifest_stub(
@@ -697,7 +307,7 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
 
     def fake_census_extract(**kwargs):
         calls.append(("census", kwargs))
-        return local_flow.CensusBDSExtractionSummary(
+        return CensusBDSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
             latest_available_year=2024,
@@ -705,30 +315,34 @@ def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
 
     def fake_bls_extract(**kwargs):
         calls.append(("bls", kwargs))
-        return local_flow.BLSLAUSExtractionSummary(
+        return BLSLAUSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
             latest_observed_month="2024-12-01",
             series_count=51,
         )
 
-    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
-    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
-    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+    monkeypatch.setattr(source_extracts, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(source_extracts, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(source_extracts, "extract_bls_laus", fake_bls_extract)
 
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
 
     assert [name for name, _ in calls] == ["sba", "census", "bls"]
     assert calls[0][1]["config"] == project_config.sba
-    assert calls[0][1]["source_identity"] == project_config.source_identity("sba_foia")
+    assert calls[0][1]["source_identity"] == project_config.source_identity(
+        SBA_FOIA_SOURCE_KEY
+    )
     assert calls[1][1]["config"] == project_config.census_bds
     assert calls[1][1]["source_identity"] == project_config.source_identity(
-        "census_bds"
+        CENSUS_BDS_SOURCE_KEY
     )
     assert calls[1][1]["start_year"] == 2020
     assert calls[1][1]["end_year"] == 2024
     assert calls[2][1]["config"] == project_config.bls_laus
-    assert calls[2][1]["source_identity"] == project_config.source_identity("bls_laus")
+    assert calls[2][1]["source_identity"] == project_config.source_identity(
+        BLS_LAUS_SOURCE_KEY
+    )
     assert calls[2][1]["start_year"] == 2019
     assert calls[2][1]["end_year"] == 2024
     assert len(extraction_paths.sba_7a_manifest_paths) == 1
@@ -757,7 +371,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
     calls = []
 
     def fake_manifest_location(resource_name: str):
-        return local_flow.ArtifactLocation(
+        return ArtifactLocation(
             storage_backend="s3",
             artifact_uri=f"s3://cloud-bucket/manifests/test/{resource_name}.json",
             artifact_key=f"manifests/test/{resource_name}.json",
@@ -767,7 +381,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
 
     def fake_sba_extract(**kwargs):
         calls.append(("sba", kwargs))
-        return local_flow.SBAExtractionSummary(
+        return SBAExtractionSummary(
             results={},
             manifest_paths={
                 "sba_7a_fy2020_present": _write_manifest_stub(
@@ -790,7 +404,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
 
     def fake_census_extract(**kwargs):
         calls.append(("census", kwargs))
-        return local_flow.CensusBDSExtractionSummary(
+        return CensusBDSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
             latest_available_year=2024,
@@ -799,7 +413,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
 
     def fake_bls_extract(**kwargs):
         calls.append(("bls", kwargs))
-        return local_flow.BLSLAUSExtractionSummary(
+        return BLSLAUSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
             latest_observed_month="2024-12-01",
@@ -807,9 +421,9 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
             manifest_location=fake_manifest_location("laus_state_month"),
         )
 
-    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
-    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
-    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+    monkeypatch.setattr(source_extracts, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(source_extracts, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(source_extracts, "extract_bls_laus", fake_bls_extract)
 
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
 
@@ -841,7 +455,7 @@ def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monk
 
     def fake_sba_extract(**kwargs):
         calls.append(("sba", kwargs))
-        return local_flow.SBAExtractionSummary(
+        return SBAExtractionSummary(
             results={},
             manifest_paths={
                 "sba_7a_fy2020_present": _write_manifest_stub(
@@ -856,7 +470,7 @@ def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monk
 
     def fake_census_extract(**kwargs):
         calls.append(("census", kwargs))
-        return local_flow.CensusBDSExtractionSummary(
+        return CensusBDSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
             latest_available_year=2024,
@@ -864,16 +478,16 @@ def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monk
 
     def fake_bls_extract(**kwargs):
         calls.append(("bls", kwargs))
-        return local_flow.BLSLAUSExtractionSummary(
+        return BLSLAUSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
             latest_observed_month="2024-12-01",
             series_count=51,
         )
 
-    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
-    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
-    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+    monkeypatch.setattr(source_extracts, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(source_extracts, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(source_extracts, "extract_bls_laus", fake_bls_extract)
 
     local_flow.extract_sources.fn(context, project_config)
 
@@ -887,7 +501,10 @@ def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
     project_config = local_flow.load_config.fn()
     sources = {
         **project_config.sources,
-        "census_bds": replace(project_config.sources["census_bds"], enabled=False),
+        CENSUS_BDS_SOURCE_KEY: replace(
+            project_config.sources[CENSUS_BDS_SOURCE_KEY],
+            enabled=False,
+        ),
     }
     project_config = replace(project_config, sources=sources)
     context = local_flow.initialize_run.fn(
@@ -907,7 +524,7 @@ def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
 
     def fake_sba_extract(**kwargs):
         calls.append(("sba", kwargs))
-        return local_flow.SBAExtractionSummary(
+        return SBAExtractionSummary(
             results={},
             manifest_paths={
                 "sba_7a_fy2020_present": _write_manifest_stub(
@@ -922,7 +539,7 @@ def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
 
     def fake_census_extract(**kwargs):
         calls.append(("census", kwargs))
-        return local_flow.CensusBDSExtractionSummary(
+        return CensusBDSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "bds_state_year"),
             latest_available_year=2024,
@@ -930,244 +547,70 @@ def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
 
     def fake_bls_extract(**kwargs):
         calls.append(("bls", kwargs))
-        return local_flow.BLSLAUSExtractionSummary(
+        return BLSLAUSExtractionSummary(
             result=None,
             manifest_path=_write_manifest_stub(tmp_path, "laus_state_month"),
             latest_observed_month="2024-12-01",
             series_count=51,
         )
 
-    monkeypatch.setattr(local_flow, "extract_sba_foia", fake_sba_extract)
-    monkeypatch.setattr(local_flow, "extract_census_bds", fake_census_extract)
-    monkeypatch.setattr(local_flow, "extract_bls_laus", fake_bls_extract)
+    monkeypatch.setattr(source_extracts, "extract_sba_foia", fake_sba_extract)
+    monkeypatch.setattr(source_extracts, "extract_census_bds", fake_census_extract)
+    monkeypatch.setattr(source_extracts, "extract_bls_laus", fake_bls_extract)
 
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    expectations = local_flow._raw_validation_expectations(context, project_config)
+    expectations = raw_validation_expectations(
+        context.extract_mode,
+        project_config,
+    )
 
     assert [name for name, _ in calls] == ["sba", "bls"]
     assert extraction_paths.census_bds_manifest_paths == ()
     assert len(extraction_paths.manifest_paths) == 3
+    assert expectations.census_required_variables == ()
     assert expectations.census_expected_state_count == 0
 
 
-def test_validation_expectations_follow_extract_mode(tmp_path):
-    project_config = local_flow.load_config.fn()
-    fixture_context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "fixture-data"),
-        duckdb_path=str(tmp_path / "fixture.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "fixture-profiles"),
-        pipeline_run_id="fixture-run",
-    )
-    live_context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="live",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "live-data"),
-        duckdb_path=str(tmp_path / "live.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "live-profiles"),
-        pipeline_run_id="live-run",
-    )
+def test_lending_pipeline_cli_delegates_to_flow(monkeypatch, capsys):
+    calls = {}
 
-    fixture_expectations = local_flow._raw_validation_expectations(
-        fixture_context,
-        project_config,
-    )
-    live_expectations = local_flow._raw_validation_expectations(
-        live_context,
-        project_config,
-    )
+    def fake_lending_pipeline_flow(**kwargs):
+        calls.update(kwargs)
+        return "data/validation/pipeline_run_id=cli/run_summary.json"
 
-    assert fixture_expectations.census_expected_state_count == 2
-    assert fixture_expectations.bls_expected_series_ids == (
-        "LASST010000000000003",
-        "LASST170000000000003",
-    )
-    assert live_expectations.census_expected_state_count == 51
-    assert len(live_expectations.bls_expected_series_ids) == 51
-    assert "sba_7a_fy2020_present" in live_expectations.sba_required_resource_names
-    assert "sba_504_fy2010_present" in live_expectations.sba_required_resource_names
-
-
-def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        pipeline_run_id="profile-thread-check",
-    )
-
-    local_flow._ensure_dbt_profile(context)
-
-    profile_text = (tmp_path / "profiles" / "profiles.yml").read_text(
-        encoding="utf-8"
-    )
-    assert "threads: 1" in profile_text
-
-
-def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
-    project_config = local_flow.load_config.fn()
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
-        pipeline_run_id="failed-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    broken_manifest = extraction_paths.sba_7a_manifest_paths[0]
-    manifest_payload = json.loads(broken_manifest.read_text(encoding="utf-8"))
-    manifest_payload["local_raw_path"] = str(tmp_path / "missing.csv")
-    broken_manifest.write_text(
-        json.dumps(manifest_payload, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    completed_stages = ["initialize_run", "load_config", "extract_sources", "write_manifests"]
-
-    with pytest.raises(ValidationFailedError) as exc_info:
-        local_flow.validate_raw_outputs.fn(context, extraction_paths, project_config)
-
-    summary_path = local_flow.write_run_summary.fn(
-        context,
-        status="failed",
-        completed_stages=completed_stages + ["write_run_summary"],
-        failed_stage=local_flow._failed_stage(completed_stages),
-        error_message=str(exc_info.value),
-        validation_result_path=context.run_validation_dir / "validation_results.json",
-    )
-
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-
-    assert summary["status"] == "failed"
-    assert summary["failed_stage"] == "validate_raw_outputs"
-    assert "write_run_summary" in summary["completed_stages"]
-    assert summary["validation_result_path"].endswith("validation_results.json")
-
-
-def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(
-    tmp_path,
-    monkeypatch,
-):
-    project_config = local_flow.load_config.fn()
-    s3_client = FakeS3ObjectClient()
     monkeypatch.setattr(
-        local_flow,
-        "_raw_artifact_store",
-        lambda context, bucket, s3_client=None: S3RawArtifactStore(
-            bucket=bucket,
-            s3_client=s3_client or FakeS3ObjectClientHolder.client,
-        )
-        if context.is_cloud_route
-        else local_flow.LocalRawArtifactStore(
-            data_root=context.data_root,
-            s3_bucket=bucket,
-        ),
-    )
-    FakeS3ObjectClientHolder.client = s3_client
-    monkeypatch.setattr(
-        local_flow,
-        "_artifact_store",
-        lambda context, bucket, s3_client=None: local_flow.S3ArtifactStore(
-            bucket=bucket,
-            s3_client=s3_client or FakeS3ObjectClientHolder.client,
-        )
-        if context.is_cloud_route
-        else local_flow.LocalArtifactStore(
-            data_root=context.data_root,
-            s3_bucket=bucket,
-        ),
+        run_lending_pipeline_cli,
+        "lending_pipeline_flow",
+        fake_lending_pipeline_flow,
     )
     monkeypatch.setattr(
-        local_flow,
-        "_artifact_reader",
-        lambda context, s3_client=None: local_flow.ArtifactReader(
-            s3_client=FakeS3ObjectClientHolder.client
-            if context.is_cloud_route
-            else s3_client
-        ),
-    )
-    monkeypatch.setattr(
-        local_flow,
-        "_raw_artifact_reader",
-        lambda context, s3_client=None: RawArtifactReader(
-            s3_client=FakeS3ObjectClientHolder.client
-            if context.is_cloud_route
-            else s3_client
-        ),
-    )
-    context = local_flow.initialize_run.fn(
-        run_mode="cloud",
-        extract_mode="fixture",
-        dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket="unit-test-bucket",
-        pipeline_run_id="cloud-fixture-run",
-    )
-    extraction_paths = local_flow.extract_sources.fn(context, project_config)
-    validation_output = local_flow.validate_raw_outputs.fn(
-        context,
-        extraction_paths,
-        project_config,
-    )
-    validation_results = json.loads(
-        validation_output.local_path.read_text(encoding="utf-8")
-    )
-    manifests = [
-        json.loads(path.read_text(encoding="utf-8"))
-        for path in extraction_paths.manifest_paths
-    ]
-
-    assert {manifest["storage_backend"] for manifest in manifests} == {"s3"}
-    assert all(manifest["local_raw_path"] is None for manifest in manifests)
-    assert all(manifest["raw_uri"].startswith("s3://unit-test-bucket/") for manifest in manifests)
-    assert {result["status"] for result in validation_results} == {"passed"}
-    assert validation_output.artifact_location is not None
-    assert validation_output.artifact_location.artifact_uri.startswith(
-        "s3://unit-test-bucket/validation/pipeline/raw_validation/"
-    )
-    validation_key = validation_output.artifact_location.artifact_key
-    assert json.loads(s3_client.objects[("unit-test-bucket", validation_key)]) == (
-        validation_results
+        sys,
+        "argv",
+        [
+            "run_lending_pipeline",
+            "--run-mode",
+            "cloud",
+            "--extract-mode",
+            "live",
+            "--dbt-target",
+            "prod_snowflake",
+            "--source-start-year",
+            "2020",
+            "--source-end-year",
+            "2024",
+        ],
     )
 
+    run_lending_pipeline_cli.main()
 
-class FakeS3ObjectClientHolder:
-    client: "FakeS3ObjectClient"
-
-
-class FakeBody:
-    def __init__(self, payload: bytes) -> None:
-        self.payload = payload
-
-    def read(self) -> bytes:
-        return self.payload
-
-
-class FakeS3ObjectClient:
-    def __init__(self) -> None:
-        self.objects: dict[tuple[str, str], bytes] = {}
-
-    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> None:
-        self.objects[(Bucket, Key)] = Body
-
-    def get_object(self, *, Bucket: str, Key: str):
-        return {"Body": FakeBody(self.objects[(Bucket, Key)])}
+    assert calls["run_mode"] == "cloud"
+    assert calls["extract_mode"] == "live"
+    assert calls["dbt_target"] == "prod_snowflake"
+    assert calls["source_start_year"] == 2020
+    assert calls["source_end_year"] == 2024
+    assert capsys.readouterr().out == (
+        "data/validation/pipeline_run_id=cli/run_summary.json\n"
+    )
 
 
 def _write_manifest_stub(tmp_path: Path, resource_name: str) -> Path:

@@ -15,7 +15,7 @@ Finish the raw validation cleanup by making manifest loading itself part of the 
 ## Constraints
 
 - Preserve local and cloud route behavior for valid extraction outputs.
-- Preserve existing `RAW_001` through `RAW_013` semantics.
+- Preserve existing `RAW_001` through `RAW_014` semantics.
 - Continue blocking warehouse loading on fail-severity raw validation failures.
 - Keep source-specific payload checks running only when the relevant manifest loaded successfully and the required resource is present.
 - Leave the repo buildable after each task.
@@ -30,13 +30,15 @@ Execution mode: sequential.
 - Current behavior: `check_raw_manifest(...)` can report a missing manifest as `RAW_004`, but `validate_raw_outputs(...)` still preloads all manifests before running that check.
 - Relevant files:
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `pipelines/validation/raw_checks.py`
-  - `pipelines/validation/source_payload_checks.py`
+  - `pipelines/validation/raw_manifest_artifact_validation.py`
+  - source-specific payload check modules under `pipelines/validation/`
   - `pipelines/validation/validation_result.py`
-  - `tests/unit/test_raw_validation.py`
+  - `tests/unit/test_raw_validation_flow.py`
+  - `tests/unit/test_raw_validation_manifest_failures.py`
+  - `tests/unit/test_raw_artifact_manifest_checks.py`
   - `tests/unit/test_prefect_local_flow.py`
 - Baseline commands:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_prefect_local_flow.py`
   - `make test`
 
 ## Acceptance Checks
@@ -60,26 +62,26 @@ Execution mode: sequential.
 ### Task 1: Make Manifest Loading Structured
 
 - Outcome: `validate_raw_outputs(...)` reads manifests through a helper that returns both loaded manifests and validation failures.
-- Builds on or must preserve: `check_raw_manifest(...)`, `check_validation_output_created(...)`, `ValidationOutput`, and current local/cloud artifact readers.
-- Existing logic to reuse or extend: `_read_artifact_text(...)`, `_manifest_references_for_validation(...)`, `_write_validation_output_with_self_check(...)`.
+- Builds on or must preserve: `check_raw_manifest(...)`, `check_validation_output_created(...)`, `RawValidationOutput`, and current local/cloud artifact readers.
+- Existing logic to reuse or extend: `read_artifact_text(...)`, `manifest_references_for_validation(...)`, `write_validation_output_with_self_check(...)`.
 - Public contract or state/data change: missing or malformed manifests now produce validation JSON before blocking load.
 - Depends on: current raw validation cleanup already adding `RAW_004` for standalone missing manifest checks.
 - Likely files/modules:
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `pipelines/validation/raw_checks.py`
+  - `pipelines/validation/raw_manifest_artifact_validation.py`
 - First command/check:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py -q`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_prefect_local_flow.py -q`
 - Change boundary:
   - Do not touch raw load, extraction, dbt, or Power BI.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
-  - The flow should not call `json.loads(_read_artifact_text(...))` over all manifests before structured checks have a chance to run.
+  - The flow should not call `json.loads(read_artifact_text(...))` over all manifests before structured checks have a chance to run.
 - Risk/rollback:
   - If the helper shape becomes too broad, keep it private to `lending_pipeline_flow.py` and only return `loaded_manifests` plus `validation_results`.
 - Stop/ask if:
   - Handling malformed manifests requires changing the public validation result schema.
-- Status: pending
+- Status: completed
 
 ### Task 2: Add Focused Flow Tests For Missing And Malformed Manifests
 
@@ -90,20 +92,21 @@ Execution mode: sequential.
 - Depends on: Task 1 implementation.
 - Likely files/modules:
   - `tests/unit/test_prefect_local_flow.py`
-  - `tests/unit/test_raw_validation.py`
+  - `tests/unit/test_raw_validation_manifest_failures.py`
+  - `tests/unit/test_raw_validation_failure_summary.py`
 - First command/check:
   - `.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py -q`
 - Change boundary:
   - Add tests for local missing manifest and malformed manifest. Add cloud missing manifest only if existing fake S3 helpers make it low-cost.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_validation_failure_summary.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
   - Tests should assert validation output content, not only exception type.
 - Risk/rollback:
   - If cloud fake setup gets noisy, keep the cloud check to the existing S3-backed fixture test and cover local structured failure directly.
 - Stop/ask if:
   - The expected check ID for malformed JSON is unclear after implementation.
-- Status: pending
+- Status: completed
 
 ### Task 3: Remove Duplicate SBA Readability Work Or Reuse Inspection Status
 
@@ -113,32 +116,33 @@ Execution mode: sequential.
 - Public contract or state/data change: no change to result IDs or pass/fail behavior for valid data.
 - Depends on: Task 1, because structured manifest handling should be settled before tuning duplicate reads.
 - Likely files/modules:
-  - `pipelines/validation/source_payload_checks.py`
+  - `pipelines/validation/sba_payload_checks.py`
   - `pipelines/storage/raw_artifacts.py`
-  - `tests/unit/test_raw_validation.py`
+  - `tests/unit/test_raw_validation_payload_checks.py`
+  - `tests/unit/test_raw_validation_sources.py`
 - First command/check:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py -q`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_payload_checks.py tests/unit/test_raw_validation_sources.py -q`
 - Change boundary:
   - Do not remove SBA required-resource checks unless tests prove `RAW_001` fully covers the same caller-visible behavior.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_raw_validation_payload_checks.py tests/unit/test_raw_validation_sources.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
   - Preserve readable/missing resource reporting while reducing redundant storage reads.
 - Risk/rollback:
   - If simplifying the readability check weakens diagnostics, keep the check and use shared inspection state instead.
 - Stop/ask if:
   - Preserving `SBA_RAW_002` requires a broader raw-validation result aggregation redesign.
-- Status: pending
+- Status: completed
 
 ### Task 4: Normalize Validation Threshold Names
 
 - Outcome: Census and BLS validation threshold names match what the checks actually validate.
-- Builds on or must preserve: current config validation tests and `_raw_validation_expectations(...)`.
-- Existing logic to reuse or extend: `config/validation_thresholds.yml`, `ProjectConfig` validation, raw validation expectations.
+- Builds on or must preserve: current config validation tests and `raw_validation_sources.raw_validation_expectations(...)`.
+- Existing logic to reuse or extend: `config/raw_validation_expectations.yml`, `ProjectConfig` validation, raw validation expectations.
 - Public contract or state/data change: config keys may be renamed with backward-compatible support if needed.
 - Depends on: Tasks 1-3 are independent of naming; this can be deferred if it risks widening the cleanup.
 - Likely files/modules:
-  - `config/validation_thresholds.yml`
+  - `config/raw_validation_expectations.yml`
   - `pipelines/utils/config.py`
   - `pipelines/flows/lending_pipeline_flow.py`
   - `tests/unit/test_config.py`
@@ -147,19 +151,19 @@ Execution mode: sequential.
 - Change boundary:
   - Keep this to naming and usage only. Do not add new public-data thresholds.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_raw_validation_flow.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
-  - `census_bds.min_state_count` should describe state coverage directly.
-  - BLS should rely on configured-series checks instead of a redundant `min_state_count` threshold.
+  - `census_bds.expected_state_count` should describe state coverage directly.
+  - BLS should rely on configured-series checks instead of a redundant state-count threshold.
 - Risk/rollback:
   - If config compatibility gets noisy, defer this to a separate issue and keep structured manifest cleanup focused.
 - Stop/ask if:
   - The desired external config key names should remain stable for documentation or recruiter demo scripts.
-- Status: pending
+- Status: completed
 
 ## Final Verification
 
-- `.venv/bin/python -m pytest tests/unit/test_raw_validation.py tests/unit/test_prefect_local_flow.py`
+- `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_sources.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_validation_output.py tests/unit/test_prefect_local_flow.py`
 - `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_t16_pytest_suite_contract.py`
 - `make test`
 - `git diff --check`

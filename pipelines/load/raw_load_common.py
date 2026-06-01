@@ -7,11 +7,11 @@ from typing import Any, Iterable
 import pandas as pd
 
 from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader
-from pipelines.validation.validation_result import (
+from pipelines.validation.validation_failures import (
     ValidationFailedError,
-    ValidationResult,
     assert_no_blocking_failures,
 )
+from pipelines.validation.validation_result import ValidationResult
 
 
 LOCAL_FRAME_SOURCE_TABLE_KINDS = {

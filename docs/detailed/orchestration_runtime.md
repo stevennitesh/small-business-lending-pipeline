@@ -423,7 +423,7 @@ config/
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
 ├── freshness_rules.yml
-└── validation_thresholds.yml
+└── raw_validation_expectations.yml
 ```
 
 ### `config/sources.yml`
@@ -475,23 +475,20 @@ freshness_rules:
 
 These thresholds should be conservative because public datasets have publication lags and revisions.
 
-### `config/validation_thresholds.yml`
+### `config/raw_validation_expectations.yml`
 
-Purpose: define row-count, null-rate, and schema expectations.
+Purpose: define active raw source payload expectations and value bounds.
 
 ```yaml
-validation_thresholds:
+raw_validation_expectations:
   sba_foia:
-    min_total_rows: 100000
-    required_column_groups:
-      - approval_date
-      - borrower_state
-      - gross_approval_amount
-      - lender_name
+    required_programs:
+      - 7a
+      - 504
 
   census_bds:
-    min_state_count: 51
-    required_columns:
+    expected_state_count: 51
+    required_variables:
       - YEAR
       - state
       - ESTAB
@@ -671,8 +668,8 @@ Dashboard-ready outputs
 - source file exists;
 - API response is valid JSON where applicable;
 - file size greater than zero;
-- required columns or variables exist;
-- row count above minimum threshold;
+- required resources, variables, or series IDs exist;
+- manifest row count is captured;
 - checksum generated;
 - manifest written;
 - validation result written.

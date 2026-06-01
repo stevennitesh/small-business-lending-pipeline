@@ -231,7 +231,7 @@ def export_powerbi_tables(
 
     export_paths: dict[str, str] = {}
     with duckdb.connect(str(resolved_duckdb_path)) as connection:
-        row_counts = _validate_powerbi_export_tables(connection)
+        row_counts = validate_powerbi_export_tables(connection)
         _remove_stale_csv_exports(resolved_export_dir)
 
         for table_name in BI_EXPORT_TABLES:
@@ -250,7 +250,7 @@ def export_powerbi_tables(
     )
 
 
-def _validate_powerbi_export_tables(
+def validate_powerbi_export_tables(
     connection: duckdb.DuckDBPyConnection,
 ) -> dict[str, int]:
     row_counts: dict[str, int] = {}

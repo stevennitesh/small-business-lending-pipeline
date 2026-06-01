@@ -16,10 +16,8 @@ from pipelines.load.snowflake_loader import (
 )
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.utils.hashing import calculate_sha256, hash_schema
-from pipelines.validation.validation_result import (
-    ValidationResult,
-    write_validation_results,
-)
+from pipelines.validation.validation_result import ValidationResult
+from pipelines.validation.validation_result_io import write_validation_results
 
 
 def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):

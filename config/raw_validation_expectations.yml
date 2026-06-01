@@ -1,12 +1,12 @@
-validation_thresholds:
+raw_validation_expectations:
   sba_foia:
     required_programs:
       - 7a
       - 504
 
   census_bds:
-    min_state_count: 51
-    required_columns:
+    expected_state_count: 51
+    required_variables:
       - YEAR
       - state
       - ESTAB

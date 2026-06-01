@@ -6,11 +6,9 @@ import tomllib
 from pathlib import Path
 
 from pipelines.extract.census_bds_extract import validate_bds_response
-from pipelines.validation.source_payload_checks import (
-    check_bls_laus_payload,
-    check_census_bds_payload,
-    check_sba_required_resources,
-)
+from pipelines.validation.bls_laus_payload_checks import check_bls_laus_payload
+from pipelines.validation.census_bds_payload_checks import check_census_bds_payload
+from pipelines.validation.sba_payload_checks import check_sba_required_resources
 
 
 FIXTURE_DIR = Path("tests/fixtures")

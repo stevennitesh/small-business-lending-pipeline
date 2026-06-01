@@ -1,0 +1,16 @@
+from __future__ import annotations
+
+from pipelines.utils.source_resources import (
+    BLS_LAUS_RESOURCE_NAME,
+    BLS_LAUS_SOURCE_KEY,
+    CENSUS_BDS_RESOURCE_NAME,
+    CENSUS_BDS_SOURCE_KEY,
+    SBA_FOIA_SOURCE_KEY,
+)
+
+
+SBA_REQUIRED_RESOURCES_NAME = "sba_required_resources"
+VALIDATION_RESULTS_SOURCE_SYSTEM = "pipeline"
+VALIDATION_RESULTS_DATASET_NAME = "raw_validation"
+VALIDATION_RESULTS_RESOURCE_NAME = "validation_results"
+VALIDATION_RESULTS_FILENAME = f"{VALIDATION_RESULTS_RESOURCE_NAME}.json"

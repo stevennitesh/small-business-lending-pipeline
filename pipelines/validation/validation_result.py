@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any
 
+from pipelines.utils.config import SourceIdentity
 from pipelines.utils.dates import utc_now_iso
+from pipelines.validation.raw_validation_check_catalog import ValidationCheckDefinition
+from pipelines.validation.raw_validation_models import RawManifest
+from pipelines.validation.raw_validation_resources import (
+    VALIDATION_RESULTS_DATASET_NAME,
+    VALIDATION_RESULTS_SOURCE_SYSTEM,
+)
 
 
 VALID_SEVERITIES = frozenset({"fail", "warning", "info"})
 VALID_STATUSES = frozenset({"passed", "warning", "failed"})
-
-
-class ValidationFailedError(RuntimeError):
-    pass
 
 
 @dataclass(frozen=True)
@@ -56,11 +57,12 @@ def make_validation_result(
     passed: bool,
     expected_value: Any,
     observed_value: Any,
-    passed_message: str,
     failed_message: str,
+    passed_message: str | None = None,
     validation_scope: str = "raw",
 ) -> ValidationResult:
     status = "passed" if passed else ("warning" if severity == "warning" else "failed")
+    resolved_passed_message = passed_message or f"{check_name} check passed."
     return ValidationResult(
         pipeline_run_id=pipeline_run_id,
         validation_check_id=validation_check_id,
@@ -74,37 +76,114 @@ def make_validation_result(
         status=status,
         expected_value=expected_value,
         observed_value=observed_value,
-        message=passed_message if passed else failed_message,
+        message=resolved_passed_message if passed else failed_message,
         checked_at_utc=utc_now_iso(),
     )
 
 
-def write_validation_results(
-    results: list[ValidationResult],
-    path: Path | str,
-) -> Path:
-    payload = validation_results_to_json_bytes(results)
-    output_path = Path(path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(payload)
-    return output_path
+def make_check_validation_result(
+    *,
+    pipeline_run_id: str,
+    check_definition: ValidationCheckDefinition,
+    source_system: str,
+    source_dataset: str,
+    source_resource_name: str,
+    passed: bool,
+    expected_value: Any,
+    observed_value: Any,
+    failed_message: str,
+    passed_message: str | None = None,
+    validation_scope: str = "raw",
+) -> ValidationResult:
+    return make_validation_result(
+        pipeline_run_id=pipeline_run_id,
+        validation_check_id=check_definition.validation_check_id,
+        validation_scope=validation_scope,
+        source_system=source_system,
+        source_dataset=source_dataset,
+        source_resource_name=source_resource_name,
+        check_name=check_definition.check_name,
+        check_type=check_definition.check_type,
+        severity=check_definition.severity,
+        passed=passed,
+        expected_value=expected_value,
+        observed_value=observed_value,
+        failed_message=failed_message,
+        passed_message=passed_message,
+    )
 
 
-def validation_results_to_json_bytes(results: list[ValidationResult]) -> bytes:
-    return (
-        json.dumps([result.to_dict() for result in results], indent=2, sort_keys=True)
-        + "\n"
-    ).encode("utf-8")
+def make_manifest_validation_result(
+    *,
+    manifest: RawManifest,
+    check_definition: ValidationCheckDefinition,
+    passed: bool,
+    expected_value: Any,
+    observed_value: Any,
+    failed_message: str,
+) -> ValidationResult:
+    return make_check_validation_result(
+        pipeline_run_id=str(manifest.get("pipeline_run_id", "unknown")),
+        check_definition=check_definition,
+        source_system=str(manifest.get("source_system", "unknown")),
+        source_dataset=str(manifest.get("dataset_name", "unknown")),
+        source_resource_name=str(manifest.get("resource_name", "unknown")),
+        passed=passed,
+        expected_value=expected_value,
+        observed_value=observed_value,
+        failed_message=failed_message,
+    )
 
 
-def assert_no_blocking_failures(results: list[ValidationResult]) -> None:
-    failures = [
-        result
-        for result in results
-        if result.severity == "fail" and result.status == "failed"
-    ]
-    if failures:
-        failed_ids = ", ".join(result.validation_check_id for result in failures)
-        raise ValidationFailedError(
-            f"Critical raw validation failures block loading: {failed_ids}"
-        )
+def make_pipeline_validation_result(
+    *,
+    pipeline_run_id: str,
+    check_definition: ValidationCheckDefinition,
+    source_resource_name: str,
+    passed: bool,
+    expected_value: Any,
+    observed_value: Any,
+    failed_message: str,
+    source_system: str = VALIDATION_RESULTS_SOURCE_SYSTEM,
+    source_dataset: str = VALIDATION_RESULTS_DATASET_NAME,
+    passed_message: str | None = None,
+) -> ValidationResult:
+    return make_check_validation_result(
+        pipeline_run_id=pipeline_run_id,
+        check_definition=check_definition,
+        validation_scope="raw",
+        source_system=source_system,
+        source_dataset=source_dataset,
+        source_resource_name=source_resource_name,
+        passed=passed,
+        expected_value=expected_value,
+        observed_value=observed_value,
+        failed_message=failed_message,
+        passed_message=passed_message,
+    )
+
+
+def make_source_identity_validation_result(
+    *,
+    check_definition: ValidationCheckDefinition,
+    source_identity: SourceIdentity,
+    source_resource_name: str,
+    passed: bool,
+    expected_value: Any,
+    observed_value: Any,
+    failed_message: str,
+    pipeline_run_id: str | None = None,
+    manifest: RawManifest | None = None,
+) -> ValidationResult:
+    return make_check_validation_result(
+        pipeline_run_id=pipeline_run_id
+        or str((manifest or {}).get("pipeline_run_id", "unknown")),
+        check_definition=check_definition,
+        source_system=source_identity.source_system,
+        source_dataset=source_identity.dataset_name,
+        source_resource_name=source_resource_name,
+        passed=passed,
+        expected_value=expected_value,
+        observed_value=observed_value,
+        failed_message=failed_message,
+    )

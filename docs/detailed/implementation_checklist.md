@@ -32,7 +32,7 @@ This checklist converts the approved project specification into a practical buil
 - [ ] Create `config/census_bds_variables.yml`.
 - [ ] Create `config/bls_laus_state_series.yml`.
 - [ ] Create `config/freshness_rules.yml`.
-- [ ] Create `config/validation_thresholds.yml`.
+- [ ] Create `config/raw_validation_expectations.yml`.
 - [ ] Create dbt seed `ref_state.csv`.
 - [ ] Create dbt seed `ref_naics.csv`.
 - [ ] Create dbt seed `ref_bls_laus_state_series.csv`.
