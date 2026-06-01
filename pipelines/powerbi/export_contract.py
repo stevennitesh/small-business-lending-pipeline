@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from pipelines.powerbi.export_schema import (
     PROHIBITED_EXPORT_FIELDS,
     REQUIRED_EXPORT_COLUMNS,
 )
+
+
+_SAFE_TABLE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -41,9 +45,10 @@ def export_powerbi_tables(
         _remove_stale_csv_exports(resolved_export_dir)
 
         for table_name in BI_EXPORT_TABLES:
+            safe_table_name = _validate_table_identifier(table_name)
             export_path = resolved_export_dir / f"{table_name}.csv"
             connection.execute(
-                f"copy (select * from {table_name}) to ? (header, delimiter ',')",
+                f"copy (select * from {safe_table_name}) to ? (header, delimiter ',')",
                 [str(export_path)],
             )
             export_paths[table_name] = str(export_path)
@@ -80,21 +85,22 @@ def validate_powerbi_table_contract(
     connection: duckdb.DuckDBPyConnection,
     table_name: str,
 ) -> None:
-    columns = _columns(connection, table_name)
+    safe_table_name = _validate_table_identifier(table_name)
+    columns = _columns(connection, safe_table_name)
     if not columns:
-        raise ValueError(f"BI export table {table_name} does not exist.")
+        raise ValueError(f"BI export table {safe_table_name} does not exist.")
 
-    missing_columns = sorted(REQUIRED_EXPORT_COLUMNS[table_name] - columns)
+    missing_columns = sorted(REQUIRED_EXPORT_COLUMNS[safe_table_name] - columns)
     if missing_columns:
         raise ValueError(
-            f"BI export table {table_name} is missing required columns: "
+            f"BI export table {safe_table_name} is missing required columns: "
             + ", ".join(missing_columns)
         )
 
     prohibited_columns = sorted(PROHIBITED_EXPORT_FIELDS & columns)
     if prohibited_columns:
         raise ValueError(
-            f"BI export table {table_name} includes prohibited fields: "
+            f"BI export table {safe_table_name} includes prohibited fields: "
             + ", ".join(prohibited_columns)
         )
 
@@ -115,4 +121,16 @@ def _columns(connection: duckdb.DuckDBPyConnection, table_name: str) -> set[str]
 
 
 def _row_count(connection: duckdb.DuckDBPyConnection, table_name: str) -> int:
-    return int(connection.execute(f"select count(*) from {table_name}").fetchone()[0])
+    safe_table_name = _validate_table_identifier(table_name)
+    return int(
+        connection.execute(f"select count(*) from {safe_table_name}").fetchone()[0]
+    )
+
+
+def _validate_table_identifier(table_name: str) -> str:
+    if (
+        table_name not in BI_EXPORT_TABLES
+        or not _SAFE_TABLE_IDENTIFIER.fullmatch(table_name)
+    ):
+        raise ValueError(f"Invalid BI export table identifier: {table_name}")
+    return table_name

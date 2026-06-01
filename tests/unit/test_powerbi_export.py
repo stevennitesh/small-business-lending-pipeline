@@ -6,7 +6,10 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from pipelines.powerbi.export_contract import export_powerbi_tables
+from pipelines.powerbi.export_contract import (
+    export_powerbi_tables,
+    validate_powerbi_table_contract,
+)
 from pipelines.powerbi.export_schema import (
     BI_EXPORT_TABLES,
     PROHIBITED_EXPORT_FIELDS,
@@ -91,6 +94,15 @@ def test_powerbi_export_contract_has_required_columns_for_every_table():
     assert all(REQUIRED_EXPORT_COLUMNS[table_name] for table_name in BI_EXPORT_TABLES)
     for table_name, columns in REQUIRED_EXPORT_COLUMNS.items():
         assert not (PROHIBITED_EXPORT_FIELDS & columns), table_name
+
+
+def test_powerbi_export_contract_rejects_unknown_table_identifier(tmp_path):
+    duckdb_path = tmp_path / "warehouse.duckdb"
+    _create_bi_fixture_warehouse(duckdb_path)
+
+    with duckdb.connect(str(duckdb_path)) as connection:
+        with pytest.raises(ValueError, match="Invalid BI export table identifier"):
+            validate_powerbi_table_contract(connection, "bi_program_mix;drop table x")
 
 
 def test_export_powerbi_tables_writes_canonical_filter_csvs(tmp_path):

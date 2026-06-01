@@ -88,7 +88,7 @@ def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monk
 
     local_flow.extract_sources.fn(context, project_config)
 
-    bls_call = [kwargs for name, kwargs in calls if name == "bls"][0]
+    bls_call = next(kwargs for name, kwargs in calls if name == "bls")
     assert project_config.bls_laus.start_year == 1990
     assert bls_call["start_year"] == 1989
     assert bls_call["end_year"] == 2024

@@ -46,7 +46,7 @@ def write_raw_metadata_tables(
         manifest_frame
     )
 
-    validation_frame = metadata_frames.validation
+    validation_frame = metadata_frames.validation.copy()
     for column_name in ("expected_value", "observed_value"):
         validation_frame[column_name] = validation_frame[column_name].map(
             _snowflake_cell_value

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from pipelines.utils.config import load_project_config
@@ -27,7 +29,7 @@ def test_project_config_rejects_invalid_source_boolean(tmp_path):
 
     config_dir = mutate_config_file(tmp_path, SOURCES_CONFIG_FILE, set_invalid_enabled)
 
-    with pytest.raises(ValueError, match="sources.sba_foia.enabled"):
+    with pytest.raises(ValueError, match=re.escape("sources.sba_foia.enabled")):
         load_project_config(config_dir)
 
 
@@ -59,7 +61,7 @@ def test_sba_resource_config_rejects_invalid_boolean(tmp_path):
         set_invalid_required,
     )
 
-    with pytest.raises(ValueError, match="sba_resources.resources"):
+    with pytest.raises(ValueError, match=re.escape("sba_resources.resources")):
         load_project_config(config_dir)
 
 
@@ -87,5 +89,5 @@ def test_census_bds_config_rejects_invalid_boolean():
         "variables": [{"name": "YEAR", "required": "sometimes"}],
     }
 
-    with pytest.raises(ValueError, match="census_bds.variables"):
+    with pytest.raises(ValueError, match=re.escape("census_bds.variables")):
         parse_census_bds_config(config)

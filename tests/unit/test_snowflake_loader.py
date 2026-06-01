@@ -9,6 +9,8 @@ from pipelines.load.snowflake_loader import (
     SnowflakeRawLoadError,
     load_raw_extracts_to_snowflake_from_s3,
 )
+from pipelines.load.raw_load_local_sources import load_local_source_frame
+from pipelines.load.snowflake_stage_load import create_s3_stage_load_objects
 from pipelines.load.snowflake_stage_sources import snowflake_csv_columns
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.validation.validation_result_io import write_validation_results
@@ -112,37 +114,39 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     sql = " ".join(connection.sql_statements)
     for schema_name in REQUIRED_SCHEMAS:
         assert f"create schema if not exists {schema_name}" in connection.sql_statements
-    assert "create or replace file format RAW.RAW_CSV_LOAD_FORMAT" in sql
-    assert "create or replace file format RAW.RAW_JSON_FORMAT" in sql
-    assert "create or replace stage RAW.RAW_S3_STAGE" in sql
-    assert "storage_integration = SBL_S3_INT" in sql
+    assert 'create or replace file format "RAW"."RAW_CSV_LOAD_FORMAT"' in sql
+    assert 'create or replace file format "RAW"."RAW_JSON_FORMAT"' in sql
+    assert 'create or replace stage "RAW"."RAW_S3_STAGE"' in sql
+    assert 'storage_integration = "SBL_S3_INT"' in sql
     assert "escape_unenclosed_field = none" in sql
     assert "error_on_column_count_mismatch = false" in sql
-    assert "create or replace table RAW.RAW_SBA_7A_FOIA (" in sql
-    assert "LOANNUMBER varchar" in sql
-    assert "GROSSAPPROVAL varchar" in sql
+    assert 'create or replace table "RAW"."RAW_SBA_7A_FOIA" (' in sql
+    assert '"LOANNUMBER" varchar' in sql
+    assert '"GROSSAPPROVAL" varchar' in sql
     assert "using template" not in sql
-    assert "RAW_URI varchar" in sql
-    assert "update RAW.RAW_SBA_7A_FOIA set" in sql
-    assert "STORAGE_BACKEND = 's3'" in sql
+    assert '"RAW_URI" varchar' in sql
+    assert 'update "RAW"."RAW_SBA_7A_FOIA" set' in sql
+    assert "\"STORAGE_BACKEND\" = 's3'" in sql
     assert "lateral flatten(input => PAYLOAD)" in sql
     assert "array_position(to_variant('YEAR'), headers)" in sql
     assert "array_position(to_variant('state'), headers)" in sql
     assert "lateral flatten(input => PAYLOAD:normalized_rows)" in sql
     assert "row.value" not in sql
-    assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a.csv'" in sql
-    assert "RAW_URI = 's3://bucket/raw/sba/7a_504_foia/sba_7a_part2.csv'" in sql
-    first_copy = sql.index("@RAW.RAW_S3_STAGE/raw/sba/7a_504_foia/sba_7a.csv")
-    first_update = sql.index("SOURCE_RESOURCE_NAME = 'sba_7a_fy2020_present'")
-    second_copy = sql.index("@RAW.RAW_S3_STAGE/raw/sba/7a_504_foia/sba_7a_part2.csv")
-    second_update = sql.index("SOURCE_RESOURCE_NAME = 'sba_7a_fy2000_fy2009'")
+    assert '"RAW_URI" = \'s3://bucket/raw/sba/7a_504_foia/sba_7a.csv\'' in sql
+    assert '"RAW_URI" = \'s3://bucket/raw/sba/7a_504_foia/sba_7a_part2.csv\'' in sql
+    first_copy = sql.index("'@\"RAW\".\"RAW_S3_STAGE\"/raw/sba/7a_504_foia/sba_7a.csv'")
+    first_update = sql.index('"SOURCE_RESOURCE_NAME" = \'sba_7a_fy2020_present\'')
+    second_copy = sql.index(
+        "'@\"RAW\".\"RAW_S3_STAGE\"/raw/sba/7a_504_foia/sba_7a_part2.csv'"
+    )
+    second_update = sql.index('"SOURCE_RESOURCE_NAME" = \'sba_7a_fy2000_fy2009\'')
     assert first_copy < first_update < second_copy < second_update
-    assert "create or replace table RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
-    assert "insert into RAW.RAW_CENSUS_BDS_STATE_YEAR" in sql
-    assert "create or replace table RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
-    assert "insert into RAW.RAW_BLS_LAUS_STATE_MONTH" in sql
+    assert 'create or replace table "RAW"."RAW_CENSUS_BDS_STATE_YEAR"' in sql
+    assert 'insert into "RAW"."RAW_CENSUS_BDS_STATE_YEAR"' in sql
+    assert 'create or replace table "RAW"."RAW_BLS_LAUS_STATE_MONTH"' in sql
+    assert 'insert into "RAW"."RAW_BLS_LAUS_STATE_MONTH"' in sql
     assert any(
-        statement.startswith("copy into RAW.RAW_SBA_7A_FOIA")
+        statement.startswith('copy into "RAW"."RAW_SBA_7A_FOIA"')
         for statement in connection.sql_statements
     )
     assert summary.table_row_counts["RAW.RAW_SBA_7A_FOIA"] == 3
@@ -244,6 +248,30 @@ def test_snowflake_csv_columns_are_stable_text_identifiers():
         "COLUMN_4",
         "GROSS_APPROVAL_2",
     ]
+
+
+def test_snowflake_csv_columns_prevent_suffix_collisions():
+    assert snowflake_csv_columns(["A", "A", "A_2"]) == ["A", "A_2", "A_2_2"]
+
+
+def test_snowflake_stage_setup_rejects_invalid_identifiers():
+    with pytest.raises(SnowflakeRawLoadError, match="Invalid Snowflake identifier"):
+        create_s3_stage_load_objects(
+            FakeSnowflakeConnection(),
+            raw_schema="RAW;drop schema RAW",
+            bucket="unit-test-bucket",
+            stage_name="RAW_S3_STAGE",
+            storage_integration=None,
+        )
+
+
+def test_local_source_frame_rejects_empty_manifests():
+    with pytest.raises(SnowflakeRawLoadError, match="No manifests provided"):
+        load_local_source_frame(
+            "raw_census_bds_state_year",
+            [],
+            error_cls=SnowflakeRawLoadError,
+        )
 
 
 def test_snowflake_loader_blocks_failed_validation(tmp_path):

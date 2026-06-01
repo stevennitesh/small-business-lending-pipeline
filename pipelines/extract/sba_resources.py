@@ -137,4 +137,7 @@ def _title_tokens(value: str) -> list[str]:
 def _optional_int(value: Any) -> int | None:
     if value in ("", None):
         return None
-    return int(value)
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None

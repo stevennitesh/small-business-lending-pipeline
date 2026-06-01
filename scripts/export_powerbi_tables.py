@@ -41,8 +41,8 @@ def main() -> None:
 
 __all__ = [
     "BI_EXPORT_TABLES",
-    "PROHIBITED_EXPORT_FIELDS",
     "PowerBIExportSummary",
+    "PROHIBITED_EXPORT_FIELDS",
     "REQUIRED_EXPORT_COLUMNS",
     "export_powerbi_tables",
     "main",

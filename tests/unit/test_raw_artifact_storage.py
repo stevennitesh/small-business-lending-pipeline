@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from botocore.exceptions import ClientError
+
 from pipelines.storage.raw_artifacts import (
     LocalRawArtifactStore,
     RawArtifactReader,
@@ -101,3 +104,31 @@ def test_raw_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
     assert isinstance(local_reader, RawArtifactReader)
     assert local_reader.s3_client is None
     assert cloud_reader.s3_client is client
+
+
+def test_raw_artifact_reader_distinguishes_missing_from_permission_errors():
+    missing_reader = RawArtifactReader(s3_client=FakeS3ObjectClient())
+    missing_manifest = {
+        "storage_backend": "s3",
+        "raw_uri": "s3://bucket/missing.csv",
+    }
+
+    assert missing_reader.inspect(missing_manifest).exists is False
+
+    permission_reader = RawArtifactReader(s3_client=AccessDeniedS3ObjectClient())
+    with pytest.raises(ClientError, match="AccessDenied"):
+        permission_reader.exists(missing_manifest)
+
+
+class AccessDeniedS3ObjectClient:
+    def get_object(self, *, Bucket: str, Key: str, **kwargs):
+        del Bucket, Key, kwargs
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "AccessDenied",
+                    "Message": "Access denied",
+                }
+            },
+            "GetObject",
+        )

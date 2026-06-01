@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from botocore.exceptions import ClientError
+
 from pipelines.storage.artifact_models import (
     ArtifactLocation,
     ArtifactReference,
@@ -24,7 +26,9 @@ class RawArtifactReader:
     def inspect(self, manifest: dict[str, Any]) -> RawArtifactInspection:
         try:
             payload = self.read_bytes(manifest)
-        except Exception:
+        except (ClientError, FileNotFoundError) as exc:
+            if not _is_missing_artifact_error(exc):
+                raise
             return RawArtifactInspection(
                 exists=False,
                 size_bytes=0,
@@ -69,7 +73,9 @@ class ArtifactReader:
     def exists(self, location: ArtifactLocation) -> bool:
         try:
             self.read_bytes(location)
-        except Exception:
+        except (ClientError, FileNotFoundError) as exc:
+            if not _is_missing_artifact_error(exc):
+                raise
             return False
         return True
 
@@ -109,6 +115,13 @@ def artifact_uri(reference: ArtifactReference) -> str:
     if isinstance(reference, ArtifactLocation):
         return reference.artifact_uri
     return str(reference)
+
+
+def _is_missing_artifact_error(exc: ClientError | FileNotFoundError) -> bool:
+    if isinstance(exc, FileNotFoundError):
+        return True
+    error_code = str(exc.response.get("Error", {}).get("Code", ""))
+    return error_code in {"404", "NoSuchKey", "NotFound", "NotFoundException"}
 
 
 def raw_artifact_reader_for_route(

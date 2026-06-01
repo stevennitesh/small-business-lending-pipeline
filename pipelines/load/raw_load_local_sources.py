@@ -27,6 +27,8 @@ def load_local_source_frame(
     table_kind = LOCAL_FRAME_SOURCE_TABLE_KINDS.get(table_key)
     if table_kind is None:
         raise error_cls(f"Unsupported raw table: {table_name}")
+    if not manifests:
+        raise error_cls(f"No manifests provided for raw table: {table_name}")
 
     frames = [
         _with_metadata(_read_manifest_frame(table_kind, manifest), manifest)

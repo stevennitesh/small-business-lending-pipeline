@@ -75,10 +75,10 @@ def test_validate_bds_response_rejects_missing_required_variables():
 
 
 def test_validate_bds_response_rejects_duplicate_state_year_grain():
-    duplicate_response = (
-        census_bds_fixture_response()
-        + [census_bds_fixture_response()[1]]
-    )
+    duplicate_response = [
+        *census_bds_fixture_response(),
+        census_bds_fixture_response()[1],
+    ]
 
     with pytest.raises(ValueError, match="Duplicate Census BDS state-year rows"):
         validate_bds_response(

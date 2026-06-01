@@ -19,7 +19,7 @@ class S3UploadItem:
 
 
 def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem | None:
-    if str(manifest.get("storage_backend", "local")).lower() == "s3":
+    if _is_s3_backed(manifest):
         return None
     local_path = Path(str(manifest["local_raw_path"]))
     return S3UploadItem(
@@ -113,6 +113,10 @@ def build_run_upload_items(
             for artifact_path in dbt_artifact_paths
         )
     return items
+
+
+def _is_s3_backed(manifest: dict[str, Any]) -> bool:
+    return str(manifest.get("storage_backend", "local")).casefold() == "s3"
 
 
 def _partitioned_artifact_key(

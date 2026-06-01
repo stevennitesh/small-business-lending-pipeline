@@ -129,6 +129,19 @@ def test_resolve_sba_resources_matches_expected_metadata():
     assert resolved["sba_foia_data_dictionary"].file_format == "xlsx"
 
 
+def test_resolve_sba_resources_ignores_invalid_metadata_size():
+    metadata = sample_sba_package_metadata()
+    for resource in metadata["resources"]:
+        if resource["url"].endswith("7a_2020_present.csv"):
+            resource["size"] = "not-a-number"
+    resolved = resolve_sba_resources(
+        (sba_7a_fy2020_present_spec(),),
+        metadata,
+    )
+
+    assert resolved["sba_7a_fy2020_present"].source_size_bytes is None
+
+
 def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
     metadata = sample_sba_package_metadata()
