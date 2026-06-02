@@ -47,9 +47,9 @@ def validate_raw_outputs_for_flow(
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> RawValidationOutput:
     """Build raw-validation inputs from flow context and extraction paths."""
-    validation_bucket = (
-        (s3_bucket_resolver or resolve_s3_bucket)(context) or "local-validation"
-    )
+    validation_bucket = (s3_bucket_resolver or resolve_s3_bucket)(
+        context
+    ) or "local-validation"
     validation_artifact_store = (
         artifact_store_factory(context, validation_bucket)
         if artifact_store_factory is not None

@@ -64,7 +64,9 @@ def test_export_powerbi_tables_removes_stale_contract_csvs_only(tmp_path):
     assert unrelated_note.read_text(encoding="utf-8") == "keep me\n"
 
 
-def test_export_powerbi_tables_does_not_remove_stale_csvs_when_validation_fails(tmp_path):
+def test_export_powerbi_tables_does_not_remove_stale_csvs_when_validation_fails(
+    tmp_path,
+):
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     export_dir.mkdir()
@@ -166,7 +168,9 @@ def test_export_powerbi_tables_rejects_empty_or_unsafe_exports(tmp_path):
 
     _create_bi_fixture_warehouse(duckdb_path)
     with duckdb.connect(str(duckdb_path)) as connection:
-        connection.execute("alter table bi_program_mix add column borrower_name varchar")
+        connection.execute(
+            "alter table bi_program_mix add column borrower_name varchar"
+        )
 
     with pytest.raises(ValueError, match="prohibited fields"):
         export_powerbi_tables(

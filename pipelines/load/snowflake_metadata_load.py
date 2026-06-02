@@ -73,8 +73,8 @@ def write_raw_metadata_tables(
         table_name=raw_table_names["raw_pipeline_run_summary"],
         write_pandas_func=write_pandas_func,
     )
-    table_row_counts[f"{raw_schema}.{raw_table_names['raw_pipeline_run_summary']}"] = len(
-        summary_frame
+    table_row_counts[f"{raw_schema}.{raw_table_names['raw_pipeline_run_summary']}"] = (
+        len(summary_frame)
     )
 
 
@@ -109,7 +109,9 @@ def _snowflake_frame(frame: pd.DataFrame) -> pd.DataFrame:
         snowflake_frame[column_name] = snowflake_frame[column_name].map(
             _snowflake_cell_value
         )
-    snowflake_frame.columns = [str(column).upper() for column in snowflake_frame.columns]
+    snowflake_frame.columns = [
+        str(column).upper() for column in snowflake_frame.columns
+    ]
     return snowflake_frame
 
 

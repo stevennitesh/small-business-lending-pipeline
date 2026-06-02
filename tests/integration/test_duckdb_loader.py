@@ -77,9 +77,7 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
         "s3_raw_uri",
         "sha256_checksum",
     } <= columns
-    assert loaded_s3_uri == [
-        ("s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",)
-    ]
+    assert loaded_s3_uri == [("s3://bucket/raw/sba/7a_504_foia/sba_7a.csv",)]
     expected_manifest = json.loads(manifests["sba_7a"][0].read_text(encoding="utf-8"))
     assert loaded_raw_uri == [("local", expected_manifest["raw_uri"])]
 
@@ -178,10 +176,7 @@ def test_load_raw_extracts_uses_duckdb_native_csv_for_sba_csvs(
 def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path):
     manifests = build_raw_load_fixture_manifests(tmp_path)
     partitioned_dir = (
-        tmp_path
-        / "raw"
-        / "ingestion_date=2026-05-07"
-        / "pipeline_run_id=run-123"
+        tmp_path / "raw" / "ingestion_date=2026-05-07" / "pipeline_run_id=run-123"
     )
     partitioned_dir.mkdir(parents=True)
     partitioned_sba_7a = partitioned_dir / "sba_7a.csv"

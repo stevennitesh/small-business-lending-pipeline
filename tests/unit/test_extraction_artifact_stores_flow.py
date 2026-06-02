@@ -28,28 +28,40 @@ def test_raw_artifact_store_matches_route(tmp_path):
         pipeline_run_id="cloud-route",
     )
 
-    assert raw_artifact_store_for_route(
-        cloud_route=local_context.is_cloud_route,
-        data_root=local_context.data_root,
-        bucket="local-live",
-    ).storage_backend == "local"
-    assert raw_artifact_store_for_route(
-        cloud_route=cloud_context.is_cloud_route,
-        data_root=cloud_context.data_root,
-        bucket="cloud-bucket",
-        s3_client=object(),
-    ).storage_backend == "s3"
-    assert artifact_store_for_route(
-        cloud_route=local_context.is_cloud_route,
-        data_root=local_context.data_root,
-        bucket="local-live",
-    ).storage_backend == "local"
-    assert artifact_store_for_route(
-        cloud_route=cloud_context.is_cloud_route,
-        data_root=cloud_context.data_root,
-        bucket="cloud-bucket",
-        s3_client=object(),
-    ).storage_backend == "s3"
+    assert (
+        raw_artifact_store_for_route(
+            cloud_route=local_context.is_cloud_route,
+            data_root=local_context.data_root,
+            bucket="local-live",
+        ).storage_backend
+        == "local"
+    )
+    assert (
+        raw_artifact_store_for_route(
+            cloud_route=cloud_context.is_cloud_route,
+            data_root=cloud_context.data_root,
+            bucket="cloud-bucket",
+            s3_client=object(),
+        ).storage_backend
+        == "s3"
+    )
+    assert (
+        artifact_store_for_route(
+            cloud_route=local_context.is_cloud_route,
+            data_root=local_context.data_root,
+            bucket="local-live",
+        ).storage_backend
+        == "local"
+    )
+    assert (
+        artifact_store_for_route(
+            cloud_route=cloud_context.is_cloud_route,
+            data_root=cloud_context.data_root,
+            bucket="cloud-bucket",
+            s3_client=object(),
+        ).storage_backend
+        == "s3"
+    )
 
 
 def test_extraction_bucket_rejects_missing_cloud_bucket(tmp_path):

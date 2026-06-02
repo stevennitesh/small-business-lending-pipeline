@@ -92,8 +92,7 @@ def _validate_enabled_sources_have_policy(
     missing_sources = sorted(enabled_source_names - policy_source_names)
     if missing_sources:
         raise ValueError(
-            f"Enabled sources are missing {policy_name}: "
-            + ", ".join(missing_sources)
+            f"Enabled sources are missing {policy_name}: " + ", ".join(missing_sources)
         )
 
 

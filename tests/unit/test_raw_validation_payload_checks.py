@@ -134,10 +134,7 @@ def test_census_payload_check_requires_variables_and_state_coverage():
     )
 
     assert all(result.status == "passed" for result in results)
-    assert [
-        (result.validation_check_id, result.check_name)
-        for result in results
-    ] == [
+    assert [(result.validation_check_id, result.check_name) for result in results] == [
         (BDS_REQUIRED_VARIABLES.validation_check_id, BDS_REQUIRED_VARIABLES.check_name),
         (BDS_STATE_COVERAGE.validation_check_id, BDS_STATE_COVERAGE.check_name),
     ]
@@ -171,10 +168,7 @@ def test_bls_payload_check_requires_expected_series_and_valid_months():
     )
 
     assert all(result.status == "passed" for result in results)
-    assert [
-        (result.validation_check_id, result.check_name)
-        for result in results
-    ] == [
+    assert [(result.validation_check_id, result.check_name) for result in results] == [
         (BLS_EXPECTED_SERIES.validation_check_id, BLS_EXPECTED_SERIES.check_name),
         (BLS_MONTHLY_PERIODS.validation_check_id, BLS_MONTHLY_PERIODS.check_name),
         (BLS_NUMERIC_VALUES.validation_check_id, BLS_NUMERIC_VALUES.check_name),

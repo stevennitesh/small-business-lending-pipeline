@@ -136,14 +136,11 @@ def require_manifest_groups(
     error_cls: type[Exception],
 ) -> None:
     empty_group_names = [
-        table_name
-        for table_name, manifests in manifest_groups.items()
-        if not manifests
+        table_name for table_name, manifests in manifest_groups.items() if not manifests
     ]
     if empty_group_names:
         raise error_cls(
-            "Required manifest group is empty: "
-            + ", ".join(sorted(empty_group_names))
+            "Required manifest group is empty: " + ", ".join(sorted(empty_group_names))
         )
 
 
@@ -165,9 +162,7 @@ def flatten_manifest_groups(
     manifest_groups: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
     return [
-        manifest
-        for manifests in manifest_groups.values()
-        for manifest in manifests
+        manifest for manifests in manifest_groups.values() for manifest in manifests
     ]
 
 

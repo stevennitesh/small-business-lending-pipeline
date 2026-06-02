@@ -45,9 +45,7 @@ def check_bls_laus_payload(
         or not period_regex.fullmatch(str(row.get("period", "")))
     ]
     non_numeric_rows = [
-        row
-        for row in rows
-        if not isinstance(row.get("value"), int | float)
+        row for row in rows if not isinstance(row.get("value"), int | float)
     ]
     out_of_range_rows = [
         row

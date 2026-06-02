@@ -60,14 +60,17 @@ def test_s3_artifact_store_writes_partitioned_validation_result():
         "validation_results.json"
     )
     assert store.read_bytes(location) == b"[]\n"
-    assert s3_client.objects[
-        (
-            "cloud-bucket",
-            "validation/bls/laus/laus_state_month/"
-            "ingestion_date=2026-05-17/pipeline_run_id=cloud-run/"
-            "validation_results.json",
-        )
-    ] == b"[]\n"
+    assert (
+        s3_client.objects[
+            (
+                "cloud-bucket",
+                "validation/bls/laus/laus_state_month/"
+                "ingestion_date=2026-05-17/pipeline_run_id=cloud-run/"
+                "validation_results.json",
+            )
+        ]
+        == b"[]\n"
+    )
 
 
 def test_artifact_store_for_route_selects_local_or_s3_store(tmp_path):

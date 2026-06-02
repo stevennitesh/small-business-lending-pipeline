@@ -34,15 +34,11 @@ def test_source_key_for_resource_maps_sba_configured_logical_resource():
 
 
 def test_source_key_for_resource_maps_census_bds_resource():
-    assert source_key_for_resource(CENSUS_BDS_RESOURCE_NAME) == (
-        CENSUS_BDS_SOURCE_KEY
-    )
+    assert source_key_for_resource(CENSUS_BDS_RESOURCE_NAME) == (CENSUS_BDS_SOURCE_KEY)
 
 
 def test_source_key_for_resource_maps_bls_laus_resource():
-    assert source_key_for_resource(BLS_LAUS_RESOURCE_NAME) == (
-        BLS_LAUS_SOURCE_KEY
-    )
+    assert source_key_for_resource(BLS_LAUS_RESOURCE_NAME) == (BLS_LAUS_SOURCE_KEY)
 
 
 def test_source_key_for_resource_rejects_unknown_resource():

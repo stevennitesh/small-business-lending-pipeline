@@ -131,9 +131,7 @@ def manifest_to_json_bytes(manifest: ExtractionManifest | dict[str, Any]) -> byt
         if isinstance(manifest, ExtractionManifest)
         else validate_manifest(manifest)
     )
-    return (json.dumps(manifest_dict, indent=2, sort_keys=True) + "\n").encode(
-        "utf-8"
-    )
+    return (json.dumps(manifest_dict, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def build_local_manifest_path(

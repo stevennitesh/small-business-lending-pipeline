@@ -38,9 +38,12 @@ def test_project_config_loader_returns_named_configs():
         project_config.freshness_rules[SBA_FOIA_SOURCE_KEY]["expected_cadence"]
         == "quarterly"
     )
-    assert project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY][
-        "expected_state_count"
-    ] == 51
+    assert (
+        project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY][
+            "expected_state_count"
+        ]
+        == 51
+    )
     assert project_config.source_identity(BLS_LAUS_SOURCE_KEY).source_system == "bls"
     assert project_config.source_identity(BLS_LAUS_SOURCE_KEY).dataset_name == "laus"
 

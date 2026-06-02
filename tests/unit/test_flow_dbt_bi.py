@@ -38,11 +38,12 @@ def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
     assert dbt_bi.snowflake_bi_schema() == "CUSTOM_BI"
 
 
-def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(monkeypatch):
+def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(
+    monkeypatch,
+):
     connection = FakeSnowflakeConnection(
         table_counts={
-            f'"SMOKE_BI"."{table_name.upper()}"': 1
-            for table_name in BI_EXPORT_TABLES
+            f'"SMOKE_BI"."{table_name.upper()}"': 1 for table_name in BI_EXPORT_TABLES
         }
     )
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI")

@@ -76,10 +76,13 @@ def test_parse_fresh_dbt_slow_nodes_ignores_stale_run_results(tmp_path):
     )
     mtime_before = run_results_path.stat().st_mtime
 
-    assert parse_fresh_dbt_slow_nodes(
-        run_results_path,
-        run_results_mtime_before=mtime_before,
-    ) == []
+    assert (
+        parse_fresh_dbt_slow_nodes(
+            run_results_path,
+            run_results_mtime_before=mtime_before,
+        )
+        == []
+    )
 
 
 def test_directory_size_bytes_and_diff_disk_sizes(tmp_path):

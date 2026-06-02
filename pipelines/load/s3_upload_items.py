@@ -138,5 +138,7 @@ def _single_run_partition(manifests: list[dict[str, Any]]) -> tuple[str, str]:
         for manifest in manifests
     }
     if len(partitions) != 1:
-        raise ValueError("dbt artifact uploads require one ingestion_date and pipeline_run_id.")
+        raise ValueError(
+            "dbt artifact uploads require one ingestion_date and pipeline_run_id."
+        )
     return next(iter(partitions))

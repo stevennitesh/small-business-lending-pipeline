@@ -35,13 +35,7 @@ class RawManifest(TypedDict):
 
 
 JsonPayload: TypeAlias = (
-    None
-    | bool
-    | int
-    | float
-    | str
-    | list["JsonPayload"]
-    | dict[str, "JsonPayload"]
+    None | bool | int | float | str | list["JsonPayload"] | dict[str, "JsonPayload"]
 )
 CensusBdsPayload: TypeAlias = list[list[str]]
 BlsLausPayload: TypeAlias = dict[str, JsonPayload]
@@ -71,8 +65,7 @@ class RawManifestIndex:
         return cls(
             manifests=manifest_list,
             manifests_by_resource={
-                str(manifest["resource_name"]): manifest
-                for manifest in manifest_list
+                str(manifest["resource_name"]): manifest for manifest in manifest_list
             },
         )
 

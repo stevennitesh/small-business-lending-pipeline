@@ -33,8 +33,7 @@ def check_sba_required_resources(
     """Validate that required SBA resources have manifests and readable raw files."""
     manifest_list = list(manifests)
     resources_by_name = {
-        str(manifest.get("resource_name")): manifest
-        for manifest in manifest_list
+        str(manifest.get("resource_name")): manifest for manifest in manifest_list
     }
     missing_resources = sorted(set(required_resource_names) - set(resources_by_name))
     unreadable_resources = _unreadable_required_resources(

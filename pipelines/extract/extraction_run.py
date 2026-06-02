@@ -361,9 +361,7 @@ def write_json_extraction_artifact(
         filename=spec.raw_filename,
         source_identity=spec.source_identity,
     )
-    raw_payload_bytes = (json.dumps(spec.raw_payload, indent=2) + "\n").encode(
-        "utf-8"
-    )
+    raw_payload_bytes = (json.dumps(spec.raw_payload, indent=2) + "\n").encode("utf-8")
     extraction_run.raw_artifact_store.write_bytes(location, raw_payload_bytes)
     return write_raw_extraction_artifact(
         extraction_run=extraction_run,

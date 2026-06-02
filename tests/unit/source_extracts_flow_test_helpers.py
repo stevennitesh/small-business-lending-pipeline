@@ -51,12 +51,8 @@ def install_source_extractor_fakes(
         summary_kwargs: dict[str, Any] = {}
         if manifest_locations:
             summary_kwargs["manifest_locations"] = {
-                "sba_7a_fy2020_present": manifest_location(
-                    "sba_7a_fy2020_present"
-                ),
-                "sba_504_fy2010_present": manifest_location(
-                    "sba_504_fy2010_present"
-                ),
+                "sba_7a_fy2020_present": manifest_location("sba_7a_fy2020_present"),
+                "sba_504_fy2010_present": manifest_location("sba_504_fy2010_present"),
             }
         return SBAExtractionSummary(
             results={},

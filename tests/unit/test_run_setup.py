@@ -108,9 +108,7 @@ def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):
 
     dbt_bi.ensure_dbt_profile(context)
 
-    profile_text = (tmp_path / "profiles" / "profiles.yml").read_text(
-        encoding="utf-8"
-    )
+    profile_text = (tmp_path / "profiles" / "profiles.yml").read_text(encoding="utf-8")
     assert "threads: 1" in profile_text
 
 

@@ -19,7 +19,9 @@ def test_powerbi_model_contract_validates():
 
     assert summary.table_count == len(BI_EXPORT_TABLES)
     assert set(summary.filter_coverage) == REQUIRED_FILTERS
-    assert summary.artifact_status == "source_model_ready_pbix_requires_power_bi_desktop"
+    assert (
+        summary.artifact_status == "source_model_ready_pbix_requires_power_bi_desktop"
+    )
     assert summary.to_dict()["model_path"] == str(MODEL_PATH)
 
 
@@ -55,12 +57,12 @@ def test_powerbi_relationships_are_single_direction_one_to_many():
     model = _read_model()
 
     assert model["relationships"]
-    assert {
-        relationship["cardinality"] for relationship in model["relationships"]
-    } == {"one_to_many"}
-    assert {relationship["cross_filter"] for relationship in model["relationships"]} == {
-        "single"
+    assert {relationship["cardinality"] for relationship in model["relationships"]} == {
+        "one_to_many"
     }
+    assert {
+        relationship["cross_filter"] for relationship in model["relationships"]
+    } == {"single"}
     assert {
         relationship["from"].split(".", maxsplit=1)[0]
         for relationship in model["relationships"]

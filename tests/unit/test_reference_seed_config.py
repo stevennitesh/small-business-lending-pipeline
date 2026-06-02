@@ -32,10 +32,7 @@ def test_ref_bls_laus_seed_maps_every_reporting_state_to_series():
 
     assert len(series_rows) == 51
     assert series_fips == state_fips
-    assert all(
-        re.fullmatch(r"LASST\d{15}", row["series_id"])
-        for row in series_rows
-    )
+    assert all(re.fullmatch(r"LASST\d{15}", row["series_id"]) for row in series_rows)
 
 
 def test_bls_laus_config_and_seed_match():
@@ -44,14 +41,8 @@ def test_bls_laus_config_and_seed_match():
         "series"
     ]
     seed_series = _read_seed("ref_bls_laus_state_series.csv")
-    config_pairs = {
-        (row["state_fips"], row["series_id"])
-        for row in config_series
-    }
-    seed_pairs = {
-        (row["state_fips"], row["series_id"])
-        for row in seed_series
-    }
+    config_pairs = {(row["state_fips"], row["series_id"]) for row in config_series}
+    seed_pairs = {(row["state_fips"], row["series_id"]) for row in seed_series}
 
     assert config_pairs == seed_pairs
 

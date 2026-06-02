@@ -36,17 +36,14 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
     assert len(extraction_paths.manifest_paths) == 4
     assert all(Path(path).is_file() for path in extraction_paths.manifest_paths)
     assert {record["status"] for record in validation_payload} == {"passed"}
-    assert "RAW_009" in {
-        record["validation_check_id"]
-        for record in validation_payload
-    }
+    assert "RAW_009" in {record["validation_check_id"] for record in validation_payload}
     bls_manifest = read_json(extraction_paths.bls_laus_manifest_paths[0])
     bls_payload = read_json(Path(bls_manifest["local_raw_path"]))
     assert bls_manifest["row_count"] == 4
-    assert {
-        str(row["year"])
-        for row in bls_payload["normalized_rows"]
-    } == {"2025", "2026"}
+    assert {str(row["year"]) for row in bls_payload["normalized_rows"]} == {
+        "2025",
+        "2026",
+    }
 
 
 def test_fixture_manifests_use_source_config_identity(tmp_path):

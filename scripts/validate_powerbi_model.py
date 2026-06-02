@@ -17,7 +17,9 @@ from pipelines.powerbi.model_contract import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate the Power BI model contract.")
+    parser = argparse.ArgumentParser(
+        description="Validate the Power BI model contract."
+    )
     parser.add_argument("--model-path", default=str(MODEL_PATH))
     args = parser.parse_args()
 

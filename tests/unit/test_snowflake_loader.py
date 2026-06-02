@@ -131,14 +131,14 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
     assert "array_position(to_variant('state'), headers)" in sql
     assert "lateral flatten(input => PAYLOAD:normalized_rows)" in sql
     assert "row.value" not in sql
-    assert '"RAW_URI" = \'s3://bucket/raw/sba/7a_504_foia/sba_7a.csv\'' in sql
-    assert '"RAW_URI" = \'s3://bucket/raw/sba/7a_504_foia/sba_7a_part2.csv\'' in sql
-    first_copy = sql.index("'@\"RAW\".\"RAW_S3_STAGE\"/raw/sba/7a_504_foia/sba_7a.csv'")
-    first_update = sql.index('"SOURCE_RESOURCE_NAME" = \'sba_7a_fy2020_present\'')
+    assert "\"RAW_URI\" = 's3://bucket/raw/sba/7a_504_foia/sba_7a.csv'" in sql
+    assert "\"RAW_URI\" = 's3://bucket/raw/sba/7a_504_foia/sba_7a_part2.csv'" in sql
+    first_copy = sql.index('\'@"RAW"."RAW_S3_STAGE"/raw/sba/7a_504_foia/sba_7a.csv\'')
+    first_update = sql.index("\"SOURCE_RESOURCE_NAME\" = 'sba_7a_fy2020_present'")
     second_copy = sql.index(
-        "'@\"RAW\".\"RAW_S3_STAGE\"/raw/sba/7a_504_foia/sba_7a_part2.csv'"
+        '\'@"RAW"."RAW_S3_STAGE"/raw/sba/7a_504_foia/sba_7a_part2.csv\''
     )
-    second_update = sql.index('"SOURCE_RESOURCE_NAME" = \'sba_7a_fy2000_fy2009\'')
+    second_update = sql.index("\"SOURCE_RESOURCE_NAME\" = 'sba_7a_fy2000_fy2009'")
     assert first_copy < first_update < second_copy < second_update
     assert 'create or replace table "RAW"."RAW_CENSUS_BDS_STATE_YEAR"' in sql
     assert 'insert into "RAW"."RAW_CENSUS_BDS_STATE_YEAR"' in sql
@@ -232,9 +232,11 @@ def test_snowflake_s3_loader_accepts_cloud_artifact_references(tmp_path):
 
     assert summary.table_row_counts["RAW.RAW_INGESTION_MANIFEST"] == 4
     assert summary.table_row_counts["RAW.RAW_VALIDATION_RESULT"] == 1
-    assert writer.written_frames["RAW_INGESTION_MANIFEST"]["RAW_URI"].str.startswith(
-        "s3://bucket/raw/"
-    ).all()
+    assert (
+        writer.written_frames["RAW_INGESTION_MANIFEST"]["RAW_URI"]
+        .str.startswith("s3://bucket/raw/")
+        .all()
+    )
 
 
 def test_snowflake_csv_columns_are_stable_text_identifiers():

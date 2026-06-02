@@ -47,15 +47,13 @@ class ValidationArtifactStore(Protocol):
         ingestion_date: str,
         pipeline_run_id: str,
         filename: str,
-    ) -> ArtifactLocation:
-        ...
+    ) -> ArtifactLocation: ...
 
     def write_bytes(
         self,
         location: ArtifactLocation,
         payload: bytes,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -134,9 +132,7 @@ def _validation_output_destination(
     if not is_cloud_route:
         return _ValidationOutputDestination(local_path=validation_path)
     ingestion_date = (
-        str(manifests[0]["ingestion_date"])
-        if manifests
-        else run_started_at_utc[:10]
+        str(manifests[0]["ingestion_date"]) if manifests else run_started_at_utc[:10]
     )
     store = _validation_artifact_store(
         is_cloud_route=is_cloud_route,

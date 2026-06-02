@@ -165,9 +165,7 @@ def normalize_bls_response(
                         "period": str(observation["period"]),
                         "observed_month": observed_month.isoformat(),
                         "value": value,
-                        "footnotes": _clean_footnotes(
-                            observation.get("footnotes", [])
-                        ),
+                        "footnotes": _clean_footnotes(observation.get("footnotes", [])),
                     }
                 )
 

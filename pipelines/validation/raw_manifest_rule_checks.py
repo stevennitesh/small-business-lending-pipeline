@@ -111,7 +111,9 @@ def check_required_manifest_resource(
     source_identity: SourceIdentity,
 ) -> ValidationResult:
     """Validate that a required resource name appears in loaded manifests."""
-    resource_names = sorted(str(manifest.get("resource_name")) for manifest in manifests)
+    resource_names = sorted(
+        str(manifest.get("resource_name")) for manifest in manifests
+    )
     return make_pipeline_validation_result(
         pipeline_run_id=pipeline_run_id,
         check_definition=RAW_REQUIRED_MANIFEST_RESOURCE,

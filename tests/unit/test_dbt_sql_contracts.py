@@ -114,8 +114,7 @@ def wildcard_projection_findings(sql: str) -> list[tuple[int, str]]:
             findings.append((line_number, "*"))
 
         findings.extend(
-            (line_number, match.group(0))
-            for match in ALIAS_STAR_RE.finditer(code_line)
+            (line_number, match.group(0)) for match in ALIAS_STAR_RE.finditer(code_line)
         )
         previous_code_line = stripped.lower()
 
@@ -127,9 +126,8 @@ def _is_standalone_star_after_select(
     previous_code_line: str,
 ) -> bool:
     normalized_previous = previous_code_line.lower()
-    return (
-        normalized_previous in {"select", "select distinct"}
-        and (stripped_line == "*" or stripped_line.startswith("*,"))
+    return normalized_previous in {"select", "select distinct"} and (
+        stripped_line == "*" or stripped_line.startswith("*,")
     )
 
 

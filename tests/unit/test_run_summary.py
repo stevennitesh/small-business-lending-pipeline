@@ -32,10 +32,9 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
     summary = _read_summary(summary_path)
 
     assert set(EXTRA_SBA_KPI_BI_TABLES) <= set(summary["bi_row_counts"])
-    assert {
-        f"{table_name}.csv"
-        for table_name in EXTRA_SBA_KPI_BI_TABLES
-    } <= {Path(path).name for path in summary["export_paths"]}
+    assert {f"{table_name}.csv" for table_name in EXTRA_SBA_KPI_BI_TABLES} <= {
+        Path(path).name for path in summary["export_paths"]
+    }
 
 
 def test_flow_summary_records_stage_durations(tmp_path):
@@ -98,9 +97,7 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
             "raw_schema": "RAW",
             "table_row_counts": {"RAW.RAW_SBA_7A_FOIA": 1},
         },
-        manifest_artifact_uris=[
-            "s3://unit-test-bucket/manifests/sba/manifest.json"
-        ],
+        manifest_artifact_uris=["s3://unit-test-bucket/manifests/sba/manifest.json"],
     )
     summary = _read_summary(summary_path)
 

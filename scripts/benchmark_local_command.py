@@ -106,7 +106,9 @@ def directory_size_bytes(path: Path) -> int | None:
 
     total = 0
     for root, dirs, files in os.walk(path):
-        dirs[:] = [directory for directory in dirs if not Path(root, directory).is_symlink()]
+        dirs[:] = [
+            directory for directory in dirs if not Path(root, directory).is_symlink()
+        ]
         for filename in files:
             file_path = Path(root, filename)
             if not file_path.is_symlink():
@@ -160,7 +162,9 @@ def get_child_max_rss_bytes() -> int | None:
     return max_rss * 1024
 
 
-def parse_dbt_slow_nodes(run_results_path: Path, *, limit: int = 10) -> list[dict[str, Any]]:
+def parse_dbt_slow_nodes(
+    run_results_path: Path, *, limit: int = 10
+) -> list[dict[str, Any]]:
     if not run_results_path.exists():
         return []
 
@@ -210,7 +214,9 @@ def write_benchmark_outputs(
     json_path = base_path.with_suffix(".json")
     text_path = base_path.with_suffix(".txt")
 
-    json_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    json_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     text_path.write_text(render_text_summary(result), encoding="utf-8")
     return json_path, text_path
 

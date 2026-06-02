@@ -148,10 +148,7 @@ def test_manifest_validation_rejects_missing_required_fields():
 
 
 def test_manifest_validation_rejects_non_utc_timestamp():
-    manifest = {
-        field_name: "value"
-        for field_name in REQUIRED_MANIFEST_FIELDS
-    }
+    manifest = {field_name: "value" for field_name in REQUIRED_MANIFEST_FIELDS}
     manifest.update(
         {
             "extracted_at_utc": "2026-05-06T12:00:00",

@@ -28,6 +28,7 @@ from tests.unit.extract_test_helpers import (
 
 CENSUS_BDS_CONFIG_PATH = config_path(CENSUS_BDS_CONFIG_FILE)
 
+
 def test_load_census_bds_config_from_yaml():
     config = load_census_bds_config(CENSUS_BDS_CONFIG_PATH)
 
@@ -139,7 +140,9 @@ def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatc
         "raw/census/bds/grain=state_year/ingestion_date=2026-05-07/"
         "pipeline_run_id=run-123/bds_state_year_2022_2023.json"
     )
-    assert read_json_file(summary.result.local_raw_path) == census_bds_fixture_response()
+    assert (
+        read_json_file(summary.result.local_raw_path) == census_bds_fixture_response()
+    )
     assert summary.result.manifest.row_count == 3
     assert summary.latest_available_year == 2023
 
@@ -231,8 +234,9 @@ def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
     assert summary.manifest_location.artifact_uri.startswith(
         "s3://cloud-bucket/manifests/census/bds/"
     )
-    assert json.loads(
-        s3_client.objects[
-            ("cloud-bucket", summary.manifest_location.artifact_key)
-        ]
-    )["latest_available_year"] == 2023
+    assert (
+        json.loads(
+            s3_client.objects[("cloud-bucket", summary.manifest_location.artifact_key)]
+        )["latest_available_year"]
+        == 2023
+    )

@@ -171,8 +171,7 @@ def _resolve_sba_extraction_inputs(
     )
 
     return SBAExtractionInputs(
-        source_identity=source_identity
-        or _default_sba_source_identity(active_config),
+        source_identity=source_identity or _default_sba_source_identity(active_config),
         specs=tuple(specs) if specs is not None else active_config.resources,
         package_url=active_package_url,
         package_metadata=metadata,

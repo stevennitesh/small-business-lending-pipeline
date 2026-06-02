@@ -43,7 +43,9 @@ class PowerBIModelValidation:
         return asdict(self)
 
 
-def validate_powerbi_model(model_path: Path | str = MODEL_PATH) -> PowerBIModelValidation:
+def validate_powerbi_model(
+    model_path: Path | str = MODEL_PATH,
+) -> PowerBIModelValidation:
     resolved_model_path = Path(model_path)
     model = json.loads(resolved_model_path.read_text(encoding="utf-8"))
 
@@ -90,7 +92,9 @@ def _validate_table_source(table_name: str, table: dict) -> None:
 
     snowflake_table = table.get("snowflake_table", "")
     if ".RAW." in snowflake_table.upper():
-        raise ValueError(f"Power BI table {table_name} points at a raw Snowflake table.")
+        raise ValueError(
+            f"Power BI table {table_name} points at a raw Snowflake table."
+        )
     if "${SNOWFLAKE_BI_SCHEMA}" not in snowflake_table:
         raise ValueError(
             f"Power BI table {table_name} must point at the Snowflake BI schema."
@@ -131,7 +135,9 @@ def _validate_relationships(model: dict, tables: dict[str, dict]) -> None:
         if relationship.get("cardinality") != "one_to_many":
             raise ValueError(f"Unsupported relationship cardinality: {relationship}")
         if relationship.get("cross_filter") != "single":
-            raise ValueError(f"Unsupported relationship filter direction: {relationship}")
+            raise ValueError(
+                f"Unsupported relationship filter direction: {relationship}"
+            )
 
         from_table = relationship["from"].split(".", maxsplit=1)[0]
         to_table = relationship["to"].split(".", maxsplit=1)[0]
@@ -140,7 +146,9 @@ def _validate_relationships(model: dict, tables: dict[str, dict]) -> None:
                 f"Relationship does not start from a dimension: {relationship}"
             )
         if to_table not in table_names:
-            raise ValueError(f"Relationship target table is not declared: {relationship}")
+            raise ValueError(
+                f"Relationship target table is not declared: {relationship}"
+            )
 
 
 def _validate_measures(model: dict, table_names: set[str]) -> None:

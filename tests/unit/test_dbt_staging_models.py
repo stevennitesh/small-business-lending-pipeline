@@ -16,9 +16,7 @@ STAGING_MODELS = {
     "stg_ingestion_manifest": Path(
         "dbt/models/staging/audit/stg_ingestion_manifest.sql"
     ),
-    "stg_validation_result": Path(
-        "dbt/models/staging/audit/stg_validation_result.sql"
-    ),
+    "stg_validation_result": Path("dbt/models/staging/audit/stg_validation_result.sql"),
     "stg_pipeline_run_summary": Path(
         "dbt/models/staging/audit/stg_pipeline_run_summary.sql"
     ),
@@ -113,7 +111,9 @@ STAGING_SCHEMA = Path("dbt/models/staging/schema.yml")
 
 
 def test_required_staging_models_exist():
-    missing_paths = [str(path) for path in STAGING_MODELS.values() if not path.is_file()]
+    missing_paths = [
+        str(path) for path in STAGING_MODELS.values() if not path.is_file()
+    ]
 
     assert missing_paths == []
 
@@ -181,12 +181,13 @@ def test_staging_schema_documents_and_tests_source_identity_contract():
 
         assert "route-neutral" in columns["raw_uri"]["description"].lower()
         assert "lineage" in columns["raw_file_path"]["description"]
-        assert "not used as staged row identity" in columns["raw_file_path"]["description"]
+        assert (
+            "not used as staged row identity" in columns["raw_file_path"]["description"]
+        )
         assert "checksum" in columns["sha256_checksum"]["description"].lower()
 
     manifest_columns = {
-        column["name"]: column
-        for column in models["stg_ingestion_manifest"]["columns"]
+        column["name"]: column for column in models["stg_ingestion_manifest"]["columns"]
     }
     for column_name in MANIFEST_IDENTITY_COLUMNS:
         assert column_name in manifest_columns
@@ -194,7 +195,10 @@ def test_staging_schema_documents_and_tests_source_identity_contract():
 
     assert "lineage" in manifest_columns["local_raw_path"]["description"]
     assert "lineage" in manifest_columns["s3_raw_uri"]["description"]
-    assert "not used as the cross-route identity" in manifest_columns["local_raw_path"]["description"]
+    assert (
+        "not used as the cross-route identity"
+        in manifest_columns["local_raw_path"]["description"]
+    )
 
 
 def test_sba_staging_models_null_out_negative_approval_amounts():

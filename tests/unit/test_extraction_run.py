@@ -66,8 +66,7 @@ def test_resolve_api_key_prefers_explicit_value_then_environment(monkeypatch):
     monkeypatch.setenv("UNIT_TEST_API_KEY", "from-env")
 
     assert (
-        resolve_api_key("explicit-key", env_var="UNIT_TEST_API_KEY")
-        == "explicit-key"
+        resolve_api_key("explicit-key", env_var="UNIT_TEST_API_KEY") == "explicit-key"
     )
     assert resolve_api_key(None, env_var="UNIT_TEST_API_KEY") == "from-env"
 

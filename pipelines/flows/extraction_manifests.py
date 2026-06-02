@@ -44,10 +44,7 @@ class ExtractionPaths:
             source_specific_references = (
                 *(self.sba_7a_manifest_locations or self.sba_7a_manifest_paths),
                 *(self.sba_504_manifest_locations or self.sba_504_manifest_paths),
-                *(
-                    self.census_bds_manifest_locations
-                    or self.census_bds_manifest_paths
-                ),
+                *(self.census_bds_manifest_locations or self.census_bds_manifest_paths),
                 *(self.bls_laus_manifest_locations or self.bls_laus_manifest_paths),
             )
             if source_specific_references:

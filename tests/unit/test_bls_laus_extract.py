@@ -39,6 +39,7 @@ from tests.unit.extract_test_helpers import (
 
 BLS_LAUS_CONFIG_PATH = config_path(BLS_LAUS_CONFIG_FILE)
 
+
 def test_load_bls_laus_config_from_yaml():
     config = load_bls_laus_config(BLS_LAUS_CONFIG_PATH)
 
@@ -143,10 +144,7 @@ def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
 def test_normalize_bls_response_excludes_annual_and_parses_values():
     rows = normalize_bls_response(
         [bls_laus_fixture_response()],
-        series_by_id={
-            series.series_id: series
-            for series in bls_laus_series_configs()
-        },
+        series_by_id={series.series_id: series for series in bls_laus_series_configs()},
     )
 
     assert rows == [
@@ -320,8 +318,9 @@ def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
     assert summary.manifest_location.artifact_uri.startswith(
         "s3://cloud-bucket/manifests/bls/laus/"
     )
-    assert json.loads(
-        s3_client.objects[
-            ("cloud-bucket", summary.manifest_location.artifact_key)
-        ]
-    )["latest_observed_month"] == "2023-02-01"
+    assert (
+        json.loads(
+            s3_client.objects[("cloud-bucket", summary.manifest_location.artifact_key)]
+        )["latest_observed_month"]
+        == "2023-02-01"
+    )

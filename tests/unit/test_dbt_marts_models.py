@@ -10,17 +10,13 @@ DIMENSION_MODELS = {
     "dim_state": Path("dbt/models/marts/dimensions/dim_state.sql"),
     "dim_naics": Path("dbt/models/marts/dimensions/dim_naics.sql"),
     "dim_lender": Path("dbt/models/marts/dimensions/dim_lender.sql"),
-    "dim_loan_program": Path(
-        "dbt/models/marts/dimensions/dim_loan_program.sql"
-    ),
+    "dim_loan_program": Path("dbt/models/marts/dimensions/dim_loan_program.sql"),
     "dim_source_file": Path("dbt/models/marts/dimensions/dim_source_file.sql"),
 }
 
 FACT_MODELS = {
     "fact_sba_loans": Path("dbt/models/marts/facts/fact_sba_loans.sql"),
-    "fact_laus_state_month": Path(
-        "dbt/models/marts/facts/fact_laus_state_month.sql"
-    ),
+    "fact_laus_state_month": Path("dbt/models/marts/facts/fact_laus_state_month.sql"),
     "fact_bds_state_year": Path("dbt/models/marts/facts/fact_bds_state_year.sql"),
 }
 
@@ -78,14 +74,11 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
     assert "relationships" in dbt_test_names(
         column(fact_sba, "loan_program_key")["data_tests"]
     )
-    assert "approval date is available" in column(
-        fact_sba, "approval_year"
-    )["description"]
+    assert (
+        "approval date is available" in column(fact_sba, "approval_year")["description"]
+    )
 
-    singular_tests = {
-        path.name
-        for path in Path("dbt/tests").glob("*.sql")
-    }
+    singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {
         "assert_unknown_lender_exists.sql",
         "assert_unknown_naics_exists.sql",
@@ -102,15 +95,18 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
     assert "storage_backend" in dim_source_file_columns
     assert "pipeline_run_id" in dim_source_file_columns
     assert "source_resource_name" in dim_source_file_columns
-    assert "route-neutral raw_uri" in dim_source_file_columns[
-        "source_file_key"
-    ]["description"]
-    assert "route-neutral raw artifact identity" in dim_source_file_columns[
-        "raw_uri"
-    ]["description"].lower()
-    assert "not used as mart identity" in dim_source_file_columns[
-        "raw_file_path"
-    ]["description"]
+    assert (
+        "route-neutral raw_uri"
+        in dim_source_file_columns["source_file_key"]["description"]
+    )
+    assert (
+        "route-neutral raw artifact identity"
+        in dim_source_file_columns["raw_uri"]["description"].lower()
+    )
+    assert (
+        "not used as mart identity"
+        in dim_source_file_columns["raw_file_path"]["description"]
+    )
 
 
 def test_source_file_dimension_uses_raw_uri_as_identity():
@@ -224,9 +220,7 @@ def test_loan_status_group_seed_is_documented_and_conservative():
     rows = [dict(zip(header, row.split(","))) for row in seed_rows[1:]]
     status_keys = {row["loan_status_key"] for row in rows}
     credit_loss_statuses = {
-        row["loan_status_key"]
-        for row in rows
-        if row["is_credit_loss_status"] == "true"
+        row["loan_status_key"] for row in rows if row["is_credit_loss_status"] == "true"
     }
 
     assert "ref_loan_status_group" in seeds

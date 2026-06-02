@@ -51,7 +51,9 @@ def test_lending_schema_declares_grains_and_kpi_tests():
 
     for model_name, model in models.items():
         assert model["meta"]["grain"]
-        assert any("unique_combination_of_columns" in test for test in model["data_tests"])
+        assert any(
+            "unique_combination_of_columns" in test for test in model["data_tests"]
+        )
 
         columns = {column["name"]: column for column in model["columns"]}
         assert "average_loan_size" in columns
@@ -101,9 +103,10 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         column["name"]: column
         for column in models["mart_lending_lender_state_period"]["columns"]
     }
-    assert "known-lender approved dollars" in lender_columns[
-        "lender_approved_amount_share"
-    ]["description"]
+    assert (
+        "known-lender approved dollars"
+        in lender_columns["lender_approved_amount_share"]["description"]
+    )
 
     singular_tests = {path.name for path in Path("dbt/tests").glob("*.sql")}
     assert {
@@ -203,9 +206,9 @@ def test_lender_concentration_exposes_top_1_and_top_5_metrics():
 
 
 def test_lending_performance_mart_uses_status_group_without_canceled_losses():
-    performance_sql = LENDING_MARTS[
-        "mart_lending_performance_state_period"
-    ].read_text(encoding="utf-8")
+    performance_sql = LENDING_MARTS["mart_lending_performance_state_period"].read_text(
+        encoding="utf-8"
+    )
     models = models_by_name([LENDING_SCHEMA])
     performance_columns = {
         column["name"]: column
@@ -221,16 +224,19 @@ def test_lending_performance_mart_uses_status_group_without_canceled_losses():
     assert "accepted_range" in dbt_test_names(
         performance_columns["chargeoff_amount_rate"]["data_tests"]
     )
-    assert "decimal ratio" in performance_columns["chargeoff_amount_rate"]["description"]
-    assert "explicitly charged-off" in performance_columns[
-        "charged_off_loan_count"
-    ]["description"]
+    assert (
+        "decimal ratio" in performance_columns["chargeoff_amount_rate"]["description"]
+    )
+    assert (
+        "explicitly charged-off"
+        in performance_columns["charged_off_loan_count"]["description"]
+    )
 
 
 def test_lending_status_mix_mart_reconciles_status_group_shares():
-    status_mix_sql = LENDING_MARTS[
-        "mart_lending_status_mix_state_period"
-    ].read_text(encoding="utf-8")
+    status_mix_sql = LENDING_MARTS["mart_lending_status_mix_state_period"].read_text(
+        encoding="utf-8"
+    )
     models = models_by_name([LENDING_SCHEMA])
     status_mix_columns = {
         column["name"]: column
@@ -261,9 +267,9 @@ def test_lending_status_mix_mart_reconciles_status_group_shares():
 
 
 def test_lending_terms_pricing_mart_documents_availability_and_program_semantics():
-    terms_sql = LENDING_MARTS[
-        "mart_lending_terms_pricing_state_period"
-    ].read_text(encoding="utf-8")
+    terms_sql = LENDING_MARTS["mart_lending_terms_pricing_state_period"].read_text(
+        encoding="utf-8"
+    )
     models = models_by_name([LENDING_SCHEMA])
     terms_columns = {
         column["name"]: column
@@ -280,13 +286,14 @@ def test_lending_terms_pricing_mart_documents_availability_and_program_semantics
     assert "third_party_dollars" in terms_sql
     assert "seven_a_approved_loan_amount" in terms_columns
     assert "seven_a_sba_guarantee_rate" in terms_columns
-    assert "SBA 7(a) approved dollars" in terms_columns[
-        "seven_a_sba_guarantee_rate"
-    ]["description"]
+    assert (
+        "SBA 7(a) approved dollars"
+        in terms_columns["seven_a_sba_guarantee_rate"]["description"]
+    )
     assert "SBA 504 loans" in terms_columns["third_party_dollars"]["description"]
-    assert "decimal ratio" in terms_columns[
-        "average_initial_interest_rate"
-    ]["description"]
+    assert (
+        "decimal ratio" in terms_columns["average_initial_interest_rate"]["description"]
+    )
     for rate_column in (
         "term_coverage_rate",
         "initial_interest_rate_coverage_rate",
@@ -302,9 +309,9 @@ def test_lending_terms_pricing_mart_documents_availability_and_program_semantics
 
 
 def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
-    jobs_sql = LENDING_MARTS[
-        "mart_lending_jobs_impact_state_period"
-    ].read_text(encoding="utf-8")
+    jobs_sql = LENDING_MARTS["mart_lending_jobs_impact_state_period"].read_text(
+        encoding="utf-8"
+    )
     models = models_by_name([LENDING_SCHEMA])
     jobs_columns = {
         column["name"]: column

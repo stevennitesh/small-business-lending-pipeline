@@ -228,7 +228,9 @@ def _create_required_schemas(
             cursor.execute(f"create schema if not exists {schema_name}")
 
 
-def _require_s3_backed_manifests(manifest_groups: dict[str, list[dict[str, Any]]]) -> None:
+def _require_s3_backed_manifests(
+    manifest_groups: dict[str, list[dict[str, Any]]],
+) -> None:
     non_s3_resources = [
         str(manifest.get("resource_name"))
         for manifests in manifest_groups.values()

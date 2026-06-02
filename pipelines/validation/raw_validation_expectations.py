@@ -61,7 +61,9 @@ def _fixture_validation_expectations(
     return RawValidationExpectations(
         sba_required_resource_names=list(_FIXTURE_SBA_REQUIRED_RESOURCE_NAMES),
         census_required_variables=_fixture_census_required_variables(project_config),
-        census_expected_state_count=_fixture_census_expected_state_count(project_config),
+        census_expected_state_count=_fixture_census_expected_state_count(
+            project_config
+        ),
         bls_expected_series_ids=_FIXTURE_BLS_EXPECTED_SERIES_IDS,
         bls_required_period_pattern=bls_settings.required_period_pattern,
         bls_unemployment_rate_min=bls_settings.unemployment_rate_min,

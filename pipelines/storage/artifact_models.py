@@ -9,11 +9,9 @@ StorageBackend = Literal["local", "s3"]
 
 
 class S3ObjectClientProtocol(Protocol):
-    def put_object(self, *, Bucket: str, Key: str, Body: Any) -> Any:
-        ...
+    def put_object(self, *, Bucket: str, Key: str, Body: Any) -> Any: ...
 
-    def get_object(self, *, Bucket: str, Key: str) -> Any:
-        ...
+    def get_object(self, *, Bucket: str, Key: str) -> Any: ...
 
 
 @dataclass(frozen=True)

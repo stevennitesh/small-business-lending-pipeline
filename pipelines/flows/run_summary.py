@@ -48,12 +48,8 @@ def write_run_summary_for_context(
         error_message=error_message,
         started_at_utc=context.run_started_at_utc,
         finished_at_utc=utc_now_iso(),
-        validation_result_path=validation_output_local_path(
-            validation_result_path
-        ),
-        validation_result_uri=validation_output_uri(
-            validation_result_path
-        ),
+        validation_result_path=validation_output_local_path(validation_result_path),
+        validation_result_uri=validation_output_uri(validation_result_path),
         manifest_artifact_uris=manifest_artifact_uris or [],
         duckdb_path=str(context.duckdb_path),
         dbt_artifacts=dbt_artifacts or {},

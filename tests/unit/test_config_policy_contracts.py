@@ -110,9 +110,7 @@ def test_project_config_rejects_enabled_source_missing_validation_expectations(
 
 def test_project_config_rejects_cadence_drift(tmp_path):
     def change_bls_cadence(config: dict) -> None:
-        config["freshness_rules"][BLS_LAUS_SOURCE_KEY][
-            "expected_cadence"
-        ] = "annual"
+        config["freshness_rules"][BLS_LAUS_SOURCE_KEY]["expected_cadence"] = "annual"
 
     config_dir = mutate_config_file(
         tmp_path,

@@ -124,9 +124,7 @@ def validate_single_source_outputs(
         extract_mode=extract_mode,
         artifact_reader=RawArtifactReader(),
         raw_file_exists_resource_names=raw_file_exists_resource_names or set(),
-        validator_registry=(
-            source_validation_registration(source_key, validate),
-        ),
+        validator_registry=(source_validation_registration(source_key, validate),),
     )
 
 

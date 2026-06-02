@@ -66,8 +66,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
     extraction_paths = local_flow.extract_sources.fn(context, project_config)
 
     assert [
-        kwargs["manifest_artifact_store"].storage_backend
-        for _, kwargs in calls
+        kwargs["manifest_artifact_store"].storage_backend for _, kwargs in calls
     ] == ["s3", "s3", "s3"]
     assert len(extraction_paths.manifest_locations) == 4
     assert {
@@ -75,7 +74,9 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
     } == {"s3"}
 
 
-def test_live_bls_extraction_defaults_to_configured_history_start(tmp_path, monkeypatch):
+def test_live_bls_extraction_defaults_to_configured_history_start(
+    tmp_path, monkeypatch
+):
     project_config = local_flow.load_config.fn()
     context = live_flow_context(
         tmp_path,

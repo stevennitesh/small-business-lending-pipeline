@@ -33,6 +33,7 @@ from tests.unit.extract_test_helpers import (
 
 SBA_RESOURCES_CONFIG_PATH = config_path(SBA_RESOURCES_CONFIG_FILE)
 
+
 def test_load_sba_resources_config_includes_discovery_settings():
     config = load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH)
 
@@ -175,9 +176,10 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
         "ingestion_date=2026-05-06/pipeline_run_id=run-123/"
         "7a_2020_present.csv"
     )
-    assert csv_result.local_raw_path.read_bytes() == downloads[
-        "https://example.test/7a_2020_present.csv"
-    ]
+    assert (
+        csv_result.local_raw_path.read_bytes()
+        == downloads["https://example.test/7a_2020_present.csv"]
+    )
     assert csv_result.manifest.row_count == 2
     assert len(csv_result.manifest.sha256_checksum) == 64
 
@@ -209,9 +211,9 @@ def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_pat
     assert result.manifest.row_count == 2
     assert result.manifest.column_count == 2
     assert result.manifest.file_size_bytes == len(expected_payload)
-    assert result.manifest.sha256_checksum == hashlib.sha256(
-        expected_payload
-    ).hexdigest()
+    assert (
+        result.manifest.sha256_checksum == hashlib.sha256(expected_payload).hexdigest()
+    )
 
 
 def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
@@ -288,9 +290,12 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
     assert manifest_location.artifact_uri.startswith(
         "s3://cloud-bucket/manifests/sba/7a_504_foia/"
     )
-    assert json.loads(
-        s3_client.objects[("cloud-bucket", manifest_location.artifact_key)]
-    )["resource_name"] == "sba_7a_fy2020_present"
+    assert (
+        json.loads(s3_client.objects[("cloud-bucket", manifest_location.artifact_key)])[
+            "resource_name"
+        ]
+        == "sba_7a_fy2020_present"
+    )
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):

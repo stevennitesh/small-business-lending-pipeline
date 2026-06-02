@@ -29,8 +29,7 @@ TRANSIENT_ERROR_CODES = {
 
 
 class S3ClientProtocol(Protocol):
-    def upload_file(self, filename: str, bucket: str, key: str) -> None:
-        ...
+    def upload_file(self, filename: str, bucket: str, key: str) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -115,7 +114,9 @@ def upload_items_to_s3(
                 base_delay_seconds=base_delay_seconds,
             )
         except Exception as exc:
-            message_prefix = "required S3 upload failed" if required else "S3 upload failed"
+            message_prefix = (
+                "required S3 upload failed" if required else "S3 upload failed"
+            )
             message = f"{message_prefix} for {item.local_path}: {exc}"
             if required:
                 raise S3UploadRequiredError(message) from exc

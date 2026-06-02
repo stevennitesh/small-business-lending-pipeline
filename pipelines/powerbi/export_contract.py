@@ -129,9 +129,8 @@ def _row_count(connection: duckdb.DuckDBPyConnection, table_name: str) -> int:
 
 
 def _validate_table_identifier(table_name: str) -> str:
-    if (
-        table_name not in BI_EXPORT_TABLES
-        or not _SAFE_TABLE_IDENTIFIER.fullmatch(table_name)
+    if table_name not in BI_EXPORT_TABLES or not _SAFE_TABLE_IDENTIFIER.fullmatch(
+        table_name
     ):
         raise ValueError(f"Invalid BI export table identifier: {table_name}")
     return table_name

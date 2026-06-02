@@ -21,8 +21,7 @@ from pipelines.storage.raw_artifacts import parse_s3_uri
 
 
 RAW_METADATA_COLUMNS = {
-    column_name.upper(): "varchar"
-    for column_name in RAW_ROW_METADATA_COLUMNS
+    column_name.upper(): "varchar" for column_name in RAW_ROW_METADATA_COLUMNS
 }
 
 CENSUS_BDS_RAW_COLUMNS = {
@@ -113,7 +112,9 @@ def load_s3_manifest_group(
             )
         return
 
-    raise SnowflakeRawLoadError(f"Unsupported Snowflake S3 source table: {source_table}")
+    raise SnowflakeRawLoadError(
+        f"Unsupported Snowflake S3 source table: {source_table}"
+    )
 
 
 def _create_csv_source_table_from_stage(
@@ -126,8 +127,7 @@ def _create_csv_source_table_from_stage(
 ) -> None:
     header = _csv_header_from_manifest(manifest, s3_client=s3_client)
     source_columns = {
-        column_name: "varchar"
-        for column_name in snowflake_csv_columns(header)
+        column_name: "varchar" for column_name in snowflake_csv_columns(header)
     }
     _create_explicit_source_table(
         connection=connection,

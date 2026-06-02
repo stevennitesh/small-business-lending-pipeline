@@ -31,9 +31,7 @@ def check_census_bds_payload(
     rows = payload[1:] if len(payload) > 1 else []
     missing_variables = sorted(set(required_variables) - set(header))
     state_count = (
-        len({row[header.index("state")] for row in rows})
-        if "state" in header
-        else 0
+        len({row[header.index("state")] for row in rows}) if "state" in header else 0
     )
     return [
         make_source_identity_validation_result(

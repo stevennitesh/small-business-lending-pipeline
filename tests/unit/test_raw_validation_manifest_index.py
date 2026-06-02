@@ -33,7 +33,9 @@ def test_raw_manifest_index_reads_local_payload_json(tmp_path):
     manifest["resource_name"] = BLS_LAUS_RESOURCE_NAME
     index = RawManifestIndex.from_manifests([manifest])
 
-    assert read_payload_json(index, BLS_LAUS_RESOURCE_NAME, RawArtifactReader()) == payload
+    assert (
+        read_payload_json(index, BLS_LAUS_RESOURCE_NAME, RawArtifactReader()) == payload
+    )
 
 
 def test_raw_manifest_index_raises_for_absent_resource(tmp_path):

@@ -240,7 +240,7 @@ def _native_csv_select_sql(
         for column_name in source_columns
     )
     metadata_columns = ", ".join(
-        f'metadata.{_quote_identifier(column_name)}'
+        f"metadata.{_quote_identifier(column_name)}"
         for column_name in RAW_ROW_METADATA_COLUMNS
     )
     metadata_values = ", ".join(
@@ -282,7 +282,9 @@ def _create_or_replace_table(
 ) -> None:
     connection.register("_load_frame", frame)
     try:
-        connection.execute(f"create or replace table {table_name} as select * from _load_frame")
+        connection.execute(
+            f"create or replace table {table_name} as select * from _load_frame"
+        )
     finally:
         connection.unregister("_load_frame")
 

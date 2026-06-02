@@ -82,7 +82,9 @@ def find_candidates(root: Path, keep_pipeline_run_id: str) -> list[CleanupCandid
         (root / "dbt" / "logs", "Rebuildable dbt log files"),
     ]:
         if path.exists():
-            candidates.append(CleanupCandidate(path=path, reason=reason, size_bytes=path_size(path)))
+            candidates.append(
+                CleanupCandidate(path=path, reason=reason, size_bytes=path_size(path))
+            )
 
     for candidate in candidates:
         require_repo_local(candidate.path, root)
@@ -108,7 +110,9 @@ def print_candidates(candidates: list[CleanupCandidate], root: Path) -> None:
     print(f"Found {len(candidates)} cleanup candidates totaling {format_bytes(total)}:")
     for candidate in candidates:
         display_path = candidate.path.relative_to(root)
-        print(f"- {format_bytes(candidate.size_bytes):>10}  {display_path}  # {candidate.reason}")
+        print(
+            f"- {format_bytes(candidate.size_bytes):>10}  {display_path}  # {candidate.reason}"
+        )
 
 
 def apply_cleanup(candidates: list[CleanupCandidate]) -> None:
@@ -122,8 +126,14 @@ def apply_cleanup(candidates: list[CleanupCandidate]) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--dry-run", action="store_true", help="List cleanup candidates without deleting them.")
-    mode.add_argument("--apply", action="store_true", help="Delete the listed cleanup candidates.")
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List cleanup candidates without deleting them.",
+    )
+    mode.add_argument(
+        "--apply", action="store_true", help="Delete the listed cleanup candidates."
+    )
     parser.add_argument(
         "--keep-pipeline-run-id",
         default=DEFAULT_KEEP_PIPELINE_RUN_ID,
@@ -135,7 +145,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = repo_root()
-    candidates = find_candidates(root=root, keep_pipeline_run_id=args.keep_pipeline_run_id)
+    candidates = find_candidates(
+        root=root, keep_pipeline_run_id=args.keep_pipeline_run_id
+    )
     print_candidates(candidates, root)
 
     if args.apply:
