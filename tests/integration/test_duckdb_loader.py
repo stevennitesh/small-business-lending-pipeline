@@ -5,7 +5,7 @@ import json
 import duckdb
 import pytest
 
-from pipelines.load import raw_load_common
+from pipelines.load import raw_load_local_sources
 from pipelines.load.duckdb_loader import (
     RAW_TABLES,
     RawLoadError,
@@ -152,7 +152,7 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
     def fail_read_csv(*args, **kwargs):
         raise AssertionError("SBA CSV raw load should use DuckDB native scans")
 
-    monkeypatch.setattr(raw_load_common.pd, "read_csv", fail_read_csv)
+    monkeypatch.setattr(raw_load_local_sources.pd, "read_csv", fail_read_csv)
 
     summary = load_raw_extracts(
         duckdb_path=tmp_path / "warehouse.duckdb",

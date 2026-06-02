@@ -927,7 +927,8 @@ scripts/
 ├── run_cloud_pipeline.sh
 ├── run_dbt_local.sh
 ├── export_powerbi_tables.py
-└── reset_local_duckdb.sh
+├── validate_powerbi_model.py
+└── cleanup_local_data.py
 ```
 
 ---

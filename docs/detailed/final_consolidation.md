@@ -103,7 +103,8 @@ small-business-lending-pipeline/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   ├── extract/
 │   │   ├── sba_extract.py
 │   │   ├── census_bds_extract.py
@@ -166,14 +167,16 @@ small-business-lending-pipeline/
     ├── run_cloud_pipeline.sh
     ├── run_dbt_local.sh
     ├── export_powerbi_tables.py
-    └── reset_local_duckdb.sh
+    ├── validate_powerbi_model.py
+    └── cleanup_local_data.py
 ```
 
 `raw_validation_runner.py` coordinates the active raw gate. Validation result
 schema, factories, JSON I/O, output persistence, source dispatch/expectations,
 and blocking-failure enforcement live in ownership modules.
-`pipelines/validation/pipeline_health.py` contains future pipeline-health row-count
-and freshness helper checks for a later pipeline-health layer.
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
+and freshness helper checks for a later pipeline-health layer;
+`pipelines/validation/pipeline_health.py` remains a compatibility import.
 
 ---
 

@@ -21,7 +21,7 @@ def main() -> None:
     args = parser.parse_args()
 
     summary = validate_powerbi_model(args.model_path)
-    print(json.dumps(summary.__dict__, indent=2, sort_keys=True))
+    print(json.dumps(summary.to_dict(), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

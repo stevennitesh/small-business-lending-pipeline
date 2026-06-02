@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 import duckdb
 from dotenv import load_dotenv
@@ -30,7 +30,6 @@ from pipelines.powerbi.export_contract import (
 from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
 
 
-BI_TABLES = BI_EXPORT_TABLES
 BucketResolver = Callable[[LocalRunContext], str | None]
 _SNOWFLAKE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
@@ -129,7 +128,7 @@ def export_bi_tables_for_context(context: LocalRunContext) -> list[str]:
         duckdb_path=context.duckdb_path,
         export_dir=context.run_export_dir,
     )
-    return [summary.export_paths[table_name] for table_name in BI_TABLES]
+    return [summary.export_paths[table_name] for table_name in BI_EXPORT_TABLES]
 
 
 def ensure_dbt_profile(context: LocalRunContext) -> None:
@@ -171,7 +170,7 @@ def validate_snowflake_bi_tables() -> dict[str, int]:
     try:
         row_counts: dict[str, int] = {}
         with connection.cursor() as cursor:
-            for table_name in BI_TABLES:
+            for table_name in BI_EXPORT_TABLES:
                 quoted_table_name = quote_snowflake_identifier(table_name.upper())
                 cursor.execute(
                     f"select count(*) from {quoted_bi_schema}.{quoted_table_name}"

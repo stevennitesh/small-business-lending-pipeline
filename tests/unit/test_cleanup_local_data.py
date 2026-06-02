@@ -1,20 +1,9 @@
-import importlib.util
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-
-def _load_cleanup_module():
-    module_path = Path("scripts/cleanup_local_data.py")
-    spec = importlib.util.spec_from_file_location("cleanup_local_data", module_path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+from scripts import cleanup_local_data as cleanup
 
 
 def test_cleanup_candidates_preserve_configured_sba_run(tmp_path):
-    cleanup = _load_cleanup_module()
     keep_run = (
         tmp_path
         / "data"
@@ -44,7 +33,6 @@ def test_cleanup_candidates_preserve_configured_sba_run(tmp_path):
 
 
 def test_apply_cleanup_removes_only_candidates(tmp_path):
-    cleanup = _load_cleanup_module()
     keep_run = tmp_path / "data" / "raw" / "sba" / "7a_foia" / "pipeline_run_id=keep-me"
     old_run = tmp_path / "data" / "raw" / "sba" / "7a_foia" / "pipeline_run_id=old-run"
 

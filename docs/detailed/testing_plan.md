@@ -225,10 +225,11 @@ Suggested default thresholds:
 | 20% to 50% | Warning |
 | More than 50% | Fail unless manually acknowledged |
 
-Thresholds should be configurable in:
+Future row-count drift thresholds should be added to the active validation
+configuration before those checks are wired:
 
 ```text
-config/source_expectations.yml
+config/raw_validation_expectations.yml
 ```
 
 ---
@@ -1167,7 +1168,7 @@ tests/
 | `validation/validation_failures.py` | blocking validation failure policy before downstream loads |
 | `validation/raw_validation_resources.py` | shared raw validation resource and output names |
 | source-specific payload modules under `validation/` | SBA resource coverage, Census BDS payload shape, and BLS LAUS normalized rows |
-| `validation/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
+| `flows/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
 | `utils/manifest.py` | manifest schema and required fields |
 | `utils/hashing.py` | deterministic checksums and row hashes |
 | `utils/paths.py` | local/S3 path generation |
@@ -1501,68 +1502,38 @@ Recommended files:
 
 ```text
 config/
-├── source_expectations.yml
+├── sources.yml
 ├── freshness_rules.yml
-├── required_sba_resources.yml
+├── sba_resources.yml
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
 └── raw_validation_expectations.yml
 ```
 
-## Example `source_expectations.yml`
+## Example Active Validation Config
 
 ```yaml
-sba:
-  required_resources:
-    - program: "7a"
-      source_period: "fy1991_fy1999"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2000_fy2009"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2010_fy2019"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2020_present"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "504"
-      source_period: "fy1991_fy2009"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "504"
-      source_period: "fy2010_present"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-
-census_bds:
-  expected_geography: "state"
-  required_variables:
-    - "YEAR"
-    - "NAME"
-    - "ESTAB"
-    - "ESTABS_ENTRY"
-    - "ESTABS_ENTRY_RATE"
-    - "ESTABS_EXIT"
-    - "ESTABS_EXIT_RATE"
-    - "FIRM"
-
-bls_laus:
-  expected_measure: "unemployment_rate"
-  expected_state_series_count: 51
+raw_validation_expectations:
+  sba_foia:
+    required_programs:
+      - "7a"
+      - "504"
+  census_bds:
+    expected_state_count: 51
+    required_variables:
+      - "YEAR"
+      - "state"
+      - "ESTAB"
+      - "ESTABS_ENTRY"
+      - "ESTABS_EXIT"
+  bls_laus:
+    required_period_pattern: "^M(0[1-9]|1[0-2])$"
+    unemployment_rate_min: 0
+    unemployment_rate_max: 100
 ```
 
-`min_rows: 1` is only a bootstrap minimum. After the first successful profile, the pipeline should compare against previous successful row counts.
+SBA resource discovery and source metadata live separately in
+`config/sba_resources.yml` and `config/sources.yml`.
 
 ---
 

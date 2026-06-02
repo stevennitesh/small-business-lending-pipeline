@@ -5,6 +5,7 @@ import pytest
 from pipelines.flows import dbt_bi
 import pipelines.flows.lending_pipeline_flow as local_flow
 from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
+from tests.unit.snowflake_test_helpers import FakeSnowflakeConnection
 
 
 EXTRA_SBA_KPI_BI_TABLES = {
@@ -30,8 +31,7 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path, monkeypatch):
         pipeline_run_id="local-powerbi-contract",
     )
 
-    assert local_flow.BI_TABLES == BI_EXPORT_TABLES
-    assert EXTRA_SBA_KPI_BI_TABLES <= set(local_flow.BI_TABLES)
+    assert EXTRA_SBA_KPI_BI_TABLES <= set(BI_EXPORT_TABLES)
     assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
 
 
@@ -47,38 +47,24 @@ def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
 
 
 def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(monkeypatch):
-    executed_sql: list[str] = []
-
-    class FakeCursor:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, traceback):
-            return None
-
-        def execute(self, sql):
-            executed_sql.append(sql)
-
-        def fetchone(self):
-            return (1,)
-
-    class FakeConnection:
-        def cursor(self):
-            return FakeCursor()
-
-        def close(self):
-            return None
-
+    connection = FakeSnowflakeConnection(
+        table_counts={
+            f'"SMOKE_BI"."{table_name.upper()}"': 1
+            for table_name in BI_EXPORT_TABLES
+        }
+    )
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI")
     monkeypatch.setattr(dbt_bi.SnowflakeConfig, "from_env", lambda: object())
-    monkeypatch.setattr(dbt_bi, "connect_to_snowflake", lambda config: FakeConnection())
+    monkeypatch.setattr(dbt_bi, "connect_to_snowflake", lambda config: connection)
     monkeypatch.setattr(dbt_bi, "load_dotenv", lambda override=True: None)
 
     row_counts = dbt_bi.validate_snowflake_bi_tables()
 
-    assert row_counts == {table_name: 1 for table_name in local_flow.BI_TABLES}
+    assert row_counts == {table_name: 1 for table_name in BI_EXPORT_TABLES}
+    assert connection.closed is True
+    executed_sql = "\n".join(connection.sql_statements)
     for table_name in EXTRA_SBA_KPI_BI_TABLES:
-        assert f'"SMOKE_BI"."{table_name.upper()}"' in "\n".join(executed_sql)
+        assert f'"SMOKE_BI"."{table_name.upper()}"' in executed_sql
 
 
 def test_cloud_bi_validation_rejects_invalid_schema_identifier(monkeypatch):

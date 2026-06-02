@@ -407,9 +407,10 @@ pipelines/validation/
 `raw_validation_runner.py` coordinates the active raw gate. Validation check
 catalog metadata, manifest/artifact checks, result schema/factories, JSON I/O,
 output persistence, source dispatch, source expectations, and blocking-failure
-enforcement live in ownership modules. `pipelines/validation/pipeline_health.py`
+enforcement live in ownership modules. `pipelines/flows/pipeline_health.py`
 contains future row-count and freshness helper checks for a later
-pipeline-health layer.
+pipeline-health layer; `pipelines/validation/pipeline_health.py` remains a
+compatibility import.
 
 ### Non-Goals
 

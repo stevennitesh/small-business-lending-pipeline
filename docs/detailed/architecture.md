@@ -827,7 +827,8 @@ small-business-lending-pipeline/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   │
 │   ├── extract/
 │   │   ├── sba_extract.py
@@ -901,8 +902,9 @@ small-business-lending-pipeline/
 `raw_validation_runner.py` coordinates the active raw gate. Validation result
 schema, factories, JSON I/O, output persistence, source dispatch/expectations,
 and blocking-failure enforcement live in ownership modules.
-`pipelines/validation/pipeline_health.py` contains future pipeline-health row-count
-and freshness helper checks for a later pipeline-health layer.
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
+and freshness helper checks for a later pipeline-health layer;
+`pipelines/validation/pipeline_health.py` remains a compatibility import.
 
 The `data/` directory should usually be excluded from Git except for placeholder `.gitkeep` files and small sample fixtures.
 

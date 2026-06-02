@@ -17,11 +17,10 @@ from pipelines.flows import (
     source_extracts,
 )
 from pipelines.flows.run_models import (
-    CLOUD_FLOW_STAGES,
-    LOCAL_FLOW_STAGES,
     DbtBuildResult,
     FlowRunState,
     LocalRunContext,
+    VALID_RUN_MODES,
 )
 from pipelines.flows.stage_execution import run_timed_flow_stage
 from pipelines.flows.extraction_manifests import ExtractionPaths
@@ -29,9 +28,6 @@ from pipelines.flows.raw_loads import RawLoadSummary, S3UploadSummary
 from pipelines.flows.raw_loads import SnowflakeRawLoadSummary
 from pipelines.utils.config import ProjectConfig, load_project_config
 from pipelines.validation.raw_validation_models import RawValidationOutput
-
-
-BI_TABLES = dbt_bi.BI_TABLES
 
 
 @task
@@ -85,7 +81,7 @@ def extract_sources(
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
     """Run fixture or live source extraction and return manifest references."""
-    if context.run_mode not in {"local", "cloud"}:
+    if context.run_mode not in VALID_RUN_MODES:
         raise ValueError("run_mode must be 'local' or 'cloud'.")
     if context.extract_mode == "live":
         return source_extracts.extract_live_sources(context, project_config)
@@ -363,7 +359,7 @@ def lending_pipeline_flow(
             context,
         )
 
-        if context.run_mode == "local":
+        if not context.is_cloud_route:
             state.export_paths = run_timed_flow_stage(
                 state,
                 "export_bi_tables",

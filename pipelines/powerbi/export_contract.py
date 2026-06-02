@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import duckdb
 
@@ -23,7 +24,7 @@ class PowerBIExportSummary:
     export_paths: dict[str, str]
     row_counts: dict[str, int]
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 

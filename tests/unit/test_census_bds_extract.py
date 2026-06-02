@@ -16,10 +16,10 @@ from pipelines.utils.source_config_models import (
     load_census_bds_config,
 )
 from pipelines.utils.source_resources import SourceIdentity
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 from tests.unit.config_test_helpers import config_path
 from tests.unit.extract_test_helpers import (
     FakeGetSession as FakeSession,
-    FakeS3ObjectClient,
     census_bds_fixture_response,
     read_json_file,
     read_summary_manifest,

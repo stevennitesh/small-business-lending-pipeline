@@ -5,13 +5,16 @@ import sys
 import pytest
 
 import pipelines.cli.run_lending_pipeline as run_lending_pipeline_cli
-import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.flows.run_models import FlowRunState
+from pipelines.flows.run_models import (
+    CLOUD_FLOW_STAGES,
+    LOCAL_FLOW_STAGES,
+    FlowRunState,
+)
 from pipelines.flows.stage_execution import run_timed_flow_stage, run_timed_stage
 
 
 def test_local_flow_declares_expected_stage_order():
-    assert local_flow.LOCAL_FLOW_STAGES == (
+    assert LOCAL_FLOW_STAGES == (
         "initialize_run",
         "load_config",
         "extract_sources",
@@ -27,7 +30,7 @@ def test_local_flow_declares_expected_stage_order():
 
 
 def test_cloud_flow_declares_expected_stage_order():
-    assert local_flow.CLOUD_FLOW_STAGES == (
+    assert CLOUD_FLOW_STAGES == (
         "initialize_run",
         "load_config",
         "require_cloud_mode_config",
@@ -42,14 +45,14 @@ def test_cloud_flow_declares_expected_stage_order():
         "validate_bi_tables",
         "write_run_summary",
     )
-    assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
-        local_flow.CLOUD_FLOW_STAGES.index("record_raw_artifact_locations")
+    assert CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
+        CLOUD_FLOW_STAGES.index("record_raw_artifact_locations")
     )
-    assert local_flow.CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
-        local_flow.CLOUD_FLOW_STAGES.index("load_snowflake_raw_tables")
+    assert CLOUD_FLOW_STAGES.index("validate_raw_outputs") < (
+        CLOUD_FLOW_STAGES.index("load_snowflake_raw_tables")
     )
-    assert local_flow.CLOUD_FLOW_STAGES.index("run_dbt_build") < (
-        local_flow.CLOUD_FLOW_STAGES.index("validate_bi_tables")
+    assert CLOUD_FLOW_STAGES.index("run_dbt_build") < (
+        CLOUD_FLOW_STAGES.index("validate_bi_tables")
     )
 
 
@@ -91,7 +94,7 @@ def test_flow_run_state_tracks_failed_stage():
         "load_config",
         "write_run_summary",
     ]
-    assert state.failed_stage(local_flow.LOCAL_FLOW_STAGES) == "extract_sources"
+    assert state.failed_stage(LOCAL_FLOW_STAGES) == "extract_sources"
 
 
 def test_lending_pipeline_cli_delegates_to_flow(monkeypatch, capsys):

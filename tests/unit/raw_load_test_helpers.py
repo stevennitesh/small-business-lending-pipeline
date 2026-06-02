@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.utils.hashing import calculate_sha256, hash_schema

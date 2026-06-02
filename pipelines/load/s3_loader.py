@@ -12,11 +12,7 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 
 from pipelines.load.s3_upload_items import (
     S3UploadItem,
-    build_dbt_artifact_upload_item,
-    build_manifest_upload_item,
-    build_raw_upload_item,
     build_run_upload_items,
-    build_validation_upload_item,
 )
 from pipelines.utils.paths import build_s3_uri
 

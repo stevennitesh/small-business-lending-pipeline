@@ -6,12 +6,14 @@ from datetime import date
 import pytest
 
 from pipelines.extract.bls_laus_extract import (
+    extract_bls_laus,
+)
+from pipelines.extract.bls_laus_api import (
     PUBLIC_YEAR_WINDOW_SIZE,
     REGISTERED_YEAR_WINDOW_SIZE,
     build_bls_payload,
     chunk_series,
     chunk_year_range,
-    extract_bls_laus,
     fetch_bls_laus_responses,
     normalize_bls_response,
     resolve_bls_year_window_size,
@@ -24,10 +26,10 @@ from pipelines.utils.source_config_models import (
     load_bls_laus_config,
 )
 from pipelines.utils.source_resources import SourceIdentity
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 from tests.unit.config_test_helpers import config_path
 from tests.unit.extract_test_helpers import (
     FakePostSession as FakeSession,
-    FakeS3ObjectClient,
     bls_laus_fixture_response,
     bls_laus_series_configs,
     read_json_file,

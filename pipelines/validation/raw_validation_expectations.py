@@ -41,7 +41,6 @@ _FIXTURE_BLS_EXPECTED_SERIES_IDS = (
     "LASST010000000000003",
     "LASST170000000000003",
 )
-_FIXTURE_EXTRACT_MODE = "fixture"
 
 
 def raw_validation_expectations(
@@ -49,7 +48,7 @@ def raw_validation_expectations(
     project_config: ProjectConfig,
 ) -> RawValidationExpectations:
     """Resolve the validation expectations for fixture or live extraction runs."""
-    if _is_fixture_extract(extract_mode):
+    if extract_mode == "fixture":
         return _fixture_validation_expectations(project_config)
     return _live_validation_expectations(project_config)
 
@@ -88,7 +87,10 @@ def _live_validation_expectations(
 
 def _live_sba_required_resource_names(project_config: ProjectConfig) -> list[str]:
     """Resolve which SBA resources must be present for live enabled sources."""
-    sba_expectations = _enabled_sba_expectations(project_config)
+    sba_expectations = _enabled_source_expectations(
+        project_config,
+        SBA_FOIA_SOURCE_KEY,
+    )
     if sba_expectations is None:
         return []
 
@@ -113,7 +115,7 @@ def _fixture_census_required_variables(
     if CENSUS_BDS_SOURCE_KEY not in project_config.raw_validation_expectations:
         return ()
     return _census_required_variables_from(
-        _configured_census_expectations(project_config)
+        project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY]
     )
 
 
@@ -121,7 +123,10 @@ def _live_census_required_variables(
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
     """Resolve Census BDS variables expected in live raw payload rows."""
-    census_expectations = _enabled_census_expectations(project_config)
+    census_expectations = _enabled_source_expectations(
+        project_config,
+        CENSUS_BDS_SOURCE_KEY,
+    )
     if census_expectations is None:
         return ()
     return _census_required_variables_from(census_expectations)
@@ -140,7 +145,10 @@ def _live_census_expected_state_count(
     project_config: ProjectConfig,
 ) -> int:
     """Resolve the minimum expected Census state coverage for live runs."""
-    census_expectations = _enabled_census_expectations(project_config)
+    census_expectations = _enabled_source_expectations(
+        project_config,
+        CENSUS_BDS_SOURCE_KEY,
+    )
     if census_expectations is None:
         return 0
     return int(census_expectations["expected_state_count"])
@@ -156,7 +164,7 @@ def _live_bls_expected_series_ids(
     project_config: ProjectConfig,
 ) -> tuple[str, ...]:
     """Resolve live BLS LAUS series IDs expected in the normalized payload."""
-    if _enabled_bls_expectations(project_config) is None:
+    if _enabled_source_expectations(project_config, BLS_LAUS_SOURCE_KEY) is None:
         return ()
     return tuple(series.series_id for series in project_config.bls_laus.series)
 
@@ -165,14 +173,13 @@ def _live_bls_validation_settings(
     project_config: ProjectConfig,
 ) -> BlsValidationSettings:
     """Resolve live BLS validation thresholds, falling back to defaults."""
-    bls_expectations = _enabled_bls_expectations(project_config)
+    bls_expectations = _enabled_source_expectations(
+        project_config,
+        BLS_LAUS_SOURCE_KEY,
+    )
     if bls_expectations is None:
         return _DEFAULT_BLS_VALIDATION_SETTINGS
     return _bls_validation_settings_from(bls_expectations)
-
-
-def _is_fixture_extract(extract_mode: str) -> bool:
-    return extract_mode == _FIXTURE_EXTRACT_MODE
 
 
 def _enabled_source_expectations(
@@ -183,30 +190,6 @@ def _enabled_source_expectations(
     if not project_config.is_source_enabled(source_key):
         return None
     return project_config.raw_validation_expectations[source_key]
-
-
-def _enabled_sba_expectations(
-    project_config: ProjectConfig,
-) -> SourceExpectationConfig | None:
-    return _enabled_source_expectations(project_config, SBA_FOIA_SOURCE_KEY)
-
-
-def _configured_census_expectations(
-    project_config: ProjectConfig,
-) -> SourceExpectationConfig:
-    return project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY]
-
-
-def _enabled_census_expectations(
-    project_config: ProjectConfig,
-) -> SourceExpectationConfig | None:
-    return _enabled_source_expectations(project_config, CENSUS_BDS_SOURCE_KEY)
-
-
-def _enabled_bls_expectations(
-    project_config: ProjectConfig,
-) -> SourceExpectationConfig | None:
-    return _enabled_source_expectations(project_config, BLS_LAUS_SOURCE_KEY)
 
 
 def _bls_validation_settings_from(

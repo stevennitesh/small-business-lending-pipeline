@@ -11,7 +11,7 @@ The recruiter-facing story should be simple: the pipeline is proven locally firs
 
 ## Current Reality
 
-The repo now has active local and cloud route stage lists in `pipelines/flows/lending_pipeline_flow.py`. The older `final` run-mode alias and wrapper script have been removed; `cloud` is the public cloud route name.
+The repo now has active local and cloud route stage lists in `pipelines/flows/run_models.py`, with `pipelines/flows/lending_pipeline_flow.py` using those lists for orchestration and failure reporting. The older `final` run-mode alias and wrapper script have been removed; `cloud` is the public cloud route name.
 
 Local mode currently does this:
 
@@ -154,7 +154,8 @@ Likely files:
 - `pipelines/utils/manifest.py`
 - `pipelines/validation/raw_manifest_artifact_validation.py`
 - source-specific payload check modules under `pipelines/validation/`
-- `pipelines/load/raw_load_common.py`
+- `pipelines/load/raw_load_local_sources.py`
+- `pipelines/load/raw_load_metadata.py`
 - dbt staging models that read `raw_ingestion_manifest`
 
 Verification:

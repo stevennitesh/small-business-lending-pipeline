@@ -8,7 +8,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from pipelines.flows.run_models import LocalRunContext, RUN_MODE_ALIASES
+from pipelines.flows.run_models import (
+    LocalRunContext,
+    VALID_EXTRACT_MODES,
+    VALID_RUN_MODES,
+)
 from pipelines.load.snowflake_loader import SnowflakeConfig
 from pipelines.utils.dates import utc_now_iso
 
@@ -30,7 +34,7 @@ def initialize_run_context(
 ) -> LocalRunContext:
     """Normalize runtime inputs, create a run context, and prepare directories."""
     normalized_run_mode = normalize_run_mode(run_mode)
-    if extract_mode not in {"fixture", "live"}:
+    if extract_mode not in VALID_EXTRACT_MODES:
         raise ValueError("extract_mode must be 'fixture' or 'live'.")
     if source_start_year and source_end_year and source_start_year > source_end_year:
         raise ValueError("source_start_year cannot be greater than source_end_year.")
@@ -96,12 +100,11 @@ def resolve_s3_bucket(context: LocalRunContext) -> str | None:
 
 
 def normalize_run_mode(run_mode: str) -> str:
-    """Validate and normalize accepted run-mode aliases."""
-    try:
-        return RUN_MODE_ALIASES[run_mode]
-    except KeyError as exc:
-        allowed = ", ".join(sorted(RUN_MODE_ALIASES))
-        raise ValueError(f"run_mode must be one of: {allowed}") from exc
+    """Validate the accepted run modes."""
+    if run_mode in VALID_RUN_MODES:
+        return run_mode
+    allowed = ", ".join(VALID_RUN_MODES)
+    raise ValueError(f"run_mode must be one of: {allowed}")
 
 
 def resolve_powerbi_export_dir(data_root: Path, configured_dir: str | None) -> Path:

@@ -20,10 +20,11 @@ def test_powerbi_model_contract_validates():
     assert summary.table_count == len(BI_EXPORT_TABLES)
     assert set(summary.filter_coverage) == REQUIRED_FILTERS
     assert summary.artifact_status == "source_model_ready_pbix_requires_power_bi_desktop"
+    assert summary.to_dict()["model_path"] == str(MODEL_PATH)
 
 
 def test_powerbi_model_sources_match_export_contract():
-    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model = _read_model()
     tables = {table["name"]: table for table in model["tables"]}
 
     assert set(tables) == set(BI_EXPORT_TABLES)
@@ -51,7 +52,7 @@ def test_power_query_sources_match_export_contract():
 
 
 def test_powerbi_relationships_are_single_direction_one_to_many():
-    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model = _read_model()
 
     assert model["relationships"]
     assert {
@@ -73,7 +74,7 @@ def test_powerbi_relationships_are_single_direction_one_to_many():
 
 
 def test_powerbi_dimensions_use_declared_filter_tables():
-    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model = _read_model()
     tables = {table["name"] for table in model["tables"]}
 
     for dimension in model["dimensions"]:
@@ -82,7 +83,7 @@ def test_powerbi_dimensions_use_declared_filter_tables():
 
 
 def test_powerbi_measures_are_display_only():
-    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model = _read_model()
 
     assert model["measures"]
     assert {measure["category"] for measure in model["measures"]} <= {
@@ -98,7 +99,7 @@ def test_powerbi_measures_are_display_only():
 
 
 def test_powerbi_measure_references_must_use_declared_tables(tmp_path):
-    model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+    model = _read_model()
     model["measures"][0]["expression"] = (
         'COALESCE(SELECTEDVALUE(dim_year[year]), "All years")'
     )
@@ -107,3 +108,7 @@ def test_powerbi_measure_references_must_use_declared_tables(tmp_path):
 
     with pytest.raises(ValueError, match="undeclared tables: dim_year"):
         validate_powerbi_model(model_path)
+
+
+def _read_model() -> dict:
+    return json.loads(MODEL_PATH.read_text(encoding="utf-8"))

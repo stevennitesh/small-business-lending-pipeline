@@ -15,7 +15,7 @@ from pipelines.storage.raw_artifacts import (
 )
 from pipelines.utils.config import load_project_config
 from pipelines.flows.raw_validation import validate_raw_outputs_for_flow
-from tests.unit.extract_test_helpers import FakeS3ObjectClient
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 from tests.unit.validation_test_helpers import read_json, read_json_bytes
 
 

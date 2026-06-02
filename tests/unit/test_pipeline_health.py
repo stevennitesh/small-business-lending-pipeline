@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from pipelines.validation.pipeline_health import (
+from pipelines.flows.pipeline_health import (
     check_latest_observation_not_future,
     check_row_count_captured,
 )
+from pipelines.validation import pipeline_health as validation_pipeline_health
 
 
 def test_pipeline_health_helpers_support_warnings():
@@ -28,3 +29,14 @@ def test_pipeline_health_helpers_support_warnings():
     assert row_count_result.status == "passed"
     assert future_result.severity == "warning"
     assert future_result.status == "warning"
+
+
+def test_validation_pipeline_health_imports_remain_compatible():
+    assert (
+        validation_pipeline_health.check_row_count_captured
+        is check_row_count_captured
+    )
+    assert (
+        validation_pipeline_health.check_latest_observation_not_future
+        is check_latest_observation_not_future
+    )

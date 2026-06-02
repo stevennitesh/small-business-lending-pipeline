@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pipelines.flows import run_summary
 import pipelines.flows.lending_pipeline_flow as local_flow
+from pipelines.flows.run_models import LocalRunContext
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.validation.raw_validation_models import RawValidationOutput
 
@@ -18,21 +20,14 @@ EXTRA_SBA_KPI_BI_TABLES = {
 
 
 def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
+    context = _run_summary_context(
+        tmp_path,
         pipeline_run_id="expanded-powerbi-contract",
     )
-    bi_row_counts = {table_name: 1 for table_name in local_flow.BI_TABLES}
+    bi_row_counts = {table_name: 1 for table_name in BI_EXPORT_TABLES}
     export_paths = [
         str(context.run_export_dir / f"{table_name}.csv")
-        for table_name in local_flow.BI_TABLES
+        for table_name in BI_EXPORT_TABLES
     ]
 
     summary_path = local_flow.write_run_summary.fn(
@@ -42,7 +37,7 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
         bi_row_counts=bi_row_counts,
         export_paths=export_paths,
     )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = _read_summary(summary_path)
 
     assert EXTRA_SBA_KPI_BI_TABLES <= set(summary["bi_row_counts"])
     assert {
@@ -52,15 +47,8 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
 
 
 def test_flow_summary_records_stage_durations(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
+    context = _run_summary_context(
+        tmp_path,
         pipeline_run_id="local-stage-durations",
     )
 
@@ -70,7 +58,7 @@ def test_flow_summary_records_stage_durations(tmp_path):
         completed_stages=["extract_sources", "write_run_summary"],
         stage_durations_seconds={"extract_sources": 1.25},
     )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = _read_summary(summary_path)
 
     assert summary["stage_durations_seconds"]["extract_sources"] == 1.25
     assert summary["stage_durations_seconds"]["write_run_summary"] >= 0
@@ -78,15 +66,8 @@ def test_flow_summary_records_stage_durations(tmp_path):
 
 
 def test_run_summary_helper_records_stage_durations_once(tmp_path):
-    context = local_flow.initialize_run.fn(
-        run_mode="local",
-        extract_mode="fixture",
-        dbt_target="dev_duckdb",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=None,
+    context = _run_summary_context(
+        tmp_path,
         pipeline_run_id="run-summary-helper",
     )
 
@@ -96,7 +77,7 @@ def test_run_summary_helper_records_stage_durations_once(tmp_path):
         completed_stages=["initialize_run", "write_run_summary"],
         stage_durations_seconds={"initialize_run": 0.5},
     )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = _read_summary(summary_path)
 
     assert summary["stage_durations_seconds"]["initialize_run"] == 0.5
     assert summary["stage_durations_seconds"]["write_run_summary"] >= 0
@@ -104,14 +85,10 @@ def test_run_summary_helper_records_stage_durations_once(tmp_path):
 
 
 def test_cloud_summary_records_cloud_outputs(tmp_path):
-    context = local_flow.initialize_run.fn(
+    context = _run_summary_context(
+        tmp_path,
         run_mode="cloud",
-        extract_mode="fixture",
         dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
         s3_bucket="unit-test-bucket",
         pipeline_run_id="cloud-run",
     )
@@ -133,7 +110,7 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
             "s3://unit-test-bucket/manifests/sba/manifest.json"
         ],
     )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = _read_summary(summary_path)
 
     assert summary["run_mode"] == "cloud"
     assert summary["route"] == "cloud"
@@ -148,14 +125,10 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
 
 
 def test_run_summary_records_validation_output_path_and_uri(tmp_path):
-    context = local_flow.initialize_run.fn(
+    context = _run_summary_context(
+        tmp_path,
         run_mode="cloud",
-        extract_mode="fixture",
         dbt_target="prod_snowflake",
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
         s3_bucket="unit-test-bucket",
         pipeline_run_id="validation-output-summary",
     )
@@ -176,10 +149,35 @@ def test_run_summary_records_validation_output_path_and_uri(tmp_path):
         completed_stages=["validate_raw_outputs"],
         validation_result_path=validation_output,
     )
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = _read_summary(summary_path)
 
     assert summary["validation_result_path"].endswith("validation_results.json")
     assert (
         summary["validation_result_uri"]
         == "s3://unit-test-bucket/validation/results.json"
     )
+
+
+def _run_summary_context(
+    tmp_path: Path,
+    *,
+    pipeline_run_id: str,
+    run_mode: str = "local",
+    dbt_target: str = "dev_duckdb",
+    s3_bucket: str | None = None,
+) -> LocalRunContext:
+    return local_flow.initialize_run.fn(
+        run_mode=run_mode,
+        extract_mode="fixture",
+        dbt_target=dbt_target,
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+    )
+
+
+def _read_summary(summary_path: Path) -> dict:
+    return json.loads(summary_path.read_text(encoding="utf-8"))
