@@ -31,6 +31,7 @@ class ResolvedSBAResource:
 
     @property
     def filename(self) -> str:
+        """Return the source filename, falling back to the logical resource name."""
         parsed_name = Path(urlparse(self.url).path).name
         if parsed_name:
             return parsed_name
@@ -105,6 +106,7 @@ def _find_resource_match(
     spec: SBAResourceSpec,
     metadata_resources: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
+    """Find the CKAN resource that matches one configured SBA resource spec."""
     expected_format = spec.expected_format.lower()
     for resource in metadata_resources:
         resource_format = str(resource.get("format") or "").lower()
@@ -117,6 +119,9 @@ def _find_resource_match(
 
 
 def _title_matches(pattern: str, title: str) -> bool:
+    """Return whether the title contains all pattern tokens in order."""
+    # CKAN resource titles drift in punctuation and spacing, so match ordered
+    # tokens instead of depending on an exact title string.
     pattern_tokens = _title_tokens(pattern)
     title_tokens = _title_tokens(title)
     token_index = 0
@@ -131,10 +136,12 @@ def _title_matches(pattern: str, title: str) -> bool:
 
 
 def _title_tokens(value: str) -> list[str]:
+    """Normalize a CKAN resource title into lowercase alphanumeric tokens."""
     return re.findall(r"[a-z0-9]+", value.lower())
 
 
 def _optional_int(value: Any) -> int | None:
+    """Convert optional CKAN numeric metadata to an integer when present."""
     if value in ("", None):
         return None
     try:

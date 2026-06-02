@@ -24,6 +24,7 @@ from pipelines.utils.paths import (
 
 
 def test_sha256_checksum_is_deterministic(tmp_path):
+    """Validate that sha256 checksum is deterministic."""
     file_path = tmp_path / "sample.csv"
     file_path.write_text("a,b\n1,2\n", encoding="utf-8")
 
@@ -35,6 +36,7 @@ def test_sha256_checksum_is_deterministic(tmp_path):
 
 
 def test_row_and_schema_hashes_are_deterministic():
+    """Validate that row and schema hashes are deterministic."""
     assert hash_row({"state": "TX", "loans": 10}) == hash_row(
         {"loans": 10, "state": "TX"}
     )
@@ -52,6 +54,7 @@ def test_row_and_schema_hashes_are_deterministic():
 
 
 def test_raw_paths_follow_partitioning_convention():
+    """Validate that raw paths follow partitioning convention."""
     key = build_raw_s3_key(
         source_system="sba",
         dataset_name="7a_foia",
@@ -81,6 +84,7 @@ def test_raw_paths_follow_partitioning_convention():
 
 
 def test_timestamps_are_utc():
+    """Validate that timestamps are UTC."""
     timestamp = utc_now_iso()
 
     assert timestamp.endswith("Z")
@@ -90,10 +94,12 @@ def test_timestamps_are_utc():
 
 
 def test_ingestion_date_from_iso_timestamp_accepts_zulu_timestamp():
+    """Validate that ingestion date from iso timestamp accepts zulu timestamp."""
     assert ingestion_date_from_iso_timestamp("2026-05-06T12:00:00Z") == "2026-05-06"
 
 
 def test_manifest_contains_required_fields_and_validates():
+    """Validate that manifest contains required fields and validates."""
     manifest = ExtractionManifest(
         pipeline_run_id="run-123",
         source_system="sba",
@@ -120,6 +126,7 @@ def test_manifest_contains_required_fields_and_validates():
 
 
 def test_manifest_validation_accepts_s3_backed_raw_uri():
+    """Validate that manifest validation accepts S3 backed raw uri."""
     manifest = {
         "pipeline_run_id": "run-123",
         "source_system": "census",
@@ -143,11 +150,13 @@ def test_manifest_validation_accepts_s3_backed_raw_uri():
 
 
 def test_manifest_validation_rejects_missing_required_fields():
+    """Validate that manifest validation rejects missing required fields."""
     with pytest.raises(ValueError, match="Missing required manifest fields"):
         validate_manifest({"pipeline_run_id": "run-123"})
 
 
 def test_manifest_validation_rejects_non_utc_timestamp():
+    """Validate that manifest validation rejects non UTC timestamp."""
     manifest = {field_name: "value" for field_name in REQUIRED_MANIFEST_FIELDS}
     manifest.update(
         {

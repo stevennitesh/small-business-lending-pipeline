@@ -9,6 +9,7 @@ from pipelines.flows.pipeline_health import (
 
 
 def test_pipeline_health_helpers_support_warnings():
+    """Validate that pipeline health helpers support warnings."""
     row_count_result = check_row_count_captured(
         row_count=10,
         pipeline_run_id="run-123",

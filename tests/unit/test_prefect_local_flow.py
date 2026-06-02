@@ -14,6 +14,7 @@ from pipelines.flows.stage_execution import run_timed_flow_stage, run_timed_stag
 
 
 def test_local_flow_declares_expected_stage_order():
+    """Validate that local flow declares expected stage order."""
     assert LOCAL_FLOW_STAGES == (
         "initialize_run",
         "load_config",
@@ -30,6 +31,7 @@ def test_local_flow_declares_expected_stage_order():
 
 
 def test_cloud_flow_declares_expected_stage_order():
+    """Validate that cloud flow declares expected stage order."""
     assert CLOUD_FLOW_STAGES == (
         "initialize_run",
         "load_config",
@@ -57,9 +59,11 @@ def test_cloud_flow_declares_expected_stage_order():
 
 
 def test_timed_stage_records_duration_when_stage_fails():
+    """Validate that timed stage records duration when stage fails."""
     stage_durations: dict[str, float] = {}
 
     def fail_stage():
+        """Fail stage for tests."""
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
@@ -70,6 +74,7 @@ def test_timed_stage_records_duration_when_stage_fails():
 
 
 def test_timed_flow_stage_records_duration_and_completion():
+    """Validate that timed flow stage records duration and completion."""
     state = FlowRunState()
 
     result = run_timed_flow_stage(
@@ -85,6 +90,7 @@ def test_timed_flow_stage_records_duration_and_completion():
 
 
 def test_flow_run_state_tracks_failed_stage():
+    """Validate that flow run state tracks failed stage."""
     state = FlowRunState()
     state.complete("initialize_run")
     state.complete("load_config")
@@ -98,9 +104,11 @@ def test_flow_run_state_tracks_failed_stage():
 
 
 def test_lending_pipeline_cli_delegates_to_flow(monkeypatch, capsys):
+    """Validate that lending pipeline cli delegates to flow."""
     calls = {}
 
     def fake_lending_pipeline_flow(**kwargs):
+        """Provide fake lending pipeline flow for tests."""
         calls.update(kwargs)
         return "data/validation/pipeline_run_id=cli/run_summary.json"
 

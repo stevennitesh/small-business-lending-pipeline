@@ -28,23 +28,16 @@ DEFAULT_SIZE_PATHS = (
 
 @dataclass(frozen=True)
 class BenchmarkPaths:
+    """Filesystem paths observed by a local command benchmark."""
+
     output_dir: Path = DEFAULT_OUTPUT_DIR
     run_results_path: Path = DEFAULT_RUN_RESULTS_PATH
     duckdb_path: Path = DEFAULT_DUCKDB_PATH
     size_paths: tuple[Path, ...] = DEFAULT_SIZE_PATHS
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    paths = BenchmarkPaths(output_dir=args.output_dir)
-    result = run_benchmark(args.command, paths=paths)
-    json_path, text_path = write_benchmark_outputs(result, paths.output_dir)
-    print(f"Benchmark JSON: {json_path}")
-    print(f"Benchmark text: {text_path}")
-    return int(result["command"]["exit_code"])
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse local benchmark CLI arguments."""
     parser = argparse.ArgumentParser(
         description="Benchmark a local pipeline command and write evidence under .tmp/benchmarks.",
     )
@@ -63,6 +56,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def run_benchmark(command: str, *, paths: BenchmarkPaths) -> dict[str, Any]:
+    """Run one command and collect timing, memory, disk, DuckDB, and dbt evidence."""
     started_at = datetime.now(timezone.utc)
     sizes_before = collect_disk_sizes(paths.size_paths)
     run_results_mtime_before = file_mtime(paths.run_results_path)
@@ -95,10 +89,12 @@ def run_benchmark(command: str, *, paths: BenchmarkPaths) -> dict[str, Any]:
 
 
 def collect_disk_sizes(paths: tuple[Path, ...]) -> dict[str, int | None]:
+    """Return byte sizes for observed files or directories."""
     return {path.as_posix(): directory_size_bytes(path) for path in paths}
 
 
 def directory_size_bytes(path: Path) -> int | None:
+    """Return a path's total byte size, ignoring symlinked directories/files."""
     if not path.exists():
         return None
     if path.is_file():
@@ -120,6 +116,7 @@ def diff_disk_sizes(
     before: dict[str, int | None],
     after: dict[str, int | None],
 ) -> dict[str, int | None]:
+    """Return after-before byte deltas while preserving missing-path state."""
     deltas: dict[str, int | None] = {}
     for path, after_size in after.items():
         before_size = before.get(path)
@@ -135,6 +132,7 @@ def diff_disk_sizes(
 
 
 def collect_duckdb_sizes(duckdb_path: Path) -> dict[str, int | None]:
+    """Return DuckDB database and WAL file size evidence."""
     wal_path = duckdb_path.with_suffix(f"{duckdb_path.suffix}.wal")
     return {
         "path": duckdb_path.as_posix(),
@@ -145,14 +143,17 @@ def collect_duckdb_sizes(duckdb_path: Path) -> dict[str, int | None]:
 
 
 def file_size_bytes(path: Path) -> int | None:
+    """Return a file size in bytes, or None when the path is missing."""
     return path.stat().st_size if path.exists() else None
 
 
 def file_mtime(path: Path) -> float | None:
+    """Return a file modification time, or None when the path is missing."""
     return path.stat().st_mtime if path.exists() else None
 
 
 def get_child_max_rss_bytes() -> int | None:
+    """Return maximum child-process RSS in bytes when available."""
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
     max_rss = int(usage.ru_maxrss)
     if max_rss <= 0:
@@ -165,6 +166,7 @@ def get_child_max_rss_bytes() -> int | None:
 def parse_dbt_slow_nodes(
     run_results_path: Path, *, limit: int = 10
 ) -> list[dict[str, Any]]:
+    """Return the slowest dbt nodes from a run_results.json file."""
     if not run_results_path.exists():
         return []
 
@@ -192,6 +194,7 @@ def parse_fresh_dbt_slow_nodes(
     run_results_mtime_before: float | None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
+    """Return slow dbt nodes only when run_results changed during benchmark."""
     run_results_mtime_after = file_mtime(run_results_path)
     if run_results_mtime_after is None:
         return []
@@ -207,6 +210,7 @@ def write_benchmark_outputs(
     result: dict[str, Any],
     output_dir: Path,
 ) -> tuple[Path, Path]:
+    """Write benchmark JSON and text summaries under the output directory."""
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = command_slug(result["command"]["text"])
@@ -222,11 +226,13 @@ def write_benchmark_outputs(
 
 
 def command_slug(command: str) -> str:
+    """Return a stable filesystem-safe slug for a benchmark command."""
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", command.strip().lower()).strip("-")
     return slug[:80] or "local-command"
 
 
 def render_text_summary(result: dict[str, Any]) -> str:
+    """Render a human-readable benchmark evidence summary."""
     lines = [
         "Local Pipeline Benchmark",
         f"Command: {result['command']['text']}",
@@ -251,6 +257,17 @@ def render_text_summary(result: dict[str, Any]) -> str:
     else:
         lines.append("- none")
     return "\n".join(lines) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the benchmark CLI and return the measured command exit code."""
+    args = parse_args(argv)
+    paths = BenchmarkPaths(output_dir=args.output_dir)
+    result = run_benchmark(args.command, paths=paths)
+    json_path, text_path = write_benchmark_outputs(result, paths.output_dir)
+    print(f"Benchmark JSON: {json_path}")
+    print(f"Benchmark text: {text_path}")
+    return int(result["command"]["exit_code"])
 
 
 if __name__ == "__main__":

@@ -43,12 +43,14 @@ class RawLoadMetadataFrames:
 def raw_ingestion_manifest_frame(
     manifest_groups: dict[str, list[dict[str, Any]]],
 ) -> pd.DataFrame:
+    """Build the raw ingestion manifest metadata table frame."""
     return normalize_records(flatten_manifest_groups(manifest_groups))
 
 
 def raw_validation_result_frame(
     validation_results: Iterable[ValidationResult],
 ) -> pd.DataFrame:
+    """Build the raw validation-result metadata table frame."""
     return normalize_records([result.to_dict() for result in validation_results])
 
 
@@ -59,6 +61,7 @@ def raw_pipeline_run_summary_frame(
     validation_status: str = "passed",
     extra_values: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
+    """Build the one-row summary frame for a completed raw load."""
     summary = {
         "pipeline_run_ids": ",".join(pipeline_run_ids),
         "loaded_at_utc": loaded_at_utc,
@@ -91,6 +94,9 @@ def raw_load_metadata_frames(
 
 
 def normalize_records(records: list[dict[str, Any]]) -> pd.DataFrame:
+    """Convert metadata records into a frame with scalar cell values."""
+    # Raw metadata tables are warehouse-friendly scalar tables; nested validation
+    # details stay available as deterministic JSON text instead of Python objects.
     normalized_records = [
         {
             key: json.dumps(value, sort_keys=True)
@@ -108,6 +114,7 @@ def manifest_raw_row_metadata(
     *,
     uppercase: bool = False,
 ) -> dict[str, Any]:
+    """Return lineage metadata values attached to rows loaded from a manifest."""
     local_raw_path = manifest.get("local_raw_path")
     raw_uri = manifest.get("raw_uri") or local_raw_path or manifest.get("s3_raw_uri")
     storage_backend = manifest.get("storage_backend") or (

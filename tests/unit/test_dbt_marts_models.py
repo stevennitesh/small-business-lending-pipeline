@@ -32,6 +32,7 @@ LOAN_STATUS_SEED = Path("dbt/seeds/ref_loan_status_group.csv")
 
 
 def test_required_mart_models_exist():
+    """Validate that required mart models exist."""
     required_paths = [*DIMENSION_MODELS.values(), *FACT_MODELS.values()]
     missing_paths = [str(path) for path in required_paths if not path.is_file()]
 
@@ -39,6 +40,7 @@ def test_required_mart_models_exist():
 
 
 def test_mart_schema_declares_keys_relationships_and_unknown_rows():
+    """Validate that mart schema declares keys relationships and unknown rows."""
     models = models_by_name([MARTS_SCHEMA])
 
     assert set(DIMENSION_MODELS) <= set(models)
@@ -110,6 +112,7 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
 
 
 def test_source_file_dimension_uses_raw_uri_as_identity():
+    """Validate that source file dimension uses raw uri as identity."""
     model_sql = DIMENSION_MODELS["dim_source_file"].read_text(encoding="utf-8")
 
     assert '{{ generate_surrogate_key(["raw_uri"]) }} as source_file_key' in model_sql
@@ -117,6 +120,7 @@ def test_source_file_dimension_uses_raw_uri_as_identity():
 
 
 def test_dim_date_uses_year_month_label_macro_for_dialect_formatting():
+    """Validate that dim date uses year month label macro for dialect formatting."""
     model_sql = DIMENSION_MODELS["dim_date"].read_text(encoding="utf-8")
     macro_sql = Path("dbt/macros/date_compat.sql").read_text(encoding="utf-8")
 
@@ -128,6 +132,7 @@ def test_dim_date_uses_year_month_label_macro_for_dialect_formatting():
 
 
 def test_fact_models_generate_source_file_key_from_raw_uri():
+    """Validate that fact models generate source file key from raw uri."""
     for model_name, model_path in FACT_MODELS.items():
         model_sql = model_path.read_text(encoding="utf-8")
         expected_expression = FACT_SOURCE_FILE_KEY_EXPRESSIONS[model_name]
@@ -141,6 +146,7 @@ def test_fact_models_generate_source_file_key_from_raw_uri():
 
 
 def test_fact_source_file_keys_keep_relationship_tests():
+    """Validate that fact source file keys keep relationship tests."""
     models = models_by_name([MARTS_SCHEMA])
 
     for model_name in FACT_MODELS:
@@ -161,6 +167,7 @@ def test_fact_source_file_keys_keep_relationship_tests():
 
 
 def test_fact_sba_loans_exposes_canonical_approval_year():
+    """Validate that fact SBA loans exposes canonical approval year."""
     model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
 
     assert "approval_date," in model_sql
@@ -171,6 +178,7 @@ def test_fact_sba_loans_exposes_canonical_approval_year():
 
 
 def test_fact_sba_loans_generates_naics_key_without_dimension_lookup():
+    """Validate that fact SBA loans generates naics key without dimension lookup."""
     model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
 
     assert "ref('dim_naics')" not in model_sql
@@ -182,6 +190,7 @@ def test_fact_sba_loans_generates_naics_key_without_dimension_lookup():
 
 
 def test_fact_sba_loans_exposes_extra_kpi_fields_and_status_group():
+    """Validate that fact SBA loans exposes extra kpi fields and status group."""
     model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
     models = models_by_name([MARTS_SCHEMA])
     fact_sba = models["fact_sba_loans"]
@@ -213,6 +222,7 @@ def test_fact_sba_loans_exposes_extra_kpi_fields_and_status_group():
 
 
 def test_loan_status_group_seed_is_documented_and_conservative():
+    """Validate that loan status group seed is documented and conservative."""
     seed_schema = yaml.safe_load(SEED_SCHEMA.read_text())
     seeds = {seed["name"]: seed for seed in seed_schema["seeds"]}
     seed_rows = LOAN_STATUS_SEED.read_text(encoding="utf-8").splitlines()

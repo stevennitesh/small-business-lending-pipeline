@@ -30,6 +30,7 @@ CENSUS_BDS_CONFIG_PATH = config_path(CENSUS_BDS_CONFIG_FILE)
 
 
 def test_load_census_bds_config_from_yaml():
+    """Validate that load census BDS config from YAML."""
     config = load_census_bds_config(CENSUS_BDS_CONFIG_PATH)
 
     assert config.endpoint == "https://api.census.gov/data/timeseries/bds"
@@ -40,6 +41,7 @@ def test_load_census_bds_config_from_yaml():
 
 
 def test_build_census_bds_params_for_year_range():
+    """Validate that build census BDS params for year range."""
     config = CensusBDSConfig(
         endpoint="https://api.census.gov/data/timeseries/bds",
         geography="state",
@@ -57,6 +59,7 @@ def test_build_census_bds_params_for_year_range():
 
 
 def test_validate_bds_response_requires_header_and_data_rows():
+    """Validate that validate BDS response requires header and data rows."""
     summary = validate_bds_response(
         census_bds_fixture_response(),
         required_variables=("YEAR", "NAME", "state", "ESTAB"),
@@ -68,6 +71,7 @@ def test_validate_bds_response_requires_header_and_data_rows():
 
 
 def test_validate_bds_response_rejects_missing_required_variables():
+    """Validate that validate BDS response rejects missing required variables."""
     with pytest.raises(ValueError, match="Missing required Census BDS variables"):
         validate_bds_response(
             [["NAME", "YEAR"], ["Alabama", "2023"]],
@@ -76,6 +80,7 @@ def test_validate_bds_response_rejects_missing_required_variables():
 
 
 def test_validate_bds_response_rejects_duplicate_state_year_grain():
+    """Validate that validate BDS response rejects duplicate state year grain."""
     duplicate_response = [
         *census_bds_fixture_response(),
         census_bds_fixture_response()[1],
@@ -89,6 +94,7 @@ def test_validate_bds_response_rejects_duplicate_state_year_grain():
 
 
 def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatch):
+    """Validate that extract census BDS writes raw JSON before manifest."""
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     config = CensusBDSConfig(
         endpoint="https://api.census.gov/data/timeseries/bds",
@@ -154,6 +160,7 @@ def test_extract_census_bds_writes_raw_json_before_manifest(tmp_path, monkeypatc
 
 
 def test_extract_census_bds_uses_passed_source_identity(tmp_path, monkeypatch):
+    """Validate that extract census BDS uses passed source identity."""
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     config = CensusBDSConfig(
         endpoint="https://api.census.gov/data/timeseries/bds",
@@ -192,6 +199,7 @@ def test_extract_census_bds_uses_passed_source_identity(tmp_path, monkeypatch):
 
 
 def test_extract_census_bds_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
+    """Validate that extract census BDS can write raw artifact to S3."""
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
     config = CensusBDSConfig(
         endpoint="https://api.census.gov/data/timeseries/bds",

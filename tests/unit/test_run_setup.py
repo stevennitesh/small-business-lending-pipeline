@@ -9,7 +9,54 @@ import pipelines.flows.lending_pipeline_flow as local_flow
 from pipelines.flows.run_models import LocalRunContext
 
 
+def _flow_context(
+    tmp_path: Path,
+    *,
+    pipeline_run_id: str,
+    run_mode: str = "local",
+    dbt_target: str = "dev_duckdb",
+    s3_bucket: str | None = None,
+    powerbi_export_dir: str | None = None,
+) -> LocalRunContext:
+    """Build flow context for tests."""
+    return local_flow.initialize_run.fn(
+        run_mode=run_mode,
+        extract_mode="fixture",
+        dbt_target=dbt_target,
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        powerbi_export_dir=powerbi_export_dir,
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+    )
+
+
+def _setup_context(
+    tmp_path: Path,
+    *,
+    run_mode: str = "local",
+    dbt_target: str = "dev_duckdb",
+    s3_bucket: str | None = None,
+    pipeline_run_id: str | None = None,
+) -> LocalRunContext:
+    """Build setup context for tests."""
+    return run_setup.initialize_run_context(
+        run_mode=run_mode,
+        extract_mode="fixture",
+        dbt_target=dbt_target,
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+    )
+
+
 def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
+    """Validate that flow Power BI export dir can use env override."""
     export_dir = tmp_path / "custom-powerbi"
     monkeypatch.setenv("POWERBI_EXPORT_DIR", str(export_dir))
 
@@ -23,6 +70,7 @@ def test_flow_powerbi_export_dir_can_use_env_override(tmp_path, monkeypatch):
 
 
 def test_flow_powerbi_export_dir_argument_overrides_env(tmp_path, monkeypatch):
+    """Validate that flow Power BI export dir argument overrides env."""
     monkeypatch.setenv("POWERBI_EXPORT_DIR", str(tmp_path / "env-powerbi"))
     export_dir = tmp_path / "arg-powerbi"
 
@@ -37,6 +85,7 @@ def test_flow_powerbi_export_dir_argument_overrides_env(tmp_path, monkeypatch):
 
 
 def test_run_setup_initializes_context_directories(tmp_path):
+    """Validate that run setup initializes context directories."""
     context = _setup_context(
         tmp_path,
         pipeline_run_id="run-setup",
@@ -50,6 +99,7 @@ def test_run_setup_initializes_context_directories(tmp_path):
 
 
 def test_run_setup_rejects_unknown_run_mode(tmp_path):
+    """Validate that run setup rejects unknown run mode."""
     with pytest.raises(ValueError, match="run_mode must be one of: cloud, local"):
         _setup_context(
             tmp_path,
@@ -58,6 +108,7 @@ def test_run_setup_rejects_unknown_run_mode(tmp_path):
 
 
 def test_run_setup_resolves_s3_bucket_from_context_before_env(tmp_path, monkeypatch):
+    """Validate that run setup resolves S3 bucket from context before env."""
     monkeypatch.setenv("S3_BUCKET", "env-bucket")
     context = _setup_context(
         tmp_path,
@@ -71,6 +122,7 @@ def test_run_setup_resolves_s3_bucket_from_context_before_env(tmp_path, monkeypa
 
 
 def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeypatch):
+    """Validate that cloud mode requires cloud config before external work."""
     for variable_name in (
         "S3_BUCKET",
         "SNOWFLAKE_ACCOUNT",
@@ -101,6 +153,7 @@ def test_cloud_mode_requires_cloud_config_before_external_work(tmp_path, monkeyp
 
 
 def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):
+    """Validate that local flow generated dbt profile uses single DuckDB thread."""
     context = _flow_context(
         tmp_path,
         pipeline_run_id="profile-thread-check",
@@ -110,47 +163,3 @@ def test_local_flow_generated_dbt_profile_uses_single_duckdb_thread(tmp_path):
 
     profile_text = (tmp_path / "profiles" / "profiles.yml").read_text(encoding="utf-8")
     assert "threads: 1" in profile_text
-
-
-def _flow_context(
-    tmp_path: Path,
-    *,
-    pipeline_run_id: str,
-    run_mode: str = "local",
-    dbt_target: str = "dev_duckdb",
-    s3_bucket: str | None = None,
-    powerbi_export_dir: str | None = None,
-) -> LocalRunContext:
-    return local_flow.initialize_run.fn(
-        run_mode=run_mode,
-        extract_mode="fixture",
-        dbt_target=dbt_target,
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        powerbi_export_dir=powerbi_export_dir,
-        s3_bucket=s3_bucket,
-        pipeline_run_id=pipeline_run_id,
-    )
-
-
-def _setup_context(
-    tmp_path: Path,
-    *,
-    run_mode: str = "local",
-    dbt_target: str = "dev_duckdb",
-    s3_bucket: str | None = None,
-    pipeline_run_id: str | None = None,
-) -> LocalRunContext:
-    return run_setup.initialize_run_context(
-        run_mode=run_mode,
-        extract_mode="fixture",
-        dbt_target=dbt_target,
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=s3_bucket,
-        pipeline_run_id=pipeline_run_id,
-    )

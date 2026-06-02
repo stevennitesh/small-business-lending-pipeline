@@ -3,15 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def _clean_segment(segment: str) -> str:
-    cleaned = str(segment).strip("/")
-    if not cleaned:
-        raise ValueError("Path segments cannot be empty")
-    if ".." in Path(cleaned).parts:
-        raise ValueError("Path segments cannot contain parent traversal")
-    return cleaned
-
-
 def build_raw_s3_key(
     *,
     source_system: str,
@@ -21,6 +12,7 @@ def build_raw_s3_key(
     pipeline_run_id: str,
     filename: str,
 ) -> str:
+    """Build the partitioned raw artifact key used locally and in S3."""
     parts = [
         "raw",
         source_system,
@@ -43,6 +35,7 @@ def build_local_raw_path(
     pipeline_run_id: str,
     filename: str,
 ) -> Path:
+    """Build the local filesystem path mirroring the raw S3 key layout."""
     return Path(data_root) / build_raw_s3_key(
         source_system=source_system,
         dataset_name=dataset_name,
@@ -63,6 +56,7 @@ def build_partitioned_artifact_key(
     pipeline_run_id: str,
     filename: str,
 ) -> str:
+    """Build a source/run-partitioned key for non-raw artifacts."""
     parts = [
         prefix,
         source_system,
@@ -76,7 +70,18 @@ def build_partitioned_artifact_key(
 
 
 def build_s3_uri(bucket: str, key: str) -> str:
+    """Build an s3:// URI from a bucket and object key."""
     cleaned_bucket = bucket.removeprefix("s3://").strip("/")
     if not cleaned_bucket:
         raise ValueError("Bucket cannot be empty")
     return f"s3://{cleaned_bucket}/{key.strip('/')}"
+
+
+def _clean_segment(segment: str) -> str:
+    """Normalize and validate one path/key segment."""
+    cleaned = str(segment).strip("/")
+    if not cleaned:
+        raise ValueError("Path segments cannot be empty")
+    if ".." in Path(cleaned).parts:
+        raise ValueError("Path segments cannot contain parent traversal")
+    return cleaned

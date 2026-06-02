@@ -27,9 +27,12 @@ def validate_project_config_contract(
     census_bds: CensusBDSConfig,
     bls_laus: BLSLAUSConfig,
 ) -> None:
+    """Validate cross-file project configuration contracts."""
     source_names = set(sources)
     enabled_source_names = _enabled_source_names(sources)
 
+    # Policy files should reference declared sources only, and enabled sources
+    # must have both freshness and raw-validation policy coverage.
     _validate_policy_sources(
         policy_filename=FRESHNESS_RULES_CONFIG_FILE,
         policy_source_names=set(freshness_rules),
@@ -62,6 +65,7 @@ def validate_project_config_contract(
 
 
 def _enabled_source_names(sources) -> set[str]:
+    """Return source keys enabled in sources.yml."""
     return {
         source_name
         for source_name, source_config in sources.items()
@@ -75,6 +79,7 @@ def _validate_policy_sources(
     policy_source_names: set[str],
     source_names: set[str],
 ) -> None:
+    """Require policy source keys to exist in sources.yml."""
     unknown_sources = sorted(policy_source_names - source_names)
     if unknown_sources:
         raise ValueError(
@@ -89,6 +94,7 @@ def _validate_enabled_sources_have_policy(
     policy_source_names: set[str],
     enabled_source_names: set[str],
 ) -> None:
+    """Require every enabled source to have a matching policy entry."""
     missing_sources = sorted(enabled_source_names - policy_source_names)
     if missing_sources:
         raise ValueError(
@@ -102,6 +108,7 @@ def _validate_freshness_cadence(
     freshness_rules: dict[str, dict[str, Any]],
     enabled_source_names: set[str],
 ) -> None:
+    """Require source refresh cadence to match freshness expectations."""
     for source_name in sorted(enabled_source_names & set(freshness_rules)):
         expected_cadence = str(freshness_rules[source_name].get("expected_cadence"))
         refresh_cadence = sources[source_name].refresh_cadence
@@ -116,6 +123,7 @@ def _validate_sba_config_contract(
     sources,
     sba: SBAResourcesConfig,
 ) -> None:
+    """Require SBA resource config to match the declared source dataset."""
     if (
         SBA_FOIA_SOURCE_KEY not in sources
         or sources[SBA_FOIA_SOURCE_KEY].dataset_name == sba.dataset_name
@@ -131,6 +139,7 @@ def _validate_census_validation_contract(
     raw_validation_expectations: dict[str, dict[str, Any]],
     census_bds: CensusBDSConfig,
 ) -> None:
+    """Require Census validation variables to be requested from the API."""
     if CENSUS_BDS_SOURCE_KEY not in raw_validation_expectations:
         return
 
@@ -150,6 +159,7 @@ def _validate_sba_validation_contract(
     raw_validation_expectations: dict[str, dict[str, Any]],
     sba: SBAResourcesConfig,
 ) -> None:
+    """Require SBA validation programs to be configured resources."""
     if SBA_FOIA_SOURCE_KEY not in raw_validation_expectations:
         return
 
@@ -171,10 +181,13 @@ def _validate_sba_validation_contract(
 def _validate_bls_validation_contract(
     raw_validation_expectations: dict[str, dict[str, Any]],
 ) -> None:
+    """Validate BLS LAUS raw validation expectation values."""
     if BLS_LAUS_SOURCE_KEY not in raw_validation_expectations:
         return
 
     bls_expectations = raw_validation_expectations[BLS_LAUS_SOURCE_KEY]
+    # Compile the configured regex here so bad period patterns fail at config
+    # load time instead of during a later extraction/validation run.
     re.compile(str(bls_expectations["required_period_pattern"]))
     unemployment_rate_min = float(bls_expectations["unemployment_rate_min"])
     unemployment_rate_max = float(bls_expectations["unemployment_rate_max"])

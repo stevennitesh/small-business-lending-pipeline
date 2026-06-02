@@ -39,6 +39,9 @@ class ValidationResult:
     checked_at_utc: str
 
     def __post_init__(self) -> None:
+        """Validate severity and status values after dataclass creation."""
+        # Validation result JSON is loaded later into raw metadata tables; keep
+        # severity/status constrained so failure gating can rely on fixed values.
         if self.severity not in VALID_SEVERITIES:
             raise ValueError(f"Invalid validation severity: {self.severity}")
         if self.status not in VALID_STATUSES:

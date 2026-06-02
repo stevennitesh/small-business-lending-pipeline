@@ -14,6 +14,7 @@ from tests.unit.config_test_helpers import CONFIG_DIR, mutate_config_file
 
 
 def test_mvp_freshness_rules_only_declare_active_cadence_contracts():
+    """Validate that MVP freshness rules only declare active cadence contracts."""
     project_config = load_project_config(CONFIG_DIR)
 
     for rule in project_config.freshness_rules.values():
@@ -21,6 +22,7 @@ def test_mvp_freshness_rules_only_declare_active_cadence_contracts():
 
 
 def test_sba_raw_validation_expectations_only_declare_active_controls():
+    """Validate that SBA raw validation expectations only declare active controls."""
     project_config = load_project_config(CONFIG_DIR)
 
     assert set(project_config.raw_validation_expectations[SBA_FOIA_SOURCE_KEY]) == {
@@ -29,6 +31,7 @@ def test_sba_raw_validation_expectations_only_declare_active_controls():
 
 
 def test_census_raw_validation_expectations_only_declare_active_controls():
+    """Validate that census raw validation expectations only declare active controls."""
     project_config = load_project_config(CONFIG_DIR)
 
     assert set(project_config.raw_validation_expectations[CENSUS_BDS_SOURCE_KEY]) == {
@@ -38,6 +41,7 @@ def test_census_raw_validation_expectations_only_declare_active_controls():
 
 
 def test_bls_raw_validation_expectations_only_declare_active_controls():
+    """Validate that BLS raw validation expectations only declare active controls."""
     project_config = load_project_config(CONFIG_DIR)
 
     assert set(project_config.raw_validation_expectations[BLS_LAUS_SOURCE_KEY]) == {
@@ -48,6 +52,7 @@ def test_bls_raw_validation_expectations_only_declare_active_controls():
 
 
 def test_enabled_sources_have_freshness_and_validation_config():
+    """Validate that enabled sources have freshness and validation config."""
     project_config = load_project_config(CONFIG_DIR)
     enabled_source_names = {
         source_name
@@ -60,7 +65,10 @@ def test_enabled_sources_have_freshness_and_validation_config():
 
 
 def test_project_config_rejects_unknown_policy_source(tmp_path):
+    """Validate that project config rejects unknown policy source."""
+
     def add_unknown_source(config: dict) -> None:
+        """Add unknown source for tests."""
         config["raw_validation_expectations"]["unknown_source"] = {
             "expected_state_count": 1
         }
@@ -76,7 +84,10 @@ def test_project_config_rejects_unknown_policy_source(tmp_path):
 
 
 def test_project_config_rejects_enabled_source_missing_freshness_rule(tmp_path):
+    """Validate that project config rejects enabled source missing freshness rule."""
+
     def remove_sba_freshness_rule(config: dict) -> None:
+        """Remove SBA freshness rule for tests."""
         del config["freshness_rules"][SBA_FOIA_SOURCE_KEY]
 
     config_dir = mutate_config_file(
@@ -92,7 +103,10 @@ def test_project_config_rejects_enabled_source_missing_freshness_rule(tmp_path):
 def test_project_config_rejects_enabled_source_missing_validation_expectations(
     tmp_path,
 ):
+    """Validate that project config rejects enabled source missing validation expectations."""
+
     def remove_bls_validation_expectations(config: dict) -> None:
+        """Remove BLS validation expectations for tests."""
         del config["raw_validation_expectations"][BLS_LAUS_SOURCE_KEY]
 
     config_dir = mutate_config_file(
@@ -109,7 +123,10 @@ def test_project_config_rejects_enabled_source_missing_validation_expectations(
 
 
 def test_project_config_rejects_cadence_drift(tmp_path):
+    """Validate that project config rejects cadence drift."""
+
     def change_bls_cadence(config: dict) -> None:
+        """Change BLS cadence for tests."""
         config["freshness_rules"][BLS_LAUS_SOURCE_KEY]["expected_cadence"] = "annual"
 
     config_dir = mutate_config_file(
@@ -123,7 +140,10 @@ def test_project_config_rejects_cadence_drift(tmp_path):
 
 
 def test_project_config_rejects_census_validation_variables_not_requested(tmp_path):
+    """Validate that project config rejects census validation variables not requested."""
+
     def add_not_requested_census_variable(config: dict) -> None:
+        """Add not requested census variable for tests."""
         config["raw_validation_expectations"][CENSUS_BDS_SOURCE_KEY][
             "required_variables"
         ].append("NOT_REQUESTED")
@@ -139,7 +159,10 @@ def test_project_config_rejects_census_validation_variables_not_requested(tmp_pa
 
 
 def test_project_config_rejects_sba_validation_programs_not_configured(tmp_path):
+    """Validate that project config rejects SBA validation programs not configured."""
+
     def add_unknown_sba_program(config: dict) -> None:
+        """Add unknown SBA program for tests."""
         config["raw_validation_expectations"][SBA_FOIA_SOURCE_KEY][
             "required_programs"
         ].append("UNKNOWN")
@@ -155,7 +178,10 @@ def test_project_config_rejects_sba_validation_programs_not_configured(tmp_path)
 
 
 def test_project_config_rejects_bls_validation_rate_bounds_drift(tmp_path):
+    """Validate that project config rejects BLS validation rate bounds drift."""
+
     def change_bls_min_rate(config: dict) -> None:
+        """Change BLS min rate for tests."""
         config["raw_validation_expectations"][BLS_LAUS_SOURCE_KEY][
             "unemployment_rate_min"
         ] = 101

@@ -146,22 +146,6 @@ def validate_manifest_identities_and_storage(
     return validation_results
 
 
-def _manifest_resource_identity_failure(
-    manifest: RawManifest,
-    *,
-    resource_name: object,
-    message: str,
-) -> ValidationResult:
-    return make_manifest_validation_result(
-        manifest=manifest,
-        check_definition=RAW_MANIFEST_SOURCE_IDENTITY,
-        passed=False,
-        expected_value="resource_name mapped to configured source",
-        observed_value=resource_name,
-        failed_message=message,
-    )
-
-
 def raw_file_exists_resource_names(results: list[ValidationResult]) -> set[str]:
     """Extract resource names whose raw-file existence checks passed."""
     return {
@@ -170,3 +154,20 @@ def raw_file_exists_resource_names(results: list[ValidationResult]) -> set[str]:
         if result.validation_check_id == RAW_FILE_EXISTS.validation_check_id
         and result.status == "passed"
     }
+
+
+def _manifest_resource_identity_failure(
+    manifest: RawManifest,
+    *,
+    resource_name: object,
+    message: str,
+) -> ValidationResult:
+    """Build a failed result for an unmapped manifest resource identity."""
+    return make_manifest_validation_result(
+        manifest=manifest,
+        check_definition=RAW_MANIFEST_SOURCE_IDENTITY,
+        passed=False,
+        expected_value="resource_name mapped to configured source",
+        observed_value=resource_name,
+        failed_message=message,
+    )

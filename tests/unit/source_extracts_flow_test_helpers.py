@@ -24,6 +24,7 @@ def live_flow_context(
     source_start_year: int | None = 2020,
     source_end_year: int | None = 2024,
 ):
+    """Build live flow context for tests."""
     return local_flow.initialize_run.fn(
         run_mode=run_mode,
         extract_mode="live",
@@ -46,7 +47,10 @@ def install_source_extractor_fakes(
     calls: list[SourceExtractorCall],
     manifest_locations: bool = False,
 ) -> None:
+    """Install source extractor fakes for tests."""
+
     def fake_sba_extract(**kwargs):
+        """Provide fake SBA extract for tests."""
         calls.append(("sba", kwargs))
         summary_kwargs: dict[str, Any] = {}
         if manifest_locations:
@@ -69,6 +73,7 @@ def install_source_extractor_fakes(
         )
 
     def fake_census_extract(**kwargs):
+        """Provide fake census extract for tests."""
         calls.append(("census", kwargs))
         return CensusBDSExtractionSummary(
             result=None,
@@ -80,6 +85,7 @@ def install_source_extractor_fakes(
         )
 
     def fake_bls_extract(**kwargs):
+        """Provide fake BLS extract for tests."""
         calls.append(("bls", kwargs))
         return BLSLAUSExtractionSummary(
             result=None,
@@ -97,6 +103,7 @@ def install_source_extractor_fakes(
 
 
 def manifest_location(resource_name: str) -> ArtifactLocation:
+    """Build manifest location for tests."""
     return ArtifactLocation(
         storage_backend="s3",
         artifact_uri=f"s3://cloud-bucket/manifests/test/{resource_name}.json",
@@ -107,6 +114,7 @@ def manifest_location(resource_name: str) -> ArtifactLocation:
 
 
 def write_manifest_stub(tmp_path: Path, resource_name: str) -> Path:
+    """Write manifest stub for tests."""
     path = tmp_path / f"{resource_name}.manifest.json"
     path.write_text(
         json.dumps(

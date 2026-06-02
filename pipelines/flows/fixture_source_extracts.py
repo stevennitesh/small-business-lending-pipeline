@@ -34,7 +34,7 @@ def extract_fixture_sources_for_flow(
     artifact_store_factory: ArtifactStoreFactory | None = None,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> ExtractionPaths:
-    """Write fixture raw artifacts and return their manifest references."""
+    """Write fixture raw artifacts and return flow-ready manifest references."""
     stores = resolve_extraction_artifact_stores(
         context,
         default_bucket=DEFAULT_FIXTURE_EXTRACTION_BUCKET,
@@ -43,6 +43,8 @@ def extract_fixture_sources_for_flow(
         s3_bucket_resolver=s3_bucket_resolver,
     )
     summary = extract_fixture_source_outputs(
+        # Fixture mode reuses the same extraction stores and manifest grouping as
+        # live mode so later validation/load stages do not need a fixture branch.
         FixtureExtractionContext(
             extraction_run=build_extraction_run(
                 data_root=context.data_root,

@@ -57,6 +57,8 @@ def parse_config_bool(value: Any, *, field_name: str) -> bool:
 
 @dataclass(frozen=True)
 class SBAResourceSpec:
+    """Configured SBA resource discovery and validation contract."""
+
     logical_name: str
     program: str
     source_period: str
@@ -67,6 +69,8 @@ class SBAResourceSpec:
 
 @dataclass(frozen=True)
 class SBADiscoveryConfig:
+    """SBA Open Data package discovery settings."""
+
     strategy: str
     package_url: str
     allow_dynamic_url_resolution: bool
@@ -75,6 +79,8 @@ class SBADiscoveryConfig:
 
 @dataclass(frozen=True)
 class SBAResourcesConfig:
+    """Parsed SBA resource configuration."""
+
     dataset_name: str
     discovery: SBADiscoveryConfig
     resources: tuple[SBAResourceSpec, ...]
@@ -82,6 +88,8 @@ class SBAResourcesConfig:
 
 @dataclass(frozen=True)
 class CensusBDSConfig:
+    """Parsed Census BDS API configuration."""
+
     endpoint: str
     geography: str
     start_year: int
@@ -90,6 +98,8 @@ class CensusBDSConfig:
 
 @dataclass(frozen=True)
 class BLSSeriesConfig:
+    """Configured BLS LAUS state series metadata."""
+
     state_fips: str
     state_abbr: str
     state_name: str
@@ -98,6 +108,8 @@ class BLSSeriesConfig:
 
 @dataclass(frozen=True)
 class BLSLAUSConfig:
+    """Parsed BLS LAUS API and series configuration."""
+
     endpoint: str
     measure_name: str
     seasonal_adjustment: str
@@ -106,6 +118,7 @@ class BLSLAUSConfig:
 
 
 def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
+    """Parse the SBA resources YAML section into typed config."""
     discovery = config.get("discovery", {})
     strategy = str(discovery.get("strategy", "sba_open_data_metadata"))
     if strategy != "sba_open_data_metadata":
@@ -127,6 +140,8 @@ def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
             ),
         ),
         resources=tuple(
+            # Resource order is preserved because extractor output and tests use
+            # config order for deterministic manifest grouping.
             SBAResourceSpec(
                 logical_name=str(resource["logical_name"]),
                 program=str(resource["program"]),
@@ -149,6 +164,7 @@ def parse_sba_resources_config(config: Mapping[str, Any]) -> SBAResourcesConfig:
 def load_sba_resources_config(
     config_path: Path | str = f"config/{SBA_RESOURCES_CONFIG_FILE}",
 ) -> SBAResourcesConfig:
+    """Load and parse the SBA resources config file."""
     return _load_config_section(
         config_path,
         section_name=SBA_RESOURCES_CONFIG_SECTION,
@@ -157,6 +173,7 @@ def load_sba_resources_config(
 
 
 def parse_census_bds_config(config: Mapping[str, Any]) -> CensusBDSConfig:
+    """Parse the Census BDS variables YAML section into typed config."""
     variables = tuple(
         str(variable["name"])
         for variable in config["variables"]
@@ -176,6 +193,7 @@ def parse_census_bds_config(config: Mapping[str, Any]) -> CensusBDSConfig:
 def load_census_bds_config(
     config_path: Path | str = f"config/{CENSUS_BDS_CONFIG_FILE}",
 ) -> CensusBDSConfig:
+    """Load and parse the Census BDS config file."""
     return _load_config_section(
         config_path,
         section_name=CENSUS_BDS_CONFIG_SECTION,
@@ -184,6 +202,7 @@ def load_census_bds_config(
 
 
 def parse_bls_laus_config(config: Mapping[str, Any]) -> BLSLAUSConfig:
+    """Parse the BLS LAUS state-series YAML section into typed config."""
     return BLSLAUSConfig(
         endpoint=str(config["endpoint"]),
         measure_name=str(config["measure_name"]),
@@ -204,11 +223,23 @@ def parse_bls_laus_config(config: Mapping[str, Any]) -> BLSLAUSConfig:
 def load_bls_laus_config(
     config_path: Path | str = f"config/{BLS_LAUS_CONFIG_FILE}",
 ) -> BLSLAUSConfig:
+    """Load and parse the BLS LAUS config file."""
     return _load_config_section(
         config_path,
         section_name=BLS_LAUS_CONFIG_SECTION,
         parser=parse_bls_laus_config,
     )
+
+
+def load_yaml_file(path: Path) -> dict[str, Any]:
+    """Load a YAML file and require the root document to be a mapping."""
+    with path.open("r", encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected mapping in config file: {path}")
+
+    return data
 
 
 def _load_config_section(
@@ -217,14 +248,5 @@ def _load_config_section(
     section_name: str,
     parser: Callable[[Mapping[str, Any]], ConfigT],
 ) -> ConfigT:
+    """Load one YAML section and parse it into a typed config object."""
     return parser(load_yaml_file(Path(config_path))[section_name])
-
-
-def load_yaml_file(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-
-    if not isinstance(data, dict):
-        raise ValueError(f"Expected mapping in config file: {path}")
-
-    return data

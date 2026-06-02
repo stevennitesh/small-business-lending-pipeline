@@ -21,6 +21,7 @@ from tests.unit.validation_test_helpers import failed_check_ids
 
 
 def test_sba_required_resources_check_reports_missing_resource(tmp_path):
+    """Validate that SBA required resources check reports missing resource."""
     manifest = sba_manifest_for(write_raw_file(tmp_path, "a,b\n1,2\n"))
 
     results = check_sba_required_resources(
@@ -40,6 +41,7 @@ def test_sba_required_resources_check_reports_missing_resource(tmp_path):
 
 
 def test_sba_required_resources_reuses_raw_file_exists_resource_names(tmp_path):
+    """Validate that SBA required resources reuses raw file exists resource names."""
     manifest = sba_manifest_for(write_raw_file(tmp_path, "a,b\n1,2\n"))
     artifact_reader = CountingRawArtifactReader()
 
@@ -55,6 +57,7 @@ def test_sba_required_resources_reuses_raw_file_exists_resource_names(tmp_path):
 
 
 def test_sba_required_resources_reports_empty_local_raw_path_unreadable(tmp_path):
+    """Validate that SBA required resources reports empty local raw path unreadable."""
     manifest = sba_manifest_for(write_raw_file(tmp_path, "a,b\n1,2\n"))
     manifest["local_raw_path"] = ""
 
@@ -70,6 +73,7 @@ def test_sba_required_resources_reports_empty_local_raw_path_unreadable(tmp_path
 
 
 def test_source_validation_checks_use_configured_identity(tmp_path):
+    """Validate that source validation checks use configured identity."""
     source_identity = SourceIdentity(
         source_system="custom_source",
         dataset_name="custom_dataset",
@@ -120,6 +124,7 @@ def test_source_validation_checks_use_configured_identity(tmp_path):
 
 
 def test_census_payload_check_requires_variables_and_state_coverage():
+    """Validate that census payload check requires variables and state coverage."""
     payload = [
         ["YEAR", "NAME", "state", "ESTAB"],
         ["2023", "Alabama", "01", "98246"],
@@ -141,6 +146,7 @@ def test_census_payload_check_requires_variables_and_state_coverage():
 
 
 def test_bls_payload_check_requires_expected_series_and_valid_months():
+    """Validate that BLS payload check requires expected series and valid months."""
     payload = {
         "normalized_rows": [
             {
@@ -177,6 +183,7 @@ def test_bls_payload_check_requires_expected_series_and_valid_months():
 
 
 def test_bls_payload_check_honors_configured_period_and_value_bounds():
+    """Validate that BLS payload check honors configured period and value bounds."""
     payload = {
         "normalized_rows": [
             {

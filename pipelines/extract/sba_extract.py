@@ -237,6 +237,8 @@ def _download_resource(
     response = inputs.session.get(resource.url, timeout=timeout, stream=True)
     response.raise_for_status()
 
+    # SBA FOIA CSVs can be large; spool once so checksum, raw storage, and
+    # manifest profiling all read the same payload without holding it in memory.
     raw_payload, sha256_checksum, file_size_bytes = _spool_response_payload(response)
     try:
         extraction_run.raw_artifact_store.write_file(location, raw_payload)
@@ -303,6 +305,8 @@ def _profile_downloaded_payload(
     """Profile downloaded payloads enough to populate manifest row/schema fields."""
     payload.seek(0)
     if file_format == "csv":
+        # The SBA CSV files may include a UTF-8 BOM; utf-8-sig keeps the first
+        # header name stable for downstream raw-load schema hashing.
         text_stream = io.TextIOWrapper(payload, encoding="utf-8-sig", newline="")
         try:
             reader = csv.reader(text_stream)
@@ -321,10 +325,12 @@ def _profile_downloaded_payload(
 
 
 def _is_data_dictionary(resource: ResolvedSBAResource) -> bool:
+    """Return whether an SBA resource is the all-program data dictionary."""
     return resource.spec.logical_name == "sba_foia_data_dictionary"
 
 
 def main() -> None:
+    """Run the SBA FOIA extraction command-line entry point."""
     parser = argparse.ArgumentParser(description="Extract SBA 7(a) and 504 FOIA files.")
     add_common_extraction_arguments(
         parser,

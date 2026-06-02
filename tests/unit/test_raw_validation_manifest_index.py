@@ -15,6 +15,7 @@ from tests.unit.raw_manifest_test_helpers import manifest_for
 
 
 def test_raw_manifest_index_builds_resource_lookup(tmp_path):
+    """Validate that raw manifest index builds resource lookup."""
     raw_file = tmp_path / f"{CENSUS_BDS_RESOURCE_NAME}.json"
     raw_file.write_text('[["YEAR","state"],["2026","01"]]\n', encoding="utf-8")
     manifest = manifest_for(raw_file)
@@ -26,6 +27,7 @@ def test_raw_manifest_index_builds_resource_lookup(tmp_path):
 
 
 def test_raw_manifest_index_reads_local_payload_json(tmp_path):
+    """Validate that raw manifest index reads local payload JSON."""
     raw_file = tmp_path / f"{BLS_LAUS_RESOURCE_NAME}.json"
     payload = {"normalized_rows": [{"series_id": "LASST010000000000003"}]}
     raw_file.write_text(json.dumps(payload) + "\n", encoding="utf-8")
@@ -39,6 +41,7 @@ def test_raw_manifest_index_reads_local_payload_json(tmp_path):
 
 
 def test_raw_manifest_index_raises_for_absent_resource(tmp_path):
+    """Validate that raw manifest index raises for absent resource."""
     raw_file = tmp_path / f"{CENSUS_BDS_RESOURCE_NAME}.json"
     raw_file.write_text('[["YEAR","state"],["2026","01"]]\n', encoding="utf-8")
     index = RawManifestIndex.from_manifests([manifest_for(raw_file)])

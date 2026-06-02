@@ -8,6 +8,7 @@ from pipelines.validation.raw_validation_models import RawValidationOutput
 
 
 def test_raw_loads_record_cloud_artifact_locations_without_reupload(tmp_path):
+    """Validate that raw loads record cloud artifact locations without reupload."""
     context = local_flow.initialize_run.fn(
         run_mode="cloud",
         extract_mode="fixture",

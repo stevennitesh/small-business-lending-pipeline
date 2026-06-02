@@ -35,6 +35,7 @@ SBA_RESOURCES_CONFIG_PATH = config_path(SBA_RESOURCES_CONFIG_FILE)
 
 
 def test_load_sba_resources_config_includes_discovery_settings():
+    """Validate that load SBA resources config includes discovery settings."""
     config = load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH)
 
     assert config.dataset_name == "7a_504_foia"
@@ -46,6 +47,7 @@ def test_load_sba_resources_config_includes_discovery_settings():
 
 
 def test_load_sba_resources_config_provides_resource_specs():
+    """Validate that load SBA resources config provides resource specs."""
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
 
     assert len(specs) == 7
@@ -61,6 +63,7 @@ def test_load_sba_resources_config_provides_resource_specs():
 
 
 def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
+    """Validate that extract SBA FOIA uses configured package url and cache path."""
     config = SBAResourcesConfig(
         dataset_name="7a_504_foia",
         discovery=SBADiscoveryConfig(
@@ -100,6 +103,7 @@ def test_extract_sba_foia_uses_configured_package_url_and_cache_path(tmp_path):
 
 
 def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp_path):
+    """Validate that extract SBA FOIA requires metadata when dynamic resolution disabled."""
     config = SBAResourcesConfig(
         dataset_name="7a_504_foia",
         discovery=SBADiscoveryConfig(
@@ -121,6 +125,7 @@ def test_extract_sba_foia_requires_metadata_when_dynamic_resolution_disabled(tmp
 
 
 def test_resolve_sba_resources_matches_expected_metadata():
+    """Validate that resolve SBA resources matches expected metadata."""
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
     resolved = resolve_sba_resources(specs, sample_sba_package_metadata())
 
@@ -131,6 +136,7 @@ def test_resolve_sba_resources_matches_expected_metadata():
 
 
 def test_resolve_sba_resources_ignores_invalid_metadata_size():
+    """Validate that resolve SBA resources ignores invalid metadata size."""
     metadata = sample_sba_package_metadata()
     for resource in metadata["resources"]:
         if resource["url"].endswith("7a_2020_present.csv"):
@@ -144,6 +150,7 @@ def test_resolve_sba_resources_ignores_invalid_metadata_size():
 
 
 def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
+    """Validate that extract SBA FOIA writes partitioned raw files and manifests."""
     specs = list(load_sba_resources_config(SBA_RESOURCES_CONFIG_PATH).resources)
     metadata = sample_sba_package_metadata()
     downloads = {
@@ -190,6 +197,7 @@ def test_extract_sba_foia_writes_partitioned_raw_files_and_manifests(tmp_path):
 
 
 def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_path):
+    """Validate that extract SBA FOIA profiles chunked CSV without full payload hash."""
     spec = sba_7a_fy2020_present_spec()
     metadata = sample_sba_package_metadata()
     chunks = [b"col_a,", b"col_b\n", b"1,2\n", b"3,4\n"]
@@ -217,6 +225,7 @@ def test_extract_sba_foia_profiles_chunked_csv_without_full_payload_hash(tmp_pat
 
 
 def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
+    """Validate that extract SBA FOIA uses source identity for manifests."""
     spec = sba_7a_fy2020_present_spec()
     metadata = sample_sba_package_metadata()
     session = FakeSession(
@@ -252,6 +261,7 @@ def test_extract_sba_foia_uses_source_identity_for_manifests(tmp_path):
 
 
 def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
+    """Validate that extract SBA FOIA can write raw artifacts to S3."""
     spec = sba_7a_fy2020_present_spec()
     metadata = sample_sba_package_metadata()
     payload = b"col_a,col_b\n1,2\n"
@@ -299,6 +309,7 @@ def test_extract_sba_foia_can_write_raw_artifacts_to_s3(tmp_path):
 
 
 def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):
+    """Validate that data dictionary download warns without blocking CSV extract."""
     csv_spec = sba_7a_fy2020_present_spec()
     dictionary_spec = sba_foia_data_dictionary_spec()
     metadata = {
@@ -341,6 +352,7 @@ def test_data_dictionary_download_warns_without_blocking_csv_extract(tmp_path):
 
 
 def test_required_csv_download_failure_raises(tmp_path):
+    """Validate that required CSV download failure raises."""
     specs = [sba_7a_fy2020_present_spec()]
     metadata = {
         "resources": [

@@ -28,6 +28,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
     tmp_path,
     monkeypatch,
 ):
+    """Validate that raw validation passes source config identity to payload checks."""
     project_config = local_flow.load_config.fn()
     sources = {
         **project_config.sources,
@@ -63,6 +64,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
         artifact_reader,
         raw_file_exists_resource_names,
     ):
+        """Provide fake SBA check for tests."""
         captured_identities[SBA_FOIA_SOURCE_KEY] = source_identity
         return []
 
@@ -74,6 +76,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
         pipeline_run_id,
         source_identity,
     ):
+        """Provide fake census check for tests."""
         captured_identities[CENSUS_BDS_SOURCE_KEY] = source_identity
         return []
 
@@ -87,6 +90,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
         unemployment_rate_max,
         source_identity,
     ):
+        """Provide fake BLS check for tests."""
         captured_identities[BLS_LAUS_SOURCE_KEY] = source_identity
         return []
 
@@ -116,6 +120,7 @@ def test_raw_validation_passes_source_config_identity_to_payload_checks(
 
 
 def test_raw_validation_core_accepts_validation_owned_input(tmp_path):
+    """Validate that raw validation core accepts validation owned input."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="validation-core-run",
@@ -142,6 +147,7 @@ def test_raw_validation_core_accepts_validation_owned_input(tmp_path):
 
 
 def test_validation_expectations_follow_extract_mode(tmp_path):
+    """Validate that validation expectations follow extract mode."""
     project_config = local_flow.load_config.fn()
     fixture_context = validation_context(
         tmp_path,
@@ -195,6 +201,7 @@ def test_validation_expectations_follow_extract_mode(tmp_path):
 
 
 def test_live_validation_expectations_skip_disabled_sources():
+    """Validate that live validation expectations skip disabled sources."""
     project_config = local_flow.load_config.fn()
     disabled_sources = {
         source_key: replace(source_config, enabled=False)
@@ -211,6 +218,7 @@ def test_live_validation_expectations_skip_disabled_sources():
 
 
 def test_live_validation_expectations_skip_one_disabled_source():
+    """Validate that live validation expectations skip one disabled source."""
     project_config = local_flow.load_config.fn()
     sources = {
         **project_config.sources,
@@ -228,6 +236,7 @@ def test_live_validation_expectations_skip_one_disabled_source():
 
 
 def test_fixture_validation_expectations_allow_disabled_census_without_config():
+    """Validate that fixture validation expectations allow disabled census without config."""
     project_config = local_flow.load_config.fn()
     project_config = replace(
         project_config,

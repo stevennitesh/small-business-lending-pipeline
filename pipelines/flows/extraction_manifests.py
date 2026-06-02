@@ -21,7 +21,7 @@ ManifestReferenceT = TypeVar("ManifestReferenceT", Path, ArtifactLocation)
 
 @dataclass(frozen=True)
 class ExtractionPaths:
-    """Source-specific manifest paths and optional cloud artifact locations."""
+    """Source-specific manifest references shared by validation and raw loads."""
 
     sba_7a_manifest_paths: tuple[Path, ...]
     sba_504_manifest_paths: tuple[Path, ...]
@@ -39,8 +39,10 @@ class ExtractionPaths:
         *,
         cloud_route: bool,
     ) -> tuple[Path | ArtifactLocation, ...]:
-        """Return cloud manifest locations when available, else local paths."""
+        """Return durable cloud locations when available, else local manifest paths."""
         if cloud_route:
+            # Prefer source-specific cloud references so validation can read the
+            # same S3 objects that Snowflake will later load from.
             source_specific_references = (
                 *(self.sba_7a_manifest_locations or self.sba_7a_manifest_paths),
                 *(self.sba_504_manifest_locations or self.sba_504_manifest_paths),
@@ -103,6 +105,7 @@ def _manifest_tuple(
     manifests: Mapping[str, ManifestReferenceT],
     resource_name: str,
 ) -> tuple[ManifestReferenceT, ...]:
+    """Return the one manifest reference for an exact resource name."""
     if resource_name not in manifests:
         return ()
     return (manifests[resource_name],)
@@ -112,6 +115,7 @@ def _manifest_tuple_by_prefix(
     manifests: Mapping[str, ManifestReferenceT],
     resource_name_prefix: str,
 ) -> tuple[ManifestReferenceT, ...]:
+    """Return sorted manifests whose resource names share an SBA program prefix."""
     return tuple(
         manifest
         for resource_name, manifest in sorted(manifests.items())
@@ -120,5 +124,6 @@ def _manifest_tuple_by_prefix(
 
 
 def _sba_program_prefix(resource_name: str) -> str:
+    """Collapse versioned SBA resources to their program-level manifest group."""
     program, *_ = resource_name.split("_fy", 1)
     return f"{program}_"

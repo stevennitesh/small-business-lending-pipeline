@@ -4,6 +4,7 @@ import yaml
 
 
 def test_required_dbt_project_files_exist():
+    """Validate that required dbt project files exist."""
     required_paths = [
         Path("dbt/dbt_project.yml"),
         Path("dbt/profiles.yml.example"),
@@ -20,6 +21,7 @@ def test_required_dbt_project_files_exist():
 
 
 def test_dbt_target_names_match_runtime_config():
+    """Validate that dbt target names match runtime config."""
     profile = yaml.safe_load(Path("dbt/profiles.yml.example").read_text())
     outputs = profile["small_business_lending_pipeline"]["outputs"]
 
@@ -29,6 +31,7 @@ def test_dbt_target_names_match_runtime_config():
 
 
 def test_dbt_materialization_policy_controls_local_compute_cost():
+    """Validate that dbt materialization policy controls local compute cost."""
     project = yaml.safe_load(Path("dbt/dbt_project.yml").read_text())
     models = project["models"]["small_business_lending_pipeline"]
 
@@ -48,6 +51,7 @@ def test_dbt_materialization_policy_controls_local_compute_cost():
 
 
 def test_raw_sources_are_documented():
+    """Validate that raw sources are documented."""
     sources_yml = yaml.safe_load(Path("dbt/models/sources/sources.yml").read_text())
     raw_source = sources_yml["sources"][0]
     raw_tables = {table["name"]: table for table in raw_source["tables"]}

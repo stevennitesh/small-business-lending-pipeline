@@ -19,12 +19,14 @@ from tests.unit.config_test_helpers import CONFIG_DIR, config_path
 
 
 def test_all_config_files_parse():
+    """Validate that all config files parse."""
     for filename in CONFIG_FILENAMES:
         config = load_yaml_file(config_path(filename))
         assert config
 
 
 def test_project_config_loader_returns_named_configs():
+    """Validate that project config loader returns named configs."""
     project_config = load_project_config(CONFIG_DIR)
 
     assert set(project_config.files) == set(CONFIG_FILENAMES)
@@ -49,6 +51,7 @@ def test_project_config_loader_returns_named_configs():
 
 
 def test_config_files_have_required_top_level_keys():
+    """Validate that config files have required top level keys."""
     project_config = load_project_config(CONFIG_DIR)
 
     for filename, section_name in CONFIG_FILE_SECTIONS.items():
@@ -56,6 +59,7 @@ def test_config_files_have_required_top_level_keys():
 
 
 def test_mvp_source_registry_does_not_declare_unused_path_overrides():
+    """Validate that MVP source registry does not declare unused path overrides."""
     project_config = load_project_config(CONFIG_DIR)
     raw_sources = project_config.get(SOURCES_CONFIG_FILE)[SOURCES_CONFIG_SECTION]
 
@@ -66,6 +70,7 @@ def test_mvp_source_registry_does_not_declare_unused_path_overrides():
 
 
 def test_census_bds_required_variables_are_declared():
+    """Validate that census BDS required variables are declared."""
     project_config = load_project_config(CONFIG_DIR)
 
     assert {
@@ -79,6 +84,7 @@ def test_census_bds_required_variables_are_declared():
 
 
 def test_bls_laus_config_maps_50_states_plus_dc():
+    """Validate that BLS LAUS config maps 50 states plus dc."""
     project_config = load_project_config(CONFIG_DIR)
     state_fips = {series.state_fips for series in project_config.bls_laus.series}
     series_ids = {series.series_id for series in project_config.bls_laus.series}

@@ -14,6 +14,7 @@ from pipelines.utils.source_resources import CENSUS_BDS_RESOURCE
 def test_write_raw_extraction_artifact_uses_extraction_run_and_source_resource(
     tmp_path,
 ):
+    """Validate that write raw extraction artifact uses extraction run and source resource."""
     extraction_run = build_extraction_run(
         data_root=tmp_path,
         s3_bucket="unit-test-bucket",
@@ -51,6 +52,7 @@ def test_write_raw_extraction_artifact_uses_extraction_run_and_source_resource(
 
 
 def test_resolve_year_range_uses_explicit_values_or_default_start_year():
+    """Validate that resolve year range uses explicit values or default start year."""
     assert resolve_year_range(
         default_start_year=1990,
         start_year=2020,
@@ -63,6 +65,7 @@ def test_resolve_year_range_uses_explicit_values_or_default_start_year():
 
 
 def test_resolve_api_key_prefers_explicit_value_then_environment(monkeypatch):
+    """Validate that resolve API key prefers explicit value then environment."""
     monkeypatch.setenv("UNIT_TEST_API_KEY", "from-env")
 
     assert (

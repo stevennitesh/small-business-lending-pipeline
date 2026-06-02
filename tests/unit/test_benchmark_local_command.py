@@ -16,10 +16,12 @@ from scripts.benchmark_local_command import (
 
 
 def test_default_size_paths_track_raw_storage_separately():
+    """Validate that default size paths track raw storage separately."""
     assert Path("data/raw") in DEFAULT_SIZE_PATHS
 
 
 def test_parse_dbt_slow_nodes_sorts_by_execution_time(tmp_path):
+    """Validate that parse dbt slow nodes sorts by execution time."""
     run_results_path = tmp_path / "run_results.json"
     run_results_path.write_text(
         json.dumps(
@@ -55,10 +57,12 @@ def test_parse_dbt_slow_nodes_sorts_by_execution_time(tmp_path):
 
 
 def test_parse_dbt_slow_nodes_returns_empty_when_missing(tmp_path):
+    """Validate that parse dbt slow nodes returns empty when missing."""
     assert parse_dbt_slow_nodes(tmp_path / "missing.json") == []
 
 
 def test_parse_fresh_dbt_slow_nodes_ignores_stale_run_results(tmp_path):
+    """Validate that parse fresh dbt slow nodes ignores stale run results."""
     run_results_path = tmp_path / "run_results.json"
     run_results_path.write_text(
         json.dumps(
@@ -86,6 +90,7 @@ def test_parse_fresh_dbt_slow_nodes_ignores_stale_run_results(tmp_path):
 
 
 def test_directory_size_bytes_and_diff_disk_sizes(tmp_path):
+    """Validate that directory size bytes and diff disk sizes."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "a.txt").write_text("abcd", encoding="utf-8")
@@ -99,6 +104,7 @@ def test_directory_size_bytes_and_diff_disk_sizes(tmp_path):
 
 
 def test_collect_duckdb_sizes_includes_wal(tmp_path):
+    """Validate that collect DuckDB sizes includes WAL."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     wal_path = tmp_path / "warehouse.duckdb.wal"
     duckdb_path.write_text("db", encoding="utf-8")
@@ -112,6 +118,7 @@ def test_collect_duckdb_sizes_includes_wal(tmp_path):
 
 
 def test_command_slug_and_text_summary_are_stable():
+    """Validate that command slug and text summary are stable."""
     assert command_slug('make benchmark-local COMMAND="make dbt-local"') == (
         "make-benchmark-local-command-make-dbt-local"
     )

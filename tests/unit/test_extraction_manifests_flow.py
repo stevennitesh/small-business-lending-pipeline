@@ -5,6 +5,7 @@ from pipelines.storage.raw_artifacts import ArtifactLocation
 
 
 def test_cloud_manifest_references_keep_local_paths_for_missing_locations(tmp_path):
+    """Validate that cloud manifest references keep local paths for missing locations."""
     sba_manifest = tmp_path / "sba.json"
     census_manifest = tmp_path / "census.json"
     bls_manifest = tmp_path / "bls.json"

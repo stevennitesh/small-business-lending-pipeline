@@ -10,18 +10,22 @@ from pipelines.utils.source_config_models import BLSSeriesConfig, SBAResourceSpe
 
 
 def read_json_file(path: Path | str) -> Any:
+    """Read JSON file for tests."""
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def read_summary_manifest(summary) -> dict[str, Any]:
+    """Read summary manifest for tests."""
     return read_json_file(summary.manifest_path)
 
 
 def read_sba_manifest(summary, resource_name: str) -> dict[str, Any]:
+    """Read SBA manifest for tests."""
     return read_json_file(summary.manifest_paths[resource_name])
 
 
 def sba_7a_fy2020_present_spec() -> SBAResourceSpec:
+    """Build SBA 7a fy2020 present spec for tests."""
     return SBAResourceSpec(
         logical_name="sba_7a_fy2020_present",
         program="7a",
@@ -33,6 +37,7 @@ def sba_7a_fy2020_present_spec() -> SBAResourceSpec:
 
 
 def sba_foia_data_dictionary_spec() -> SBAResourceSpec:
+    """Build SBA FOIA data dictionary spec for tests."""
     return SBAResourceSpec(
         logical_name="sba_foia_data_dictionary",
         program="all",
@@ -44,6 +49,7 @@ def sba_foia_data_dictionary_spec() -> SBAResourceSpec:
 
 
 def sample_sba_package_metadata() -> dict:
+    """Build sample SBA package metadata for tests."""
     resources = [
         (
             "7a_504_FOIA Data Dictionary as of 260331.xlsx",
@@ -95,6 +101,7 @@ def sample_sba_package_metadata() -> dict:
 
 
 def census_bds_fixture_response() -> list[list[str]]:
+    """Build census BDS fixture response for tests."""
     return [
         [
             "NAME",
@@ -156,6 +163,7 @@ def census_bds_fixture_response() -> list[list[str]]:
 
 
 def bls_laus_series_configs() -> tuple[BLSSeriesConfig, ...]:
+    """Build BLS LAUS series configs for tests."""
     return (
         BLSSeriesConfig(
             state_fips="01",
@@ -173,6 +181,7 @@ def bls_laus_series_configs() -> tuple[BLSSeriesConfig, ...]:
 
 
 def bls_laus_fixture_response() -> dict:
+    """Build BLS LAUS fixture response for tests."""
     return {
         "status": "REQUEST_SUCCEEDED",
         "Results": {
@@ -228,15 +237,20 @@ def bls_laus_fixture_response() -> dict:
 
 
 class FakeResponse:
+    """Fake HTTP response used by extractor tests."""
+
     def __init__(self, content, status_code: int = 200):
+        """Initialize the test double."""
         self.content = content
         self.status_code = status_code
 
     def raise_for_status(self) -> None:
+        """Build raise for status for tests."""
         if self.status_code >= 400:
             raise requests.HTTPError(f"HTTP {self.status_code}")
 
     def iter_content(self, chunk_size: int):
+        """Build iter content for tests."""
         if isinstance(self.content, list):
             yield from self.content
             return
@@ -246,17 +260,22 @@ class FakeResponse:
             yield self.content[index : index + chunk_size]
 
     def json(self):
+        """Build JSON for tests."""
         if isinstance(self.content, bytes):
             raise TypeError("FakeResponse content is not JSON")
         return self.content
 
 
 class FakeDownloadSession:
+    """Fake download session used by extractor tests."""
+
     def __init__(self, downloads: dict[str, object]):
+        """Initialize the test double."""
         self.downloads = downloads
         self.requested_urls: list[str] = []
 
     def get(self, url: str, timeout: int, stream: bool = False):
+        """Build get for tests."""
         self.requested_urls.append(url)
         payload = self.downloads[url]
         if isinstance(payload, Exception):
@@ -265,21 +284,29 @@ class FakeDownloadSession:
 
 
 class FakeGetSession:
+    """Fake GET session used by extractor tests."""
+
     def __init__(self, payload):
+        """Initialize the test double."""
         self.payload = payload
         self.calls: list[dict] = []
 
     def get(self, url: str, params: dict[str, str], timeout: int):
+        """Build get for tests."""
         self.calls.append({"url": url, "params": params, "timeout": timeout})
         return FakeResponse(self.payload)
 
 
 class FakePostSession:
+    """Fake POST session used by extractor tests."""
+
     def __init__(self, payloads: list[dict]):
+        """Initialize the test double."""
         self.payloads = payloads
         self.calls: list[dict] = []
 
     def post(self, url: str, json: dict[str, object], timeout: int):
+        """Build post for tests."""
         self.calls.append({"url": url, "json": json, "timeout": timeout})
         if not self.payloads:
             raise AssertionError(

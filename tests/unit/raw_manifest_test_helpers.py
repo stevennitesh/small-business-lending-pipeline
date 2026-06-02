@@ -18,6 +18,7 @@ def write_raw_file(
     *,
     filename: str = f"{CENSUS_BDS_RESOURCE_NAME}.json",
 ) -> Path:
+    """Write raw file for tests."""
     raw_file = tmp_path / filename
     raw_file.write_text(payload, encoding="utf-8")
     return raw_file
@@ -29,12 +30,14 @@ def write_manifest(
     *,
     filename: str = "manifest.json",
 ) -> Path:
+    """Write manifest for tests."""
     manifest_path = tmp_path / filename
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     return manifest_path
 
 
 def manifest_for(raw_file: Path) -> RawManifest:
+    """Build manifest for for tests."""
     return {
         "pipeline_run_id": "run-123",
         "source_system": "census",
@@ -64,6 +67,7 @@ def sba_manifest_for(
     dataset_name: str = "7a_504_foia",
     resource_name: str = "sba_7a_fy2020_present",
 ) -> RawManifest:
+    """Build SBA manifest for for tests."""
     manifest = manifest_for(raw_file)
     manifest.update(
         {
@@ -80,6 +84,7 @@ def s3_manifest_for(
     *,
     raw_uri: str = "s3://bucket/raw/census/bds/file.json",
 ) -> RawManifest:
+    """Build S3 manifest for for tests."""
     return {
         "pipeline_run_id": "run-123",
         "source_system": "census",
@@ -103,10 +108,14 @@ def s3_manifest_for(
 
 
 class CountingRawArtifactReader(RawArtifactReader):
+    """Raw artifact reader test double that records existence checks."""
+
     def __init__(self) -> None:
+        """Initialize the test double."""
         super().__init__()
         self.exists_calls = 0
 
     def exists(self, manifest: RawManifest) -> bool:
+        """Return whether the fake raw artifact exists."""
         self.exists_calls += 1
         return True

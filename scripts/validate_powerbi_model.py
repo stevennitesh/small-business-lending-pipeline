@@ -17,6 +17,7 @@ from pipelines.powerbi.model_contract import (
 
 
 def main() -> None:
+    """Validate the source-controlled Power BI model contract."""
     parser = argparse.ArgumentParser(
         description="Validate the Power BI model contract."
     )

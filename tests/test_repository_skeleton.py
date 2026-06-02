@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 def test_repository_skeleton_directories_exist():
+    """Validate that repository skeleton directories exist."""
     required_dirs = [
         "config",
         "docs",
@@ -28,10 +29,12 @@ def test_repository_skeleton_directories_exist():
 
 
 def test_environment_template_exists():
+    """Validate that environment template exists."""
     assert Path(".env.example").is_file()
 
 
 def test_runtime_files_exist():
+    """Validate that runtime files exist."""
     required_files = [
         "requirements.txt",
         "Dockerfile",
@@ -48,6 +51,7 @@ def test_runtime_files_exist():
 
 
 def test_local_runtime_scripts_are_executable():
+    """Validate that local runtime scripts are executable."""
     scripts = [
         Path("scripts/run_local_pipeline.sh"),
         Path("scripts/run_cloud_pipeline.sh"),
@@ -60,6 +64,7 @@ def test_local_runtime_scripts_are_executable():
 
 
 def test_required_runtime_dependencies_are_declared():
+    """Validate that required runtime dependencies are declared."""
     required_dependencies = {
         "requests",
         "pandas",

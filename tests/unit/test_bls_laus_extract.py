@@ -41,6 +41,7 @@ BLS_LAUS_CONFIG_PATH = config_path(BLS_LAUS_CONFIG_FILE)
 
 
 def test_load_bls_laus_config_from_yaml():
+    """Validate that load BLS LAUS config from YAML."""
     config = load_bls_laus_config(BLS_LAUS_CONFIG_PATH)
 
     assert config.endpoint == "https://api.bls.gov/publicAPI/v2/timeseries/data/"
@@ -50,12 +51,14 @@ def test_load_bls_laus_config_from_yaml():
 
 
 def test_chunk_series_splits_large_requests():
+    """Validate that chunk series splits large requests."""
     chunks = list(chunk_series(tuple(range(51)), chunk_size=25))
 
     assert [len(chunk) for chunk in chunks] == [25, 25, 1]
 
 
 def test_chunk_year_range_splits_long_bls_windows():
+    """Validate that chunk year range splits long BLS windows."""
     assert list(chunk_year_range(1990, 2026, window_size=20)) == [
         (1990, 2009),
         (2010, 2026),
@@ -63,6 +66,7 @@ def test_chunk_year_range_splits_long_bls_windows():
 
 
 def test_build_bls_payload_uses_year_range_and_optional_key():
+    """Validate that build BLS payload uses year range and optional key."""
     payload = build_bls_payload(
         ("LASST010000000000003", "LASST020000000000003"),
         start_year=2022,
@@ -79,6 +83,7 @@ def test_build_bls_payload_uses_year_range_and_optional_key():
 
 
 def test_resolve_bls_year_window_size_uses_override_or_api_access():
+    """Validate that resolve BLS year window size uses override or API access."""
     assert resolve_bls_year_window_size(api_key=None, year_window_size=7) == 7
     assert resolve_bls_year_window_size(api_key="secret-key") == (
         REGISTERED_YEAR_WINDOW_SIZE
@@ -87,21 +92,25 @@ def test_resolve_bls_year_window_size_uses_override_or_api_access():
 
 
 def test_resolve_bls_year_window_size_rejects_non_positive_override():
+    """Validate that resolve BLS year window size rejects non positive override."""
     with pytest.raises(ValueError, match="year_window_size must be at least 1"):
         resolve_bls_year_window_size(api_key=None, year_window_size=0)
 
 
 def test_parse_monthly_period_excludes_annual_periods():
+    """Validate that parse monthly period excludes annual periods."""
     assert parse_monthly_period("2023", "M01") == date(2023, 1, 1)
     assert parse_monthly_period("2023", "M12") == date(2023, 12, 1)
     assert parse_monthly_period("2023", "M13") is None
 
 
 def test_parse_monthly_period_returns_none_for_invalid_year():
+    """Validate that parse monthly period returns none for invalid year."""
     assert parse_monthly_period("not-a-year", "M01") is None
 
 
 def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
+    """Validate that fetch BLS LAUS responses chunks series and year ranges."""
     config = BLSLAUSConfig(
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
         measure_name="unemployment_rate",
@@ -142,6 +151,7 @@ def test_fetch_bls_laus_responses_chunks_series_and_year_ranges():
 
 
 def test_normalize_bls_response_excludes_annual_and_parses_values():
+    """Validate that normalize BLS response excludes annual and parses values."""
     rows = normalize_bls_response(
         [bls_laus_fixture_response()],
         series_by_id={series.series_id: series for series in bls_laus_series_configs()},
@@ -185,6 +195,7 @@ def test_normalize_bls_response_excludes_annual_and_parses_values():
 
 
 def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
+    """Validate that extract BLS LAUS writes raw JSON and manifest."""
     monkeypatch.delenv("BLS_API_KEY", raising=False)
     config = BLSLAUSConfig(
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
@@ -239,6 +250,7 @@ def test_extract_bls_laus_writes_raw_json_and_manifest(tmp_path, monkeypatch):
 
 
 def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
+    """Validate that extract BLS LAUS uses passed source identity."""
     monkeypatch.delenv("BLS_API_KEY", raising=False)
     config = BLSLAUSConfig(
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",
@@ -277,6 +289,7 @@ def test_extract_bls_laus_uses_passed_source_identity(tmp_path, monkeypatch):
 
 
 def test_extract_bls_laus_can_write_raw_artifact_to_s3(tmp_path, monkeypatch):
+    """Validate that extract BLS LAUS can write raw artifact to S3."""
     monkeypatch.delenv("BLS_API_KEY", raising=False)
     config = BLSLAUSConfig(
         endpoint="https://api.bls.gov/publicAPI/v2/timeseries/data/",

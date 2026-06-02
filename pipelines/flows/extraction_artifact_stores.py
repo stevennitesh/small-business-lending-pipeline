@@ -30,7 +30,7 @@ BucketResolver = Callable[[LocalRunContext], str | None]
 
 @dataclass(frozen=True)
 class ExtractionArtifactStores:
-    """Artifact stores and bucket used by source extraction."""
+    """Route-specific raw and manifest artifact stores used by extraction."""
 
     bucket: str
     raw_store: LocalRawArtifactStore | S3RawArtifactStore
@@ -45,7 +45,7 @@ def resolve_extraction_artifact_stores(
     artifact_store_factory: ArtifactStoreFactory | None = None,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> ExtractionArtifactStores:
-    """Resolve all extraction artifact stores for the active run route."""
+    """Resolve bucket plus raw/manifest stores for local or cloud extraction."""
     bucket = resolve_extraction_bucket(
         context,
         default_bucket=default_bucket,
@@ -72,7 +72,7 @@ def resolve_extraction_bucket(
     default_bucket: str,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> str:
-    """Resolve extraction bucket from context/env with a route-specific fallback."""
+    """Resolve extraction bucket from context/env with a local-only fallback."""
     resolved_bucket = (s3_bucket_resolver or resolve_s3_bucket)(context)
     if context.is_cloud_route and not resolved_bucket:
         raise RuntimeError(
@@ -88,7 +88,7 @@ def resolve_raw_artifact_store(
     *,
     raw_artifact_store_factory: RawStoreFactory | None = None,
 ) -> LocalRawArtifactStore | S3RawArtifactStore:
-    """Return an injectable or route-specific raw artifact store."""
+    """Return an injected test store or the route-specific raw artifact store."""
     if raw_artifact_store_factory is not None:
         return raw_artifact_store_factory(context, bucket)
     return raw_artifact_store_for_route(
@@ -104,8 +104,10 @@ def resolve_manifest_artifact_store(
     *,
     artifact_store_factory: ArtifactStoreFactory | None = None,
 ) -> LocalArtifactStore | S3ArtifactStore | None:
-    """Return a manifest artifact store only for cloud extraction routes."""
+    """Return a manifest artifact store only when manifests need cloud copies."""
     if not context.is_cloud_route:
+        # Local extractors still write manifest files under data_root; returning
+        # None avoids duplicating those manifests through the generic artifact API.
         return None
     if artifact_store_factory is not None:
         return artifact_store_factory(context, bucket)

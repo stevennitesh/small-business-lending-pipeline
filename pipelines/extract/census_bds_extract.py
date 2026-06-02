@@ -214,6 +214,8 @@ def validate_bds_response(
     ):
         raise ValueError("Census BDS response rows must be lists")
 
+    # The Census API returns a header row followed by positional data rows; keep
+    # validation here so manifest row counts and dbt grain assumptions agree.
     missing_variables = sorted(set(required_variables) - set(header))
     if missing_variables:
         raise ValueError(
@@ -252,6 +254,7 @@ def _time_predicate(start_year: int, end_year: int) -> str:
 
 
 def main() -> None:
+    """Run the Census BDS extraction command-line entry point."""
     parser = argparse.ArgumentParser(description="Extract Census BDS state-year data.")
     add_common_extraction_arguments(
         parser,

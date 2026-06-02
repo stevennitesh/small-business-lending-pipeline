@@ -11,6 +11,7 @@ from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def test_local_artifact_store_writes_partitioned_manifest(tmp_path):
+    """Validate that local artifact store writes partitioned manifest."""
     store = LocalArtifactStore(data_root=tmp_path, s3_bucket="mirror-bucket")
 
     location = store.location(
@@ -38,6 +39,7 @@ def test_local_artifact_store_writes_partitioned_manifest(tmp_path):
 
 
 def test_s3_artifact_store_writes_partitioned_validation_result():
+    """Validate that S3 artifact store writes partitioned validation result."""
     s3_client = FakeS3ObjectClient()
     store = S3ArtifactStore(bucket="cloud-bucket", s3_client=s3_client)
 
@@ -74,6 +76,7 @@ def test_s3_artifact_store_writes_partitioned_validation_result():
 
 
 def test_artifact_store_for_route_selects_local_or_s3_store(tmp_path):
+    """Validate that artifact store for route selects local or S3 store."""
     local_store = artifact_store_for_route(
         cloud_route=False,
         data_root=tmp_path,
@@ -92,6 +95,7 @@ def test_artifact_store_for_route_selects_local_or_s3_store(tmp_path):
 
 
 def test_artifact_reader_for_route_uses_s3_client_only_for_cloud_route():
+    """Validate that artifact reader for route uses S3 client only for cloud route."""
     client = FakeS3ObjectClient()
 
     local_reader = artifact_reader_for_route(cloud_route=False, s3_client=client)

@@ -17,6 +17,7 @@ def validation_context(
     duckdb_name: str = "warehouse.duckdb",
     profiles_name: str = "profiles",
 ) -> LocalRunContext:
+    """Build validation context for tests."""
     return local_flow.initialize_run.fn(
         run_mode="local",
         extract_mode=extract_mode,
@@ -36,6 +37,7 @@ def fixture_validation_inputs(
     pipeline_run_id: str,
     project_config: ProjectConfig | None = None,
 ) -> tuple[ProjectConfig, LocalRunContext, ExtractionPaths]:
+    """Build fixture validation inputs for tests."""
     resolved_project_config = project_config or local_flow.load_config.fn()
     context = validation_context(tmp_path, pipeline_run_id=pipeline_run_id)
     extraction_paths = local_flow.extract_sources.fn(

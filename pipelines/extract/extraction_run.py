@@ -66,10 +66,12 @@ class SingleResourceExtractionSummary:
 
     @property
     def manifest_paths(self) -> dict[str, Path]:
+        """Return local manifest paths keyed by source resource name."""
         return {self.source_resource.resource_name: self.manifest_path}
 
     @property
     def manifest_locations(self) -> dict[str, ArtifactLocation]:
+        """Return artifact-store manifest locations keyed by source resource name."""
         if self.manifest_location is None:
             return {}
         return {self.source_resource.resource_name: self.manifest_location}
@@ -167,6 +169,7 @@ class RawManifestSpec:
         validation_messages: tuple[str, ...] = (),
         manifest_payload_extras: dict[str, Any] | None = None,
     ) -> "RawManifestSpec":
+        """Build manifest inputs and checksums from a raw payload."""
         return cls(
             source_identity=source_identity,
             resource_name=resource_name,
@@ -202,6 +205,7 @@ class RawManifestSpec:
         validation_messages: tuple[str, ...] = (),
         manifest_payload_extras: dict[str, Any] | None = None,
     ) -> "RawManifestSpec":
+        """Build manifest inputs from an extraction run and source resource."""
         resolved_source_identity = source_identity or source_resource.source_identity
         return cls.from_payload(
             source_identity=resolved_source_identity,
@@ -243,89 +247,6 @@ def build_extraction_run(
             data_root=resolved_data_root,
             s3_bucket=s3_bucket,
         ),
-    )
-
-
-def _build_raw_manifest(
-    *,
-    pipeline_run_id: str,
-    spec: RawManifestSpec,
-) -> ExtractionManifest:
-    manifest_fields = spec.raw_location.manifest_fields()
-    return ExtractionManifest(
-        pipeline_run_id=pipeline_run_id,
-        source_system=spec.source_identity.source_system,
-        dataset_name=spec.source_identity.dataset_name,
-        resource_name=spec.resource_name,
-        source_url=spec.source_url,
-        extracted_at_utc=spec.extracted_at_utc,
-        ingestion_date=spec.ingestion_date,
-        local_raw_path=manifest_fields["local_raw_path"],
-        s3_raw_uri=manifest_fields["s3_raw_uri"],
-        file_format=spec.file_format,
-        row_count=spec.row_count,
-        sha256_checksum=spec.sha256_checksum,
-        schema_hash=spec.schema_hash,
-        validation_status="passed",
-        request_parameters=spec.request_parameters,
-        column_count=spec.column_count,
-        file_size_bytes=spec.file_size_bytes,
-        validation_messages=list(spec.validation_messages),
-        storage_backend=manifest_fields["storage_backend"],
-        raw_uri=manifest_fields["raw_uri"],
-    )
-
-
-def _write_raw_manifest(
-    *,
-    pipeline_run_id: str,
-    spec: RawManifestSpec,
-    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
-    manifest_path: Path | None = None,
-    data_root: Path | None = None,
-    source_directory: str | None = None,
-    filename: str | None = None,
-) -> WrittenExtractionArtifact:
-    manifest = _build_raw_manifest(
-        pipeline_run_id=pipeline_run_id,
-        spec=spec,
-    )
-    manifest_payload = None
-    if spec.manifest_payload_extras:
-        manifest_payload = {
-            **manifest.to_dict(),
-            **spec.manifest_payload_extras,
-        }
-    if manifest_path is not None:
-        manifest_output = write_manifest_outputs(
-            manifest=manifest,
-            manifest_path=manifest_path,
-            manifest_artifact_store=manifest_artifact_store,
-            manifest_payload=manifest_payload,
-        )
-    else:
-        if data_root is None or source_directory is None or filename is None:
-            raise ValueError(
-                "data_root, source_directory, and filename are required "
-                "when manifest_path is not provided."
-            )
-        manifest_output = write_extraction_manifest_outputs(
-            data_root=data_root,
-            source_directory=source_directory,
-            manifest=manifest,
-            filename=filename,
-            manifest_artifact_store=manifest_artifact_store,
-            manifest_payload=manifest_payload,
-        )
-
-    return WrittenExtractionArtifact(
-        result=ExtractionResult(
-            manifest=manifest,
-            local_raw_path=spec.raw_location.local_path,
-            row_count=spec.row_count,
-        ),
-        manifest_path=manifest_output.manifest_path,
-        manifest_location=manifest_output.manifest_location,
     )
 
 
@@ -379,4 +300,91 @@ def write_json_extraction_artifact(
             manifest_payload_extras=spec.manifest_payload_extras,
         ),
         manifest_artifact_store=manifest_artifact_store,
+    )
+
+
+def _build_raw_manifest(
+    *,
+    pipeline_run_id: str,
+    spec: RawManifestSpec,
+) -> ExtractionManifest:
+    """Convert raw manifest inputs into the canonical manifest model."""
+    manifest_fields = spec.raw_location.manifest_fields()
+    return ExtractionManifest(
+        pipeline_run_id=pipeline_run_id,
+        source_system=spec.source_identity.source_system,
+        dataset_name=spec.source_identity.dataset_name,
+        resource_name=spec.resource_name,
+        source_url=spec.source_url,
+        extracted_at_utc=spec.extracted_at_utc,
+        ingestion_date=spec.ingestion_date,
+        local_raw_path=manifest_fields["local_raw_path"],
+        s3_raw_uri=manifest_fields["s3_raw_uri"],
+        file_format=spec.file_format,
+        row_count=spec.row_count,
+        sha256_checksum=spec.sha256_checksum,
+        schema_hash=spec.schema_hash,
+        validation_status="passed",
+        request_parameters=spec.request_parameters,
+        column_count=spec.column_count,
+        file_size_bytes=spec.file_size_bytes,
+        validation_messages=list(spec.validation_messages),
+        storage_backend=manifest_fields["storage_backend"],
+        raw_uri=manifest_fields["raw_uri"],
+    )
+
+
+def _write_raw_manifest(
+    *,
+    pipeline_run_id: str,
+    spec: RawManifestSpec,
+    manifest_artifact_store: LocalArtifactStore | S3ArtifactStore | None = None,
+    manifest_path: Path | None = None,
+    data_root: Path | None = None,
+    source_directory: str | None = None,
+    filename: str | None = None,
+) -> WrittenExtractionArtifact:
+    """Write a raw manifest locally and optionally to the manifest artifact store."""
+    manifest = _build_raw_manifest(
+        pipeline_run_id=pipeline_run_id,
+        spec=spec,
+    )
+    manifest_payload = None
+    if spec.manifest_payload_extras:
+        # Some extractors add source-specific summary fields to the stored JSON
+        # manifest while keeping the typed ExtractionManifest contract stable.
+        manifest_payload = {
+            **manifest.to_dict(),
+            **spec.manifest_payload_extras,
+        }
+    if manifest_path is not None:
+        manifest_output = write_manifest_outputs(
+            manifest=manifest,
+            manifest_path=manifest_path,
+            manifest_artifact_store=manifest_artifact_store,
+            manifest_payload=manifest_payload,
+        )
+    else:
+        if data_root is None or source_directory is None or filename is None:
+            raise ValueError(
+                "data_root, source_directory, and filename are required "
+                "when manifest_path is not provided."
+            )
+        manifest_output = write_extraction_manifest_outputs(
+            data_root=data_root,
+            source_directory=source_directory,
+            manifest=manifest,
+            filename=filename,
+            manifest_artifact_store=manifest_artifact_store,
+            manifest_payload=manifest_payload,
+        )
+
+    return WrittenExtractionArtifact(
+        result=ExtractionResult(
+            manifest=manifest,
+            local_raw_path=spec.raw_location.local_path,
+            row_count=spec.row_count,
+        ),
+        manifest_path=manifest_output.manifest_path,
+        manifest_location=manifest_output.manifest_location,
     )

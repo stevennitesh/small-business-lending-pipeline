@@ -14,10 +14,12 @@ CONFIG_DIR = REPO_ROOT / "config"
 
 
 def config_path(filename: str) -> Path:
+    """Build config path for tests."""
     return CONFIG_DIR / filename
 
 
 def copy_config_dir(tmp_path: Path) -> Path:
+    """Copy config dir for tests."""
     config_dir = tmp_path / "config"
     shutil.copytree(CONFIG_DIR, config_dir)
     return config_dir
@@ -28,6 +30,7 @@ def mutate_config_file(
     filename: str,
     mutator: Callable[[dict], None],
 ) -> Path:
+    """Build mutate config file for tests."""
     config_dir = copy_config_dir(tmp_path)
     target_config_path = config_dir / filename
     config = load_yaml_file(target_config_path)
@@ -37,4 +40,5 @@ def mutate_config_file(
 
 
 def write_yaml_config(path: Path, config: dict) -> None:
+    """Write YAML config for tests."""
     path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")

@@ -18,6 +18,7 @@ def create_s3_stage_load_objects(
     stage_name: str,
     storage_integration: str | None,
 ) -> None:
+    """Create Snowflake file formats and the S3 stage for raw loads."""
     raw_schema_sql = snowflake_identifier(raw_schema)
     stage_name_sql = snowflake_identifier(stage_name)
     stage_url_sql = snowflake_sql_literal(_s3_stage_url(bucket))
@@ -27,6 +28,8 @@ def create_s3_stage_load_objects(
         else ""
     )
     with connection.cursor() as cursor:
+        # CSV load options preserve source text and tolerate SBA FOIA column drift;
+        # row-count checks later enforce that the full file landed.
         cursor.execute(
             f"""
             create or replace file format {raw_schema_sql}."RAW_CSV_LOAD_FORMAT"
@@ -63,10 +66,12 @@ def snowflake_identifier(identifier: str) -> str:
 
 
 def snowflake_sql_literal(value: str) -> str:
+    """Return a quoted SQL literal for Snowflake statements."""
     return "'" + str(value).replace("'", "''") + "'"
 
 
 def _s3_stage_url(bucket_or_url: str) -> str:
+    """Normalize and validate the S3 URL used by a Snowflake stage."""
     stage_url = (
         str(bucket_or_url)
         if str(bucket_or_url).startswith("s3://")
@@ -79,6 +84,7 @@ def _s3_stage_url(bucket_or_url: str) -> str:
 
 
 def _valid_s3_bucket(bucket: str) -> bool:
+    """Return whether a bucket name is safe for Snowflake stage creation."""
     return (
         bool(_S3_BUCKET_NAME.fullmatch(bucket))
         and ".." not in bucket

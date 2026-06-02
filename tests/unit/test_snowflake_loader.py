@@ -28,6 +28,7 @@ from tests.unit.snowflake_test_helpers import (
 
 
 def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
+    """Validate that snowflake config supports isolated raw schema."""
     monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct")
     monkeypatch.setenv("SNOWFLAKE_USER", "user")
     monkeypatch.setenv("SNOWFLAKE_PASSWORD", "password")
@@ -45,6 +46,7 @@ def test_snowflake_config_supports_isolated_raw_schema(monkeypatch):
 
 
 def test_snowflake_config_ignores_warehouse_default_schema_for_raw_schema(monkeypatch):
+    """Validate that snowflake config ignores warehouse default schema for raw schema."""
     monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct")
     monkeypatch.setenv("SNOWFLAKE_USER", "user")
     monkeypatch.setenv("SNOWFLAKE_PASSWORD", "password")
@@ -60,6 +62,7 @@ def test_snowflake_config_ignores_warehouse_default_schema_for_raw_schema(monkey
 
 
 def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
+    """Validate that snowflake S3 loader uses stage copy and writes metadata."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     sba_7a_part2 = tmp_path / "raw" / "sba_7a_part2.csv"
     sba_7a_part2.write_text("LoanNumber,GrossApproval\n4,4000\n", encoding="utf-8")
@@ -167,6 +170,7 @@ def test_snowflake_s3_loader_uses_stage_copy_and_writes_metadata(tmp_path):
 
 
 def test_snowflake_s3_loader_accepts_cloud_artifact_references(tmp_path):
+    """Validate that snowflake S3 loader accepts cloud artifact references."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     make_manifests_s3_backed(manifests)
     validation_path = write_validation_results(
@@ -240,6 +244,7 @@ def test_snowflake_s3_loader_accepts_cloud_artifact_references(tmp_path):
 
 
 def test_snowflake_csv_columns_are_stable_text_identifiers():
+    """Validate that snowflake CSV columns are stable text identifiers."""
     assert snowflake_csv_columns(
         ["LocationID", "Gross Approval", "123 Code", "", "Gross-Approval"]
     ) == [
@@ -252,10 +257,12 @@ def test_snowflake_csv_columns_are_stable_text_identifiers():
 
 
 def test_snowflake_csv_columns_prevent_suffix_collisions():
+    """Validate that snowflake CSV columns prevent suffix collisions."""
     assert snowflake_csv_columns(["A", "A", "A_2"]) == ["A", "A_2", "A_2_2"]
 
 
 def test_snowflake_stage_setup_rejects_invalid_identifiers():
+    """Validate that snowflake stage setup rejects invalid identifiers."""
     with pytest.raises(SnowflakeRawLoadError, match="Invalid Snowflake identifier"):
         create_s3_stage_load_objects(
             FakeSnowflakeConnection(),
@@ -267,6 +274,7 @@ def test_snowflake_stage_setup_rejects_invalid_identifiers():
 
 
 def test_snowflake_loader_blocks_failed_validation(tmp_path):
+    """Validate that snowflake loader blocks failed validation."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result(status="failed")],
@@ -290,6 +298,7 @@ def test_snowflake_loader_blocks_failed_validation(tmp_path):
 
 
 def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
+    """Validate that snowflake loader rejects empty required manifest group."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result()],
@@ -313,6 +322,7 @@ def test_snowflake_loader_rejects_empty_required_manifest_group(tmp_path):
 
 
 def test_snowflake_loader_rejects_row_count_mismatch(tmp_path):
+    """Validate that snowflake loader rejects row count mismatch."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     make_manifests_s3_backed(manifests)
     validation_path = write_validation_results(

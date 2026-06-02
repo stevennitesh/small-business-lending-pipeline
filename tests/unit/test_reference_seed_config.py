@@ -13,7 +13,15 @@ from tests.unit.config_test_helpers import CONFIG_DIR
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _read_seed(seed_name: str) -> list[dict[str, str]]:
+    """Read seed for tests."""
+    seed_path = REPO_ROOT / "dbt" / "seeds" / seed_name
+    with seed_path.open("r", encoding="utf-8", newline="") as file:
+        return list(csv.DictReader(file))
+
+
 def test_ref_state_seed_includes_50_states_plus_dc():
+    """Validate that ref state seed includes 50 states plus dc."""
     rows = _read_seed("ref_state.csv")
     state_rows = [row for row in rows if row["is_state"] == "true"]
     dc_rows = [row for row in rows if row["is_dc"] == "true"]
@@ -25,6 +33,7 @@ def test_ref_state_seed_includes_50_states_plus_dc():
 
 
 def test_ref_bls_laus_seed_maps_every_reporting_state_to_series():
+    """Validate that ref BLS LAUS seed maps every reporting state to series."""
     state_rows = _read_seed("ref_state.csv")
     series_rows = _read_seed("ref_bls_laus_state_series.csv")
     state_fips = {row["state_fips"] for row in state_rows}
@@ -36,6 +45,7 @@ def test_ref_bls_laus_seed_maps_every_reporting_state_to_series():
 
 
 def test_bls_laus_config_and_seed_match():
+    """Validate that BLS LAUS config and seed match."""
     project_config = load_project_config(CONFIG_DIR)
     config_series = project_config.get(BLS_LAUS_CONFIG_FILE)[BLS_LAUS_CONFIG_SECTION][
         "series"
@@ -48,6 +58,7 @@ def test_bls_laus_config_and_seed_match():
 
 
 def test_ref_naics_seed_has_current_sector_rows():
+    """Validate that ref naics seed has current sector rows."""
     rows = _read_seed("ref_naics.csv")
     sector_codes = {row["naics_sector_code"] for row in rows}
 
@@ -55,9 +66,3 @@ def test_ref_naics_seed_has_current_sector_rows():
     assert "31-33" in sector_codes
     assert "92" in sector_codes
     assert len(rows) >= 20
-
-
-def _read_seed(seed_name: str) -> list[dict[str, str]]:
-    seed_path = REPO_ROOT / "dbt" / "seeds" / seed_name
-    with seed_path.open("r", encoding="utf-8", newline="") as file:
-        return list(csv.DictReader(file))

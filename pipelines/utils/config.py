@@ -28,6 +28,8 @@ from pipelines.utils.source_resources import SourceIdentity
 
 @dataclass(frozen=True)
 class SourceConfig:
+    """Parsed source-level project configuration."""
+
     enabled: bool
     source_system: str
     publisher: str
@@ -37,6 +39,7 @@ class SourceConfig:
 
     @property
     def identity(self) -> SourceIdentity:
+        """Return the manifest/source identity for this configured source."""
         return SourceIdentity(
             source_system=self.source_system,
             dataset_name=self.dataset_name,
@@ -45,6 +48,8 @@ class SourceConfig:
 
 @dataclass(frozen=True)
 class ProjectConfig:
+    """All parsed project configuration and source-specific config objects."""
+
     config_dir: Path
     files: dict[str, dict[str, Any]]
     sources: dict[str, SourceConfig]
@@ -55,16 +60,20 @@ class ProjectConfig:
     bls_laus: BLSLAUSConfig
 
     def get(self, filename: str) -> dict[str, Any]:
+        """Return a raw loaded config file by filename."""
         return self.files[filename]
 
     def is_source_enabled(self, source_name: str) -> bool:
+        """Return whether a named source is enabled."""
         return self.sources[source_name].enabled
 
     def source_identity(self, source_name: str) -> SourceIdentity:
+        """Return the source identity for a named source."""
         return self.sources[source_name].identity
 
 
 def load_project_config(config_dir: Path | str = "config") -> ProjectConfig:
+    """Load, parse, and cross-validate all project config files."""
     resolved_config_dir = Path(config_dir)
     files = {
         filename: _load_yaml_file(resolved_config_dir / filename)
@@ -85,6 +94,8 @@ def load_project_config(config_dir: Path | str = "config") -> ProjectConfig:
     bls_laus = parse_bls_laus_config(
         _project_config_section(files, BLS_LAUS_CONFIG_FILE)
     )
+    # Cross-file validation catches policy/config drift before extractors build
+    # manifests or raw validation expectations from inconsistent YAML.
     validate_project_config_contract(
         sources=sources,
         freshness_rules=freshness_rules,
@@ -110,10 +121,12 @@ def _project_config_section(
     files: dict[str, dict[str, Any]],
     filename: str,
 ) -> dict[str, Any]:
+    """Return the expected top-level section for a loaded config file."""
     return files[filename][CONFIG_FILE_SECTIONS[filename]]
 
 
 def _parse_source_configs(raw_sources: dict[str, Any]) -> dict[str, SourceConfig]:
+    """Parse source entries from sources.yml into typed source configs."""
     return {
         source_name: SourceConfig(
             enabled=parse_config_bool(

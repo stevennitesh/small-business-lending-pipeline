@@ -20,6 +20,8 @@ BLS_LAUS_RESOURCE_GRAIN = "grain=state_month"
 
 @dataclass(frozen=True)
 class SourceIdentity:
+    """Stable source-system and dataset identity used in manifests and paths."""
+
     source_system: str
     dataset_name: str
 
@@ -40,6 +42,8 @@ BLS_LAUS_SOURCE_IDENTITY = SourceIdentity(
 
 @dataclass(frozen=True)
 class RawSourceResource:
+    """Route-neutral identity and raw path names for one source resource."""
+
     source_key: str
     source_identity: SourceIdentity
     resource_name: str
@@ -47,21 +51,8 @@ class RawSourceResource:
     raw_resource_name: str
 
 
-def source_key_for_resource(
-    resource_name: str,
-    *,
-    sba_resource_names: Iterable[str] = (),
-) -> str:
-    fixed_resource = fixed_raw_source_resource(resource_name)
-    if fixed_resource is not None:
-        return fixed_resource.source_key
-
-    if resource_name in sba_resource_names:
-        return SBA_FOIA_SOURCE_KEY
-    raise ValueError(f"Unsupported raw resource: {resource_name}")
-
-
 def sba_dataset_path_name(program: str) -> str:
+    """Return the raw dataset path segment for an SBA program."""
     if program == "7a":
         return SBA_7A_DATASET_PATH_NAME
     if program == "504":
@@ -72,6 +63,7 @@ def sba_dataset_path_name(program: str) -> str:
 
 
 def source_period_resource_path_name(source_period: str) -> str:
+    """Return the raw resource path segment for a source period."""
     if source_period == "all":
         return "all"
     return f"source_period={source_period}"
@@ -107,6 +99,8 @@ BLS_LAUS_RESOURCE = RawSourceResource(
 )
 
 FIXED_RAW_SOURCE_RESOURCES = {
+    # Fixed source resources are stable across config changes and are used by
+    # validation/load paths that need source ownership without opening YAML.
     resource.resource_name: resource
     for resource in (
         SBA_7A_FY2020_PRESENT_RESOURCE,
@@ -118,7 +112,23 @@ FIXED_RAW_SOURCE_RESOURCES = {
 
 
 def fixed_raw_source_resource(resource_name: str) -> RawSourceResource | None:
+    """Return a built-in raw source resource definition when available."""
     return FIXED_RAW_SOURCE_RESOURCES.get(resource_name)
+
+
+def source_key_for_resource(
+    resource_name: str,
+    *,
+    sba_resource_names: Iterable[str] = (),
+) -> str:
+    """Resolve the config source key that owns a raw resource name."""
+    fixed_resource = fixed_raw_source_resource(resource_name)
+    if fixed_resource is not None:
+        return fixed_resource.source_key
+
+    if resource_name in sba_resource_names:
+        return SBA_FOIA_SOURCE_KEY
+    raise ValueError(f"Unsupported raw resource: {resource_name}")
 
 
 def sba_raw_source_resource(
@@ -127,6 +137,7 @@ def sba_raw_source_resource(
     program: str,
     source_period: str,
 ) -> RawSourceResource:
+    """Build an SBA raw source resource from configured resource metadata."""
     return RawSourceResource(
         source_key=SBA_FOIA_SOURCE_KEY,
         source_identity=SBA_FOIA_SOURCE_IDENTITY,

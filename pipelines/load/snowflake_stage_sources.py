@@ -61,6 +61,7 @@ def load_s3_manifest_group(
     stage_name: str,
     s3_client: Any | None,
 ) -> None:
+    """Load one source manifest group from S3 stage files into Snowflake."""
     if source_table in {"raw_sba_7a_foia", "raw_sba_504_foia"}:
         _create_csv_source_table_from_stage(
             connection=connection,
@@ -117,51 +118,8 @@ def load_s3_manifest_group(
     )
 
 
-def _create_csv_source_table_from_stage(
-    *,
-    connection,
-    raw_schema: str,
-    table_name: str,
-    manifest: dict[str, Any],
-    s3_client: Any | None,
-) -> None:
-    header = _csv_header_from_manifest(manifest, s3_client=s3_client)
-    source_columns = {
-        column_name: "varchar" for column_name in snowflake_csv_columns(header)
-    }
-    _create_explicit_source_table(
-        connection=connection,
-        raw_schema=raw_schema,
-        table_name=table_name,
-        source_columns=source_columns,
-    )
-
-
-def _csv_header_from_manifest(
-    manifest: dict[str, Any],
-    *,
-    s3_client: Any | None = None,
-) -> list[str]:
-    local_path = manifest.get("local_raw_path")
-    if local_path:
-        path = Path(local_path)
-        if path.exists():
-            with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
-                return next(csv.reader(csv_file))
-
-    raw_uri = str(manifest.get("raw_uri") or manifest["s3_raw_uri"])
-    reference = parse_s3_uri(raw_uri)
-    client = s3_client or boto3.client("s3")
-    response = client.get_object(
-        Bucket=reference.bucket,
-        Key=reference.key,
-        Range="bytes=0-65535",
-    )
-    header_chunk = response["Body"].read().decode("utf-8-sig", errors="replace")
-    return next(csv.reader(io.StringIO(header_chunk)))
-
-
 def snowflake_csv_columns(header: list[str]) -> list[str]:
+    """Normalize CSV header names into unique Snowflake column names."""
     if not header:
         raise SnowflakeRawLoadError("CSV source header is empty.")
 
@@ -182,7 +140,56 @@ def snowflake_csv_columns(header: list[str]) -> list[str]:
     return columns
 
 
+def _create_csv_source_table_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    s3_client: Any | None,
+) -> None:
+    """Create an SBA raw table from the staged CSV header."""
+    header = _csv_header_from_manifest(manifest, s3_client=s3_client)
+    source_columns = {
+        column_name: "varchar" for column_name in snowflake_csv_columns(header)
+    }
+    _create_explicit_source_table(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        source_columns=source_columns,
+    )
+
+
+def _csv_header_from_manifest(
+    manifest: dict[str, Any],
+    *,
+    s3_client: Any | None = None,
+) -> list[str]:
+    """Read the header row for the CSV artifact described by a manifest."""
+    local_path = manifest.get("local_raw_path")
+    if local_path:
+        path = Path(local_path)
+        if path.exists():
+            with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+                return next(csv.reader(csv_file))
+
+    raw_uri = str(manifest.get("raw_uri") or manifest["s3_raw_uri"])
+    reference = parse_s3_uri(raw_uri)
+    client = s3_client or boto3.client("s3")
+    # Header discovery only needs the first bytes; avoid downloading large SBA
+    # FOIA CSVs just to define the Snowflake target table.
+    response = client.get_object(
+        Bucket=reference.bucket,
+        Key=reference.key,
+        Range="bytes=0-65535",
+    )
+    header_chunk = response["Body"].read().decode("utf-8-sig", errors="replace")
+    return next(csv.reader(io.StringIO(header_chunk)))
+
+
 def _snowflake_identifier(value: str) -> str:
+    """Normalize a source column label into a Snowflake identifier token."""
     identifier = re.sub(r"[^0-9A-Za-z_]+", "_", value.strip()).strip("_").upper()
     identifier = re.sub(r"_+", "_", identifier)
     if identifier and identifier[0].isdigit():
@@ -198,6 +205,7 @@ def _copy_csv_manifest_group_from_stage(
     manifests: list[dict[str, Any]],
     stage_name: str,
 ) -> None:
+    """Copy a group of staged CSV files into one Snowflake raw table."""
     table_name_sql = _qualified_table_name(raw_schema, table_name)
     stage_path_prefix = _stage_path_prefix(raw_schema, stage_name)
     with connection.cursor() as cursor:
@@ -215,6 +223,8 @@ def _copy_csv_manifest_group_from_stage(
                 on_error = abort_statement
                 """
             )
+            # COPY loads source columns first; set lineage columns for the rows
+            # inserted by this manifest before copying the next file.
             cursor.execute(
                 f"""
                 update {table_name_sql}
@@ -231,6 +241,7 @@ def _create_explicit_source_table(
     table_name: str,
     source_columns: dict[str, str],
 ) -> None:
+    """Create a raw table with known source columns plus lineage columns."""
     column_definitions = {
         **source_columns,
         **RAW_METADATA_COLUMNS,
@@ -257,6 +268,7 @@ def _insert_census_bds_json_from_stage(
     manifest: dict[str, Any],
     stage_name: str,
 ) -> None:
+    """Insert Census BDS rows from a staged JSON payload."""
     table_name_sql = _qualified_table_name(raw_schema, table_name)
     landing_table_name_sql = _qualified_table_name(
         raw_schema,
@@ -270,6 +282,8 @@ def _insert_census_bds_json_from_stage(
         stage_name=stage_name,
     )
     with connection.cursor() as cursor:
+        # Census API JSON is an array where element 0 is the header row and the
+        # remaining elements are positional rows, so selects index into headers.
         cursor.execute(
             f"""
             insert into {table_name_sql} (
@@ -322,6 +336,7 @@ def _insert_bls_laus_json_from_stage(
     manifest: dict[str, Any],
     stage_name: str,
 ) -> None:
+    """Insert normalized BLS LAUS rows from a staged JSON payload."""
     table_name_sql = _qualified_table_name(raw_schema, table_name)
     landing_table_name_sql = _qualified_table_name(
         raw_schema,
@@ -367,6 +382,7 @@ def _copy_json_payload_to_landing(
     manifest: dict[str, Any],
     stage_name: str,
 ) -> None:
+    """Copy one staged JSON artifact into a temporary variant landing table."""
     reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
     file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
     landing_table_name_sql = _qualified_table_name(raw_schema, f"{table_name}_LANDING")
@@ -392,6 +408,7 @@ def _copy_json_payload_to_landing(
 
 
 def _metadata_assignments(manifest: dict[str, Any]) -> str:
+    """Render lineage metadata assignments for an update statement."""
     return ", ".join(
         f"{snowflake_identifier(column_name)} = {_sql_literal(value)}"
         for column_name, value in _metadata_values(manifest).items()
@@ -399,6 +416,7 @@ def _metadata_assignments(manifest: dict[str, Any]) -> str:
 
 
 def _metadata_select_list(manifest: dict[str, Any]) -> str:
+    """Render lineage metadata expressions for an insert-select statement."""
     return ", ".join(
         f"{_sql_literal(value)} as {snowflake_identifier(column_name)}"
         for column_name, value in _metadata_values(manifest).items()
@@ -406,16 +424,19 @@ def _metadata_select_list(manifest: dict[str, Any]) -> str:
 
 
 def _metadata_values(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Return uppercase lineage metadata values for Snowflake raw rows."""
     return manifest_raw_row_metadata(manifest, uppercase=True)
 
 
 def _sql_literal(value: Any) -> str:
+    """Return a nullable SQL literal for Snowflake statements."""
     if value is None:
         return "null"
     return "'" + str(value).replace("'", "''") + "'"
 
 
 def _stage_file_format(raw_schema: str, file_format: str) -> str:
+    """Resolve the Snowflake file format object for a manifest file format."""
     if file_format.lower() == "csv":
         return _csv_load_file_format(raw_schema)
     if file_format.lower() == "json":
@@ -424,12 +445,15 @@ def _stage_file_format(raw_schema: str, file_format: str) -> str:
 
 
 def _csv_load_file_format(raw_schema: str) -> str:
+    """Return the qualified Snowflake CSV file format name."""
     return _qualified_table_name(raw_schema, "RAW_CSV_LOAD_FORMAT")
 
 
 def _qualified_table_name(raw_schema: str, table_name: str) -> str:
+    """Return a quoted schema-qualified Snowflake object name."""
     return f"{snowflake_identifier(raw_schema)}.{snowflake_identifier(table_name)}"
 
 
 def _stage_path_prefix(raw_schema: str, stage_name: str) -> str:
+    """Return the quoted Snowflake stage path prefix."""
     return f"@{snowflake_identifier(raw_schema)}.{snowflake_identifier(stage_name)}"

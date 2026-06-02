@@ -35,7 +35,7 @@ _SNOWFLAKE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
 def run_dbt_build_for_context(context: LocalRunContext) -> DbtBuildResult:
-    """Run `dbt build` for the active context and return captured output."""
+    """Run `dbt build` for the active target and return captured output."""
     load_dotenv(override=False)
     ensure_dbt_profile(context)
     dbt_executable = dbt_executable_path()
@@ -90,11 +90,13 @@ def upload_dbt_artifacts_for_context(
     *,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> S3UploadSummary:
-    """Upload dbt artifacts to S3 using the run manifest partition metadata."""
+    """Upload dbt artifacts to S3 using the extraction run partition metadata."""
     bucket = (s3_bucket_resolver or resolve_s3_bucket)(context)
     if not dbt_artifacts:
         return S3UploadSummary(bucket=bucket, uploaded_objects=())
 
+    # dbt artifacts describe the transformed graph, but the extraction manifest
+    # provides the run partition used for durable S3 artifact organization.
     first_manifest = json.loads(
         extraction_paths.manifest_paths[0].read_text(encoding="utf-8")
     )
@@ -114,7 +116,7 @@ def upload_dbt_artifacts_for_context(
 
 
 def validate_bi_tables_for_context(context: LocalRunContext) -> dict[str, int]:
-    """Validate BI table row counts in DuckDB or Snowflake."""
+    """Validate BI table row counts in the route-specific warehouse."""
     if context.is_cloud_route:
         return validate_snowflake_bi_tables()
 
@@ -123,7 +125,7 @@ def validate_bi_tables_for_context(context: LocalRunContext) -> dict[str, int]:
 
 
 def export_bi_tables_for_context(context: LocalRunContext) -> list[str]:
-    """Export local BI tables to files for Power BI."""
+    """Export local DuckDB BI tables to CSV files for Power BI."""
     summary = export_powerbi_tables(
         duckdb_path=context.duckdb_path,
         export_dir=context.run_export_dir,
@@ -136,10 +138,14 @@ def ensure_dbt_profile(context: LocalRunContext) -> None:
     context.dbt_profiles_dir.mkdir(parents=True, exist_ok=True)
     profile_path = context.dbt_profiles_dir / "profiles.yml"
     if context.is_cloud_route or context.dbt_target == "prod_snowflake":
+        # Cloud targets rely on the checked-in example profile, which reads
+        # Snowflake credentials from environment variables at dbt runtime.
         example_profile = context.dbt_project_dir / "profiles.yml.example"
         shutil.copyfile(example_profile, profile_path)
         return
 
+    # Local DuckDB runs write a temporary profile that points dbt at the exact
+    # warehouse path created by the raw-load stage.
     profile_path.write_text(
         f"""small_business_lending_pipeline:
   target: {context.dbt_target}

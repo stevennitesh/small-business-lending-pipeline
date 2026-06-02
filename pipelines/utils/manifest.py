@@ -33,6 +33,8 @@ VALIDATION_STATUSES = frozenset({"passed", "warning", "failed"})
 
 @dataclass(frozen=True)
 class ExtractionManifest:
+    """Manifest describing one extracted raw artifact and its validation state."""
+
     pipeline_run_id: str
     source_system: str
     dataset_name: str
@@ -55,16 +57,20 @@ class ExtractionManifest:
     validation_messages: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize and validate the extraction manifest."""
         return validate_manifest(asdict(self))
 
 
 @dataclass(frozen=True)
 class ExtractionResult:
+    """Extraction output plus its manifest and local raw path, when present."""
+
     manifest: ExtractionManifest
     local_raw_path: Path | None
     row_count: int
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize an extraction result for summaries."""
         return {
             "manifest": self.manifest.to_dict(),
             "local_raw_path": str(self.local_raw_path) if self.local_raw_path else None,
@@ -74,11 +80,14 @@ class ExtractionResult:
 
 @dataclass(frozen=True)
 class ManifestWriteResult:
+    """Paths and optional routed location written for a manifest."""
+
     manifest_path: Path
     manifest_location: Any | None = None
 
 
 def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Validate and normalize a raw extraction manifest payload."""
     manifest = normalize_manifest_storage_fields(manifest)
     missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(manifest))
     if missing_fields:
@@ -94,6 +103,8 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     if blank_fields:
         raise ValueError("Blank required manifest fields: " + ", ".join(blank_fields))
 
+    # Manifests are audit records, so timestamp/date/row-count fields are
+    # validated before downstream loaders trust them for partitioning and checks.
     _validate_utc_timestamp(str(manifest["extracted_at_utc"]))
     _validate_ingestion_date(str(manifest["ingestion_date"]))
     _validate_non_negative_int("row_count", manifest["row_count"])
@@ -114,10 +125,29 @@ def validate_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def normalize_manifest_storage_fields(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Fill route-compatible storage fields when older payloads omit them."""
+    normalized = dict(manifest)
+    storage_backend = str(normalized.get("storage_backend") or "").lower()
+    # Older/local manifests may omit raw_uri or storage_backend. Normalize them
+    # so validation, raw loading, and cloud promotion share one field contract.
+    if not storage_backend:
+        storage_backend = "s3" if not normalized.get("local_raw_path") else "local"
+    normalized["storage_backend"] = storage_backend
+
+    if not normalized.get("raw_uri"):
+        if storage_backend == "s3":
+            normalized["raw_uri"] = normalized.get("s3_raw_uri")
+        else:
+            normalized["raw_uri"] = normalized.get("local_raw_path")
+    return normalized
+
+
 def write_manifest(
     manifest: ExtractionManifest | dict[str, Any],
     path: Path | str,
 ) -> Path:
+    """Write a manifest JSON file to a local path."""
     payload = manifest_to_json_bytes(manifest)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,6 +156,7 @@ def write_manifest(
 
 
 def manifest_to_json_bytes(manifest: ExtractionManifest | dict[str, Any]) -> bytes:
+    """Serialize a manifest as stable, UTF-8 JSON bytes."""
     manifest_dict = (
         manifest.to_dict()
         if isinstance(manifest, ExtractionManifest)
@@ -142,6 +173,7 @@ def build_local_manifest_path(
     pipeline_run_id: str,
     filename: str,
 ) -> Path:
+    """Build the local manifest path for a source/run partition."""
     return (
         data_root
         / "manifests"
@@ -158,6 +190,7 @@ def build_manifest_artifact_location(
     manifest: ExtractionManifest,
     filename: str,
 ) -> Any:
+    """Build the routed artifact location for a manifest file."""
     return manifest_artifact_store.location(
         prefix="manifests",
         source_system=manifest.source_system,
@@ -178,6 +211,7 @@ def write_extraction_manifest_outputs(
     manifest_artifact_store: Any | None = None,
     manifest_payload: ExtractionManifest | dict[str, Any] | None = None,
 ) -> ManifestWriteResult:
+    """Write local and optional routed manifest outputs for an extraction."""
     manifest_path = build_local_manifest_path(
         data_root=data_root,
         source_directory=source_directory,
@@ -200,11 +234,14 @@ def write_manifest_outputs(
     manifest_artifact_store: Any | None = None,
     manifest_payload: ExtractionManifest | dict[str, Any] | None = None,
 ) -> ManifestWriteResult:
+    """Write a manifest locally and optionally through an artifact store."""
     payload = manifest_payload or manifest
     write_manifest(payload, manifest_path)
 
     manifest_location = None
     if manifest_artifact_store is not None:
+        # The location is based on the canonical manifest metadata, while
+        # manifest_payload may include source-specific extra fields in the JSON.
         manifest_location = build_manifest_artifact_location(
             manifest_artifact_store,
             manifest=manifest,
@@ -222,36 +259,25 @@ def write_manifest_outputs(
 
 
 def _validate_utc_timestamp(value: str) -> None:
+    """Require an ISO timestamp with UTC timezone information."""
     timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if timestamp.tzinfo is None or timestamp.utcoffset().total_seconds() != 0:
         raise ValueError("extracted_at_utc must be UTC")
 
 
 def _validate_ingestion_date(value: str) -> None:
+    """Require a YYYY-MM-DD ingestion date."""
     datetime.strptime(value, "%Y-%m-%d")
 
 
 def _validate_non_negative_int(field_name: str, value: Any) -> None:
+    """Require a manifest integer field to be non-negative."""
     if not isinstance(value, int) or value < 0:
         raise ValueError(f"{field_name} must be a non-negative integer")
 
 
-def normalize_manifest_storage_fields(manifest: dict[str, Any]) -> dict[str, Any]:
-    normalized = dict(manifest)
-    storage_backend = str(normalized.get("storage_backend") or "").lower()
-    if not storage_backend:
-        storage_backend = "s3" if not normalized.get("local_raw_path") else "local"
-    normalized["storage_backend"] = storage_backend
-
-    if not normalized.get("raw_uri"):
-        if storage_backend == "s3":
-            normalized["raw_uri"] = normalized.get("s3_raw_uri")
-        else:
-            normalized["raw_uri"] = normalized.get("local_raw_path")
-    return normalized
-
-
 def _is_blank_required_field(manifest: dict[str, Any], field_name: str) -> bool:
+    """Return whether a required manifest field is blank for this route."""
     if field_name == "local_raw_path" and manifest.get("storage_backend") == "s3":
         return False
     return manifest[field_name] in ("", None)

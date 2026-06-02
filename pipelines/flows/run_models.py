@@ -45,7 +45,7 @@ CLOUD_FLOW_STAGES = (
 
 @dataclass(frozen=True)
 class LocalRunContext:
-    """Resolved runtime configuration for one local or cloud pipeline run."""
+    """Resolved runtime configuration shared across all flow stages."""
 
     pipeline_run_id: str
     run_mode: str
@@ -94,7 +94,7 @@ class DbtBuildResult:
 
 @dataclass
 class FlowRunState:
-    """Mutable in-memory state accumulated while the Prefect flow runs."""
+    """Mutable state used to build success/failure summaries during a run."""
 
     completed_stages: list[str] = field(default_factory=list)
     validation_output: RawValidationOutput | None = None
@@ -115,7 +115,7 @@ class FlowRunState:
         self.completed_stages.extend(stages)
 
     def completed_with_summary(self) -> list[str]:
-        """Return completed stages including the summary-writing stage."""
+        """Return completed stages including the final summary-writing stage."""
         return [*self.completed_stages, "write_run_summary"]
 
     def failed_stage(self, stage_order: tuple[str, ...]) -> str:
@@ -125,7 +125,7 @@ class FlowRunState:
 
 @dataclass(frozen=True)
 class PipelineRunSummary:
-    """Serializable run summary written at the end of each pipeline attempt."""
+    """Serializable audit summary written at the end of each run attempt."""
 
     pipeline_run_id: str
     run_mode: str

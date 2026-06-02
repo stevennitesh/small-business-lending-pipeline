@@ -128,6 +128,8 @@ def write_fixture_raw_files(
 
 def fixture_artifact_specs() -> tuple[FixtureArtifactSpec, ...]:
     """Build fixture artifact specs for the raw resources needed by local flows."""
+    # Fixture payloads intentionally mimic source-native shapes so local fixture
+    # mode exercises the same raw-load and validation contracts as live mode.
     sba_7a = sba_7a_fixture_payload()
     sba_504 = sba_504_fixture_payload()
     census_bds = census_bds_fixture_payload()

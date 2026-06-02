@@ -111,6 +111,7 @@ STAGING_SCHEMA = Path("dbt/models/staging/schema.yml")
 
 
 def test_required_staging_models_exist():
+    """Validate that required staging models exist."""
     missing_paths = [
         str(path) for path in STAGING_MODELS.values() if not path.is_file()
     ]
@@ -119,6 +120,7 @@ def test_required_staging_models_exist():
 
 
 def test_staging_schema_declares_issue_acceptance_tests():
+    """Validate that staging schema declares issue acceptance tests."""
     models = models_by_name([STAGING_SCHEMA])
 
     assert set(STAGING_MODELS) <= set(models)
@@ -171,6 +173,7 @@ def test_staging_schema_declares_issue_acceptance_tests():
 
 
 def test_staging_schema_documents_and_tests_source_identity_contract():
+    """Validate that staging schema documents and tests source identity contract."""
     models = models_by_name([STAGING_SCHEMA])
 
     for model_name in SOURCE_ROW_STAGING_MODELS:
@@ -202,6 +205,7 @@ def test_staging_schema_documents_and_tests_source_identity_contract():
 
 
 def test_sba_staging_models_null_out_negative_approval_amounts():
+    """Validate that SBA staging models null out negative approval amounts."""
     for model_path in (
         STAGING_MODELS["stg_sba_7a_loans"],
         STAGING_MODELS["stg_sba_504_loans"],
@@ -214,6 +218,7 @@ def test_sba_staging_models_null_out_negative_approval_amounts():
 
 
 def test_sba_staging_union_uses_explicit_column_contract():
+    """Validate that SBA staging union uses explicit column contract."""
     model_sql = STAGING_MODELS["stg_sba_loans"].read_text(encoding="utf-8")
 
     assert "select *" not in model_sql.lower()
@@ -234,6 +239,7 @@ def test_sba_staging_union_uses_explicit_column_contract():
 
 
 def test_staging_models_require_route_neutral_raw_identity():
+    """Validate that staging models require route neutral raw identity."""
     staging_paths = [
         STAGING_MODELS["stg_ingestion_manifest"],
         STAGING_MODELS["stg_sba_7a_loans"],
@@ -257,6 +263,7 @@ def test_staging_models_require_route_neutral_raw_identity():
 
 
 def test_pipeline_run_summary_has_staged_raw_source_contract():
+    """Validate that pipeline run summary has staged raw source contract."""
     model_sql = STAGING_MODELS["stg_pipeline_run_summary"].read_text(encoding="utf-8")
 
     assert "source('raw', 'raw_pipeline_run_summary')" in model_sql

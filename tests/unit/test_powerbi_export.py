@@ -17,7 +17,49 @@ from pipelines.powerbi.export_schema import (
 )
 
 
+def _create_bi_fixture_warehouse(duckdb_path: Path) -> None:
+    """Create BI fixture warehouse for tests."""
+    with duckdb.connect(str(duckdb_path)) as connection:
+        for table_name, required_columns in REQUIRED_EXPORT_COLUMNS.items():
+            select_list = [
+                _fixture_expression(column_name)
+                for column_name in sorted(required_columns)
+            ]
+            connection.execute(
+                f"create or replace table {table_name} as select "
+                + ", ".join(select_list)
+            )
+
+
+def _fixture_expression(column_name: str) -> str:
+    """Build fixture expression for tests."""
+    if column_name.endswith("_count") or column_name in {
+        "loan_count",
+        "lender_count",
+        "source_resource_count",
+        "failed_check_count",
+        "warning_check_count",
+        "passed_check_count",
+    }:
+        return f"1 as {column_name}"
+    if column_name.endswith("_amount") or column_name.endswith("_share"):
+        return f"1.0 as {column_name}"
+    if (
+        column_name.endswith("_rate")
+        or column_name.endswith("_months")
+        or column_name.endswith("_dollars")
+        or "_per_" in column_name
+    ):
+        return f"1.0 as {column_name}"
+    if column_name.endswith("_status"):
+        return f"'passed' as {column_name}"
+    if column_name.endswith("_year") or column_name == "year":
+        return f"2026 as {column_name}"
+    return f"'fixture' as {column_name}"
+
+
 def test_export_powerbi_tables_writes_required_csvs(tmp_path):
+    """Validate that export Power BI tables writes required csvs."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     _create_bi_fixture_warehouse(duckdb_path)
@@ -43,6 +85,7 @@ def test_export_powerbi_tables_writes_required_csvs(tmp_path):
 
 
 def test_export_powerbi_tables_removes_stale_contract_csvs_only(tmp_path):
+    """Validate that export Power BI tables removes stale contract csvs only."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     export_dir.mkdir()
@@ -67,6 +110,7 @@ def test_export_powerbi_tables_removes_stale_contract_csvs_only(tmp_path):
 def test_export_powerbi_tables_does_not_remove_stale_csvs_when_validation_fails(
     tmp_path,
 ):
+    """Validate that export Power BI tables does not remove stale csvs when validation fails."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     export_dir.mkdir()
@@ -92,6 +136,7 @@ def test_export_powerbi_tables_does_not_remove_stale_csvs_when_validation_fails(
 
 
 def test_powerbi_export_contract_has_required_columns_for_every_table():
+    """Validate that Power BI export contract has required columns for every table."""
     assert set(REQUIRED_EXPORT_COLUMNS) == set(BI_EXPORT_TABLES)
     assert all(REQUIRED_EXPORT_COLUMNS[table_name] for table_name in BI_EXPORT_TABLES)
     for table_name, columns in REQUIRED_EXPORT_COLUMNS.items():
@@ -99,6 +144,7 @@ def test_powerbi_export_contract_has_required_columns_for_every_table():
 
 
 def test_powerbi_export_contract_rejects_unknown_table_identifier(tmp_path):
+    """Validate that Power BI export contract rejects unknown table identifier."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     _create_bi_fixture_warehouse(duckdb_path)
 
@@ -108,6 +154,7 @@ def test_powerbi_export_contract_rejects_unknown_table_identifier(tmp_path):
 
 
 def test_export_powerbi_tables_writes_canonical_filter_csvs(tmp_path):
+    """Validate that export Power BI tables writes canonical filter csvs."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     export_dir = tmp_path / "powerbi"
     _create_bi_fixture_warehouse(duckdb_path)
@@ -150,6 +197,7 @@ def test_export_powerbi_tables_writes_canonical_filter_csvs(tmp_path):
 
 
 def test_export_powerbi_tables_rejects_empty_or_unsafe_exports(tmp_path):
+    """Validate that export Power BI tables rejects empty or unsafe exports."""
     duckdb_path = tmp_path / "warehouse.duckdb"
     _create_bi_fixture_warehouse(duckdb_path)
     with duckdb.connect(str(duckdb_path)) as connection:
@@ -177,42 +225,3 @@ def test_export_powerbi_tables_rejects_empty_or_unsafe_exports(tmp_path):
             duckdb_path=duckdb_path,
             export_dir=tmp_path / "powerbi",
         )
-
-
-def _create_bi_fixture_warehouse(duckdb_path: Path) -> None:
-    with duckdb.connect(str(duckdb_path)) as connection:
-        for table_name, required_columns in REQUIRED_EXPORT_COLUMNS.items():
-            select_list = [
-                _fixture_expression(column_name)
-                for column_name in sorted(required_columns)
-            ]
-            connection.execute(
-                f"create or replace table {table_name} as select "
-                + ", ".join(select_list)
-            )
-
-
-def _fixture_expression(column_name: str) -> str:
-    if column_name.endswith("_count") or column_name in {
-        "loan_count",
-        "lender_count",
-        "source_resource_count",
-        "failed_check_count",
-        "warning_check_count",
-        "passed_check_count",
-    }:
-        return f"1 as {column_name}"
-    if column_name.endswith("_amount") or column_name.endswith("_share"):
-        return f"1.0 as {column_name}"
-    if (
-        column_name.endswith("_rate")
-        or column_name.endswith("_months")
-        or column_name.endswith("_dollars")
-        or "_per_" in column_name
-    ):
-        return f"1.0 as {column_name}"
-    if column_name.endswith("_status"):
-        return f"'passed' as {column_name}"
-    if column_name.endswith("_year") or column_name == "year":
-        return f"2026 as {column_name}"
-    return f"'fixture' as {column_name}"

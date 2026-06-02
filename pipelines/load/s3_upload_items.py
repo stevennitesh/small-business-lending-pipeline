@@ -10,12 +10,17 @@ from pipelines.utils.paths import build_partitioned_artifact_key, build_raw_s3_k
 
 @dataclass(frozen=True)
 class S3UploadItem:
+    """Local file plus destination key for an S3 artifact upload."""
+
     local_path: Path
     s3_key: str
 
 
 def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem | None:
+    """Build the raw artifact upload item for a local-backed manifest."""
     if _is_s3_backed(manifest):
+        # Cloud extraction already wrote this raw artifact to S3; re-uploading it
+        # from the local runner would duplicate data and may not have a local file.
         return None
     local_path = Path(str(manifest["local_raw_path"]))
     return S3UploadItem(
@@ -35,6 +40,7 @@ def build_manifest_upload_item(
     manifest_path: Path | str,
     manifest: dict[str, Any],
 ) -> S3UploadItem:
+    """Build the partitioned upload item for one manifest file."""
     return S3UploadItem(
         local_path=Path(manifest_path),
         s3_key=_partitioned_artifact_key(
@@ -49,6 +55,7 @@ def build_validation_upload_item(
     validation_path: Path | str,
     manifest: dict[str, Any],
 ) -> S3UploadItem:
+    """Build the partitioned upload item for validation results."""
     return S3UploadItem(
         local_path=Path(validation_path),
         s3_key=_partitioned_artifact_key(
@@ -65,6 +72,7 @@ def build_dbt_artifact_upload_item(
     ingestion_date: str,
     pipeline_run_id: str,
 ) -> S3UploadItem:
+    """Build the upload item for a dbt artifact under a run partition."""
     path = Path(artifact_path)
     return S3UploadItem(
         local_path=path,
@@ -87,6 +95,7 @@ def build_run_upload_items(
     validation_result_path: Path | str,
     dbt_artifact_paths: list[Path | str] | None = None,
 ) -> list[S3UploadItem]:
+    """Build all upload items needed to promote a run's local artifacts."""
     items: list[S3UploadItem] = []
     manifests: list[dict[str, Any]] = []
     for manifest_path in manifest_paths:
@@ -112,6 +121,7 @@ def build_run_upload_items(
 
 
 def _is_s3_backed(manifest: dict[str, Any]) -> bool:
+    """Return whether the manifest already references S3-backed raw data."""
     return str(manifest.get("storage_backend", "local")).casefold() == "s3"
 
 
@@ -121,6 +131,7 @@ def _partitioned_artifact_key(
     manifest: dict[str, Any],
     filename: str,
 ) -> str:
+    """Build a manifest-partitioned artifact key for a local file."""
     return build_partitioned_artifact_key(
         prefix=prefix,
         source_system=str(manifest["source_system"]),
@@ -133,6 +144,7 @@ def _partitioned_artifact_key(
 
 
 def _single_run_partition(manifests: list[dict[str, Any]]) -> tuple[str, str]:
+    """Return the shared run partition required for dbt artifact uploads."""
     partitions = {
         (str(manifest["ingestion_date"]), str(manifest["pipeline_run_id"]))
         for manifest in manifests

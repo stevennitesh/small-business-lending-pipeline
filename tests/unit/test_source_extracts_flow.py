@@ -15,6 +15,7 @@ from tests.unit.source_extracts_flow_test_helpers import (
 
 
 def test_live_extraction_routes_to_source_extractors(tmp_path, monkeypatch):
+    """Validate that live extraction routes to source extractors."""
     project_config = local_flow.load_config.fn()
     context = live_flow_context(tmp_path)
     calls = []
@@ -48,6 +49,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
     tmp_path,
     monkeypatch,
 ):
+    """Validate that cloud live extraction passes S3 manifest artifact store."""
     project_config = local_flow.load_config.fn()
     context = live_flow_context(
         tmp_path,
@@ -77,6 +79,7 @@ def test_cloud_live_extraction_passes_s3_manifest_artifact_store(
 def test_live_bls_extraction_defaults_to_configured_history_start(
     tmp_path, monkeypatch
 ):
+    """Validate that live BLS extraction defaults to configured history start."""
     project_config = local_flow.load_config.fn()
     context = live_flow_context(
         tmp_path,
@@ -96,6 +99,7 @@ def test_live_bls_extraction_defaults_to_configured_history_start(
 
 
 def test_live_extraction_honors_disabled_sources(tmp_path, monkeypatch):
+    """Validate that live extraction honors disabled sources."""
     project_config = local_flow.load_config.fn()
     sources = {
         **project_config.sources,

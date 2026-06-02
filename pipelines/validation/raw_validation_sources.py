@@ -42,6 +42,12 @@ class SourceValidationContext:
     raw_file_exists_resource_names: set[str]
 
 
+SourcePayloadValidator = Callable[
+    [JsonPayload, SourceValidationContext, SourceIdentity],
+    list[ValidationResult],
+]
+
+
 @dataclass(frozen=True)
 class SourceValidationRegistration:
     """Registry entry mapping a source key to its validator function."""
@@ -57,13 +63,7 @@ class JsonSourceValidationSpec:
     source_key: str
     resource_name: str
     coerce_payload: Callable[[JsonPayload], JsonPayload]
-    validate_payload: "SourcePayloadValidator"
-
-
-SourcePayloadValidator = Callable[
-    [JsonPayload, SourceValidationContext, SourceIdentity],
-    list[ValidationResult],
-]
+    validate_payload: SourcePayloadValidator
 
 
 def validate_source_outputs(
@@ -139,6 +139,7 @@ def _validate_required_json_source_output(
     source_identity = context.project_config.source_identity(spec.source_key)
 
     def validate_resource_payload(payload: JsonPayload) -> list[ValidationResult]:
+        """Run the registered source payload validator."""
         return spec.validate_payload(
             spec.coerce_payload(payload),
             context,
@@ -160,6 +161,7 @@ def _validate_census_bds_payload(
     context: SourceValidationContext,
     source_identity: SourceIdentity,
 ) -> list[ValidationResult]:
+    """Validate a coerced Census BDS JSON payload."""
     return check_census_bds_payload(
         payload,
         required_variables=context.expectations.census_required_variables,
@@ -174,6 +176,7 @@ def _validate_bls_laus_payload(
     context: SourceValidationContext,
     source_identity: SourceIdentity,
 ) -> list[ValidationResult]:
+    """Validate a coerced BLS LAUS JSON payload."""
     return check_bls_laus_payload(
         payload,
         expected_series_ids=context.expectations.bls_expected_series_ids,
@@ -186,10 +189,12 @@ def _validate_bls_laus_payload(
 
 
 def _coerce_census_bds_payload(payload: JsonPayload) -> CensusBdsPayload:
+    """Coerce a generic JSON payload into Census BDS row-array shape."""
     return payload if isinstance(payload, list) else []
 
 
 def _coerce_bls_laus_payload(payload: JsonPayload) -> BlsLausPayload:
+    """Coerce a generic JSON payload into BLS LAUS response-object shape."""
     return payload if isinstance(payload, dict) else {}
 
 

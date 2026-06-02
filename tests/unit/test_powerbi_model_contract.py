@@ -14,7 +14,13 @@ MODEL_PATH = Path("powerbi/lending_dashboard_model.json")
 POWER_QUERY_PATH = Path("powerbi/power_query/local_csv_queries.pq")
 
 
+def _read_model() -> dict:
+    """Read model for tests."""
+    return json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+
+
 def test_powerbi_model_contract_validates():
+    """Validate that Power BI model contract validates."""
     summary = validate_powerbi_model(MODEL_PATH)
 
     assert summary.table_count == len(BI_EXPORT_TABLES)
@@ -26,6 +32,7 @@ def test_powerbi_model_contract_validates():
 
 
 def test_powerbi_model_sources_match_export_contract():
+    """Validate that Power BI model sources match export contract."""
     model = _read_model()
     tables = {table["name"]: table for table in model["tables"]}
 
@@ -39,6 +46,7 @@ def test_powerbi_model_sources_match_export_contract():
 
 
 def test_power_query_sources_match_export_contract():
+    """Validate that power query sources match export contract."""
     power_query = POWER_QUERY_PATH.read_text(encoding="utf-8")
     assert "ExportRoot" in power_query
     loaded_tables = {
@@ -54,6 +62,7 @@ def test_power_query_sources_match_export_contract():
 
 
 def test_powerbi_relationships_are_single_direction_one_to_many():
+    """Validate that Power BI relationships are single direction one to many."""
     model = _read_model()
 
     assert model["relationships"]
@@ -76,6 +85,7 @@ def test_powerbi_relationships_are_single_direction_one_to_many():
 
 
 def test_powerbi_dimensions_use_declared_filter_tables():
+    """Validate that Power BI dimensions use declared filter tables."""
     model = _read_model()
     tables = {table["name"] for table in model["tables"]}
 
@@ -85,6 +95,7 @@ def test_powerbi_dimensions_use_declared_filter_tables():
 
 
 def test_powerbi_measures_are_display_only():
+    """Validate that Power BI measures are display only."""
     model = _read_model()
 
     assert model["measures"]
@@ -101,6 +112,7 @@ def test_powerbi_measures_are_display_only():
 
 
 def test_powerbi_measure_references_must_use_declared_tables(tmp_path):
+    """Validate that Power BI measure references must use declared tables."""
     model = _read_model()
     model["measures"][0]["expression"] = (
         'COALESCE(SELECTEDVALUE(dim_year[year]), "All years")'
@@ -110,7 +122,3 @@ def test_powerbi_measure_references_must_use_declared_tables(tmp_path):
 
     with pytest.raises(ValueError, match="undeclared tables: dim_year"):
         validate_powerbi_model(model_path)
-
-
-def _read_model() -> dict:
-    return json.loads(MODEL_PATH.read_text(encoding="utf-8"))

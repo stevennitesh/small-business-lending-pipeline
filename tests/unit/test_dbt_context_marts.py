@@ -21,12 +21,14 @@ CONTEXT_SCHEMA = Path("dbt/models/marts/context/schema.yml")
 
 
 def test_required_context_marts_exist():
+    """Validate that required context marts exist."""
     missing_paths = [str(path) for path in CONTEXT_MARTS.values() if not path.is_file()]
 
     assert missing_paths == []
 
 
 def test_context_schema_declares_grains_kpis_and_context_tests():
+    """Validate that context schema declares grains kpis and context tests."""
     models = models_by_name([CONTEXT_SCHEMA])
 
     assert set(CONTEXT_MARTS) <= set(models)

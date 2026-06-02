@@ -163,6 +163,7 @@ def extract_bls_laus(
 
 
 def main() -> None:
+    """Run the BLS LAUS extraction command-line entry point."""
     parser = argparse.ArgumentParser(description="Extract BLS LAUS state-month data.")
     add_common_extraction_arguments(
         parser,

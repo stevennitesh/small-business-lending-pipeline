@@ -14,22 +14,27 @@ DEFAULT_KEEP_PIPELINE_RUN_ID = "live-dashboard-1990-current-context"
 
 @dataclass(frozen=True)
 class CleanupCandidate:
+    """Generated local-data path that can be previewed or deleted."""
+
     path: Path
     reason: str
     size_bytes: int
 
 
 def repo_root() -> Path:
+    """Return the repository root inferred from this script location."""
     return Path(__file__).resolve().parents[1]
 
 
 def path_size(path: Path) -> int:
+    """Return a file or directory size in bytes."""
     if path.is_file():
         return path.stat().st_size
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
 def is_within(path: Path, parent: Path) -> bool:
+    """Return whether path resolves inside parent."""
     try:
         path.resolve().relative_to(parent.resolve())
     except ValueError:
@@ -38,17 +43,21 @@ def is_within(path: Path, parent: Path) -> bool:
 
 
 def require_repo_local(path: Path, root: Path) -> None:
+    """Reject cleanup targets outside known generated local-data directories."""
     allowed_roots = [
         root / "data" / "raw" / "sba",
         root / "data" / "warehouse",
         root / "dbt" / "logs",
         root / "dbt" / "target",
     ]
+    # Cleanup is intentionally allow-listed so --apply cannot remove source,
+    # manifests, validation outputs, Power BI assets, or unrelated user files.
     if not any(is_within(path, allowed_root) for allowed_root in allowed_roots):
         raise ValueError(f"Refusing cleanup outside generated local-data paths: {path}")
 
 
 def find_candidates(root: Path, keep_pipeline_run_id: str) -> list[CleanupCandidate]:
+    """Find generated local-data paths that are safe cleanup candidates."""
     candidates: list[CleanupCandidate] = []
 
     for path in sorted((root / "data" / "warehouse").glob("*.duckdb.tmp")):
@@ -93,6 +102,7 @@ def find_candidates(root: Path, keep_pipeline_run_id: str) -> list[CleanupCandid
 
 
 def format_bytes(size_bytes: int) -> str:
+    """Format a byte count using binary units."""
     value = float(size_bytes)
     for unit in ("B", "KiB", "MiB", "GiB"):
         if value < 1024 or unit == "GiB":
@@ -102,6 +112,7 @@ def format_bytes(size_bytes: int) -> str:
 
 
 def print_candidates(candidates: list[CleanupCandidate], root: Path) -> None:
+    """Print a dry-run style cleanup candidate report."""
     if not candidates:
         print("No generated local-data cleanup candidates found.")
         return
@@ -116,6 +127,7 @@ def print_candidates(candidates: list[CleanupCandidate], root: Path) -> None:
 
 
 def apply_cleanup(candidates: list[CleanupCandidate]) -> None:
+    """Delete cleanup candidate paths."""
     for candidate in candidates:
         if candidate.path.is_dir():
             shutil.rmtree(candidate.path)
@@ -124,6 +136,7 @@ def apply_cleanup(candidates: list[CleanupCandidate]) -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse local data cleanup CLI arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -143,6 +156,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run the local generated-data cleanup CLI."""
     args = parse_args()
     root = repo_root()
     candidates = find_candidates(

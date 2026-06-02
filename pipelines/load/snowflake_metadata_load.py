@@ -26,6 +26,7 @@ def write_raw_metadata_tables(
     table_row_counts: dict[str, int],
     write_pandas_func: WritePandasFunc,
 ) -> None:
+    """Write raw-load metadata frames into Snowflake metadata tables."""
     metadata_frames = raw_load_metadata_frames(
         manifest_groups=manifest_groups,
         validation_results=validation_results,
@@ -87,6 +88,7 @@ def _write_frame(
     table_name: str,
     write_pandas_func: WritePandasFunc,
 ) -> None:
+    """Write one pandas frame to Snowflake and raise on connector failure."""
     success, _, _, output = write_pandas_func(
         connection,
         frame,
@@ -104,7 +106,10 @@ def _write_frame(
 
 
 def _snowflake_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """Convert a metadata frame into Snowflake-friendly values and columns."""
     snowflake_frame = frame.copy()
+    # Snowflake metadata tables use uppercase unquoted names and scalar values
+    # so dbt SQL can reference them without Python object semantics.
     for column_name in snowflake_frame.select_dtypes(include=["object"]).columns:
         snowflake_frame[column_name] = snowflake_frame[column_name].map(
             _snowflake_cell_value
@@ -116,6 +121,7 @@ def _snowflake_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def _snowflake_cell_value(value: Any) -> str | None:
+    """Convert Python metadata values to scalar Snowflake cell values."""
     if isinstance(value, (dict, list)):
         return json.dumps(value, sort_keys=True)
     if pd.isna(value):

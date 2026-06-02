@@ -26,6 +26,7 @@ from tests.unit.validation_test_helpers import raw_check_result
 
 
 def test_raw_manifest_artifact_validation_passes_for_s3_backed_file(tmp_path):
+    """Validate that raw manifest artifact validation passes for S3 backed file."""
     raw_payload = b'[["YEAR","state"],["2023","01"],["2023","02"]]\n'
     manifest = s3_manifest_for(raw_payload)
     manifest_path = write_manifest(tmp_path, manifest)
@@ -43,6 +44,7 @@ def test_raw_manifest_artifact_validation_passes_for_s3_backed_file(tmp_path):
 
 
 def test_raw_manifest_artifact_validation_reads_manifest_artifact_from_s3(tmp_path):
+    """Validate that raw manifest artifact validation reads manifest artifact from S3."""
     raw_payload = b'[["YEAR","state"],["2023","01"],["2024","01"]]\n'
     manifest = s3_manifest_for(raw_payload)
     s3_client = FakeS3ObjectClient(
@@ -69,6 +71,7 @@ def test_raw_manifest_artifact_validation_reads_manifest_artifact_from_s3(tmp_pa
 
 
 def test_cloud_manifest_storage_check_rejects_local_backed_manifest(tmp_path):
+    """Validate that cloud manifest storage check rejects local backed manifest."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
     manifest["raw_uri"] = str(raw_file)
@@ -82,6 +85,7 @@ def test_cloud_manifest_storage_check_rejects_local_backed_manifest(tmp_path):
 
 
 def test_raw_uri_required_check_rejects_missing_identity(tmp_path):
+    """Validate that raw uri required check rejects missing identity."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
     manifest.pop("raw_uri", None)
@@ -96,6 +100,7 @@ def test_raw_uri_required_check_rejects_missing_identity(tmp_path):
 def test_raw_manifest_artifact_validation_fails_cleanly_for_missing_s3_object(
     tmp_path,
 ):
+    """Validate that raw manifest artifact validation fails cleanly for missing S3 object."""
     placeholder_file = write_raw_file(tmp_path, "[]\n", filename="placeholder.json")
     manifest = manifest_for(placeholder_file)
     manifest.update(

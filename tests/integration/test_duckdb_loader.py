@@ -20,6 +20,7 @@ from tests.unit.raw_load_test_helpers import (
 
 
 def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
+    """Validate that load raw extracts creates tables and reconciles row counts."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result()],
@@ -83,6 +84,7 @@ def test_load_raw_extracts_creates_tables_and_reconciles_row_counts(tmp_path):
 
 
 def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_path):
+    """Validate that load raw extracts preserves multiple SBA manifests and raw values."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     second_sba_7a = tmp_path / "raw" / "sba_7a_extra.csv"
     second_sba_7a.write_text(
@@ -141,6 +143,7 @@ def test_load_raw_extracts_uses_duckdb_native_csv_for_sba_csvs(
     tmp_path,
     monkeypatch,
 ):
+    """Validate that load raw extracts uses DuckDB native CSV for SBA csvs."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result()],
@@ -150,6 +153,7 @@ def test_load_raw_extracts_uses_duckdb_native_csv_for_sba_csvs(
     original_native_csv_loader = duckdb_loader._create_or_replace_native_csv_table
 
     def spy_native_csv_loader(connection, table_name, manifests):
+        """Build spy native CSV loader for tests."""
         native_csv_tables.append(table_name)
         return original_native_csv_loader(connection, table_name, manifests)
 
@@ -174,6 +178,7 @@ def test_load_raw_extracts_uses_duckdb_native_csv_for_sba_csvs(
 
 
 def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path):
+    """Validate that load raw extracts ignores hive partition folders for SBA csvs."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     partitioned_dir = (
         tmp_path / "raw" / "ingestion_date=2026-05-07" / "pipeline_run_id=run-123"
@@ -235,6 +240,7 @@ def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path)
 
 
 def test_load_raw_extracts_blocks_failed_validation(tmp_path):
+    """Validate that load raw extracts blocks failed validation."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result(status="failed")],
@@ -253,6 +259,7 @@ def test_load_raw_extracts_blocks_failed_validation(tmp_path):
 
 
 def test_load_raw_extracts_rejects_empty_required_manifest_group(tmp_path):
+    """Validate that load raw extracts rejects empty required manifest group."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result()],
@@ -271,6 +278,7 @@ def test_load_raw_extracts_rejects_empty_required_manifest_group(tmp_path):
 
 
 def test_load_raw_extracts_rejects_manifest_row_count_mismatch(tmp_path):
+    """Validate that load raw extracts rejects manifest row count mismatch."""
     manifests = build_raw_load_fixture_manifests(tmp_path)
     validation_path = write_validation_results(
         [raw_load_validation_result()],

@@ -16,6 +16,7 @@ from tests.unit.validation_test_helpers import (
 
 
 def test_raw_validation_blocks_manifest_identity_mismatch(tmp_path):
+    """Validate that raw validation blocks manifest identity mismatch."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="identity-mismatch-run",
@@ -30,6 +31,7 @@ def test_raw_validation_blocks_manifest_identity_mismatch(tmp_path):
 
 
 def test_raw_validation_blocks_missing_expected_manifest_resource(tmp_path):
+    """Validate that raw validation blocks missing expected manifest resource."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="missing-manifest-run",
@@ -49,6 +51,7 @@ def test_raw_validation_blocks_missing_expected_manifest_resource(tmp_path):
 
 
 def test_raw_validation_writes_results_for_missing_manifest_reference(tmp_path):
+    """Validate that raw validation writes results for missing manifest reference."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="missing-manifest-reference-run",
@@ -72,6 +75,7 @@ def test_raw_validation_writes_results_for_missing_manifest_reference(tmp_path):
 
 
 def test_raw_validation_writes_results_for_malformed_manifest_json(tmp_path):
+    """Validate that raw validation writes results for malformed manifest JSON."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="malformed-manifest-run",

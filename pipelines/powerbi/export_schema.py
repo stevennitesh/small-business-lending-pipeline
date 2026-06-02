@@ -1,6 +1,10 @@
+"""Shared Power BI export table and column contract."""
+
 from __future__ import annotations
 
 
+# Keep these SBA-specific KPI tables grouped so implementation-required Power BI
+# model checks can distinguish the MVP dashboard core from the extra SBA pages.
 EXTRA_SBA_KPI_BI_TABLES = (
     "bi_lending_performance",
     "bi_lending_status_mix",
@@ -8,6 +12,7 @@ EXTRA_SBA_KPI_BI_TABLES = (
     "bi_lending_jobs_impact",
 )
 
+# Export order is the stable local CSV order used by Power Query and tests.
 BI_EXPORT_TABLES = (
     "bi_executive_overview",
     "bi_state_lending_trends",
@@ -25,6 +30,8 @@ BI_EXPORT_TABLES = (
     "bi_lender_filter",
 )
 
+# Required columns are a minimum contract; dbt BI tables may expose additional
+# safe display fields, but the Power BI handoff cannot drop these fields.
 REQUIRED_EXPORT_COLUMNS = {
     "bi_executive_overview": {
         "state_key",
@@ -194,6 +201,8 @@ REQUIRED_EXPORT_COLUMNS = {
     },
 }
 
+# These fields should stay out of the dashboard surface even if they exist in
+# upstream raw, staging, or mart tables.
 PROHIBITED_EXPORT_FIELDS = {
     "borrower_name",
     "borrower_city",

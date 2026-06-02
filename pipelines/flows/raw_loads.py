@@ -23,7 +23,7 @@ def load_duckdb_raw_tables_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> RawLoadSummary:
-    """Load local validated raw artifacts into DuckDB raw tables."""
+    """Load local-route validated raw artifacts into DuckDB raw tables."""
     return load_raw_extracts(
         duckdb_path=context.duckdb_path,
         sba_7a_manifest_paths=extraction_paths.sba_7a_manifest_paths,
@@ -39,8 +39,10 @@ def record_raw_artifact_locations_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> S3UploadSummary:
-    """Return uploaded raw artifact references for cloud/local summary output."""
+    """Return durable raw/validation artifact references for run summaries."""
     if context.is_cloud_route and validation_output.artifact_location is not None:
+        # Cloud extraction already wrote raw artifacts, manifests, and validation
+        # results to S3; summarize those durable locations instead of re-uploading.
         uploaded_objects = [
             *(
                 location.artifact_uri
@@ -65,7 +67,7 @@ def load_snowflake_raw_tables_for_context(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> SnowflakeRawLoadSummary:
-    """Load cloud-route raw artifacts into Snowflake from manifest references."""
+    """Load cloud-route raw artifacts into Snowflake through S3 manifest refs."""
     config = SnowflakeConfig.from_env()
     connection = connect_to_snowflake(config)
     try:

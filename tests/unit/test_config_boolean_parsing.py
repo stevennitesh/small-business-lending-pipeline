@@ -13,7 +13,10 @@ from tests.unit.config_test_helpers import mutate_config_file
 
 
 def test_project_config_parses_string_boolean_flags_strictly(tmp_path):
+    """Validate that project config parses string boolean flags strictly."""
+
     def disable_sba_source(config: dict) -> None:
+        """Disable SBA source for tests."""
         config["sources"][SBA_FOIA_SOURCE_KEY]["enabled"] = "false"
 
     config_dir = mutate_config_file(tmp_path, SOURCES_CONFIG_FILE, disable_sba_source)
@@ -24,7 +27,10 @@ def test_project_config_parses_string_boolean_flags_strictly(tmp_path):
 
 
 def test_project_config_rejects_invalid_source_boolean(tmp_path):
+    """Validate that project config rejects invalid source boolean."""
+
     def set_invalid_enabled(config: dict) -> None:
+        """Set invalid enabled for tests."""
         config["sources"][SBA_FOIA_SOURCE_KEY]["enabled"] = "nope"
 
     config_dir = mutate_config_file(tmp_path, SOURCES_CONFIG_FILE, set_invalid_enabled)
@@ -34,7 +40,10 @@ def test_project_config_rejects_invalid_source_boolean(tmp_path):
 
 
 def test_sba_resource_config_parses_string_boolean_flags(tmp_path):
+    """Validate that SBA resource config parses string boolean flags."""
+
     def stringify_sba_flags(config: dict) -> None:
+        """Build stringify SBA flags for tests."""
         sba_config = config["sba_resources"]
         sba_config["discovery"]["allow_dynamic_url_resolution"] = "false"
         sba_config["resources"][0]["required"] = "0"
@@ -52,7 +61,10 @@ def test_sba_resource_config_parses_string_boolean_flags(tmp_path):
 
 
 def test_sba_resource_config_rejects_invalid_boolean(tmp_path):
+    """Validate that SBA resource config rejects invalid boolean."""
+
     def set_invalid_required(config: dict) -> None:
+        """Set invalid required for tests."""
         config["sba_resources"]["resources"][0]["required"] = "sometimes"
 
     config_dir = mutate_config_file(
@@ -66,6 +78,7 @@ def test_sba_resource_config_rejects_invalid_boolean(tmp_path):
 
 
 def test_census_bds_config_parses_string_boolean_flags():
+    """Validate that census BDS config parses string boolean flags."""
     config = {
         "endpoint": "https://api.census.gov/data/timeseries/bds",
         "geography": "state:*",
@@ -82,6 +95,7 @@ def test_census_bds_config_parses_string_boolean_flags():
 
 
 def test_census_bds_config_rejects_invalid_boolean():
+    """Validate that census BDS config rejects invalid boolean."""
     config = {
         "endpoint": "https://api.census.gov/data/timeseries/bds",
         "geography": "state:*",

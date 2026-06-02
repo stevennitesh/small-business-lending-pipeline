@@ -11,7 +11,35 @@ from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.validation.raw_validation_models import RawValidationOutput
 
 
+def _run_summary_context(
+    tmp_path: Path,
+    *,
+    pipeline_run_id: str,
+    run_mode: str = "local",
+    dbt_target: str = "dev_duckdb",
+    s3_bucket: str | None = None,
+) -> LocalRunContext:
+    """Run summary context for tests."""
+    return local_flow.initialize_run.fn(
+        run_mode=run_mode,
+        extract_mode="fixture",
+        dbt_target=dbt_target,
+        data_root=str(tmp_path / "data"),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+    )
+
+
+def _read_summary(summary_path: Path) -> dict:
+    """Read summary for tests."""
+    return json.loads(summary_path.read_text(encoding="utf-8"))
+
+
 def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
+    """Validate that flow summary can record expanded Power BI contract."""
     context = _run_summary_context(
         tmp_path,
         pipeline_run_id="expanded-powerbi-contract",
@@ -38,6 +66,7 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
 
 
 def test_flow_summary_records_stage_durations(tmp_path):
+    """Validate that flow summary records stage durations."""
     context = _run_summary_context(
         tmp_path,
         pipeline_run_id="local-stage-durations",
@@ -57,6 +86,7 @@ def test_flow_summary_records_stage_durations(tmp_path):
 
 
 def test_run_summary_helper_records_stage_durations_once(tmp_path):
+    """Validate that run summary helper records stage durations once."""
     context = _run_summary_context(
         tmp_path,
         pipeline_run_id="run-summary-helper",
@@ -76,6 +106,7 @@ def test_run_summary_helper_records_stage_durations_once(tmp_path):
 
 
 def test_cloud_summary_records_cloud_outputs(tmp_path):
+    """Validate that cloud summary records cloud outputs."""
     context = _run_summary_context(
         tmp_path,
         run_mode="cloud",
@@ -114,6 +145,7 @@ def test_cloud_summary_records_cloud_outputs(tmp_path):
 
 
 def test_run_summary_records_validation_output_path_and_uri(tmp_path):
+    """Validate that run summary records validation output path and uri."""
     context = _run_summary_context(
         tmp_path,
         run_mode="cloud",
@@ -145,28 +177,3 @@ def test_run_summary_records_validation_output_path_and_uri(tmp_path):
         summary["validation_result_uri"]
         == "s3://unit-test-bucket/validation/results.json"
     )
-
-
-def _run_summary_context(
-    tmp_path: Path,
-    *,
-    pipeline_run_id: str,
-    run_mode: str = "local",
-    dbt_target: str = "dev_duckdb",
-    s3_bucket: str | None = None,
-) -> LocalRunContext:
-    return local_flow.initialize_run.fn(
-        run_mode=run_mode,
-        extract_mode="fixture",
-        dbt_target=dbt_target,
-        data_root=str(tmp_path / "data"),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=s3_bucket,
-        pipeline_run_id=pipeline_run_id,
-    )
-
-
-def _read_summary(summary_path: Path) -> dict:
-    return json.loads(summary_path.read_text(encoding="utf-8"))

@@ -14,6 +14,7 @@ from pipelines.powerbi.export_contract import export_powerbi_tables
 
 
 def main() -> None:
+    """Export local DuckDB BI tables as Power BI CSVs."""
     parser = argparse.ArgumentParser(
         description="Export BI tables as local Power BI CSV files.",
     )

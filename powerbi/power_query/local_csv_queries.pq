@@ -1,7 +1,12 @@
 let
+    // Local CSV mode reads the stable latest export folder written by
+    // make run-local through pipelines.powerbi.export_contract.
     // In Power BI Desktop, edit ExportRoot to the Windows absolute path for this
     // repository's data/exports/powerbi folder if the relative path is not found.
     ExportRoot = "data/exports/powerbi",
+
+    // Reuse one loader so every BI table has identical CSV parsing behavior:
+    // UTF-8 input, comma delimiters, CSV quoting, and promoted scalar headers.
     LoadCsv = (tableName as text) as table =>
         Table.PromoteHeaders(
             Csv.Document(
@@ -11,6 +16,8 @@ let
             [PromoteAllScalars = true]
         )
 in
+    // Query names must stay aligned with powerbi/lending_dashboard_model.json
+    // and the dbt-produced BI/export contract. Power BI should not load raw files.
     [
         bi_executive_overview = LoadCsv("bi_executive_overview"),
         bi_state_lending_trends = LoadCsv("bi_state_lending_trends"),

@@ -25,6 +25,8 @@ SourceValidationCallable = Callable[
 
 
 class FakeRawValidationProjectConfig:
+    """Project config test double for source validation tests."""
+
     def __init__(
         self,
         enabled_sources: set[str],
@@ -33,6 +35,7 @@ class FakeRawValidationProjectConfig:
         source_identities: dict[str, SourceIdentity] | None = None,
         bls_series_ids: tuple[str, ...] = (),
     ) -> None:
+        """Initialize the test double."""
         self.enabled_sources = enabled_sources
         self.raw_validation_expectations = raw_validation_expectations or {}
         self.source_identities = source_identities or {}
@@ -49,10 +52,12 @@ class FakeRawValidationProjectConfig:
         )()
 
     def is_source_enabled(self, source_name: str) -> bool:
+        """Return whether the fake source is enabled."""
         self.enabled_checks.append(source_name)
         return source_name in self.enabled_sources
 
     def source_identity(self, source_name: str) -> SourceIdentity:
+        """Return the fake source identity."""
         return self.source_identities.get(
             source_name,
             _default_source_identity(source_name),
@@ -64,6 +69,7 @@ def census_validation_project_config(
     expected_state_count: int = 7,
     required_variables: tuple[str, ...] = ("EXPECTED_VALUE",),
 ) -> FakeRawValidationProjectConfig:
+    """Build census validation project config for tests."""
     return FakeRawValidationProjectConfig(
         {CENSUS_BDS_SOURCE_KEY},
         raw_validation_expectations={
@@ -76,6 +82,7 @@ def census_validation_project_config(
 
 
 def bls_validation_project_config() -> FakeRawValidationProjectConfig:
+    """Build BLS validation project config for tests."""
     return FakeRawValidationProjectConfig(
         {BLS_LAUS_SOURCE_KEY},
         raw_validation_expectations={BLS_LAUS_SOURCE_KEY: {}},
@@ -88,6 +95,8 @@ def patch_required_json_payload_resource(
     *,
     expected_resource_name: str | None = None,
 ) -> None:
+    """Patch required JSON payload resource for tests."""
+
     def fake_validate_payload_resource(
         manifest_index,
         *,
@@ -97,6 +106,7 @@ def patch_required_json_payload_resource(
         artifact_reader,
         validate_payload,
     ):
+        """Provide fake validate payload resource for tests."""
         if expected_resource_name is not None:
             assert resource_name == expected_resource_name
         return validate_payload(payload)
@@ -117,6 +127,7 @@ def validate_single_source_outputs(
     extract_mode: str = "live",
     raw_file_exists_resource_names: set[str] | None = None,
 ) -> list[ValidationResult]:
+    """Validate single source outputs for tests."""
     return raw_validation_sources.validate_source_outputs(
         RawManifestIndex.from_manifests([]),
         project_config,
@@ -132,10 +143,12 @@ def source_validation_registration(
     source_key: str,
     validate: SourceValidationCallable,
 ) -> raw_validation_sources.SourceValidationRegistration:
+    """Build source validation registration for tests."""
     return raw_validation_sources.SourceValidationRegistration(source_key, validate)
 
 
 def _default_source_identity(source_name: str) -> SourceIdentity:
+    """Build default source identity for tests."""
     identities = {
         SBA_FOIA_SOURCE_KEY: SBA_FOIA_SOURCE_IDENTITY,
         CENSUS_BDS_SOURCE_KEY: CENSUS_BDS_SOURCE_IDENTITY,

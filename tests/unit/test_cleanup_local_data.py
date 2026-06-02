@@ -4,6 +4,7 @@ from scripts import cleanup_local_data as cleanup
 
 
 def test_cleanup_candidates_preserve_configured_sba_run(tmp_path):
+    """Validate that cleanup candidates preserve configured SBA run."""
     keep_run = (
         tmp_path
         / "data"
@@ -33,6 +34,7 @@ def test_cleanup_candidates_preserve_configured_sba_run(tmp_path):
 
 
 def test_apply_cleanup_removes_only_candidates(tmp_path):
+    """Validate that apply cleanup removes only candidates."""
     keep_run = tmp_path / "data" / "raw" / "sba" / "7a_foia" / "pipeline_run_id=keep-me"
     old_run = tmp_path / "data" / "raw" / "sba" / "7a_foia" / "pipeline_run_id=old-run"
 

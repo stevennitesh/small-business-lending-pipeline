@@ -47,13 +47,17 @@ class ValidationArtifactStore(Protocol):
         ingestion_date: str,
         pipeline_run_id: str,
         filename: str,
-    ) -> ArtifactLocation: ...
+    ) -> ArtifactLocation:
+        """Return a destination location for validation output bytes."""
+        ...
 
     def write_bytes(
         self,
         location: ArtifactLocation,
         payload: bytes,
-    ) -> None: ...
+    ) -> None:
+        """Write validation output bytes to a destination location."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -114,6 +118,30 @@ def write_validation_output_for_route(
         local_path=destination.local_path,
         artifact_location=destination.artifact_location,
         validation_results=final_validation_results,
+    )
+
+
+def check_validation_output_created(
+    output_reference: ArtifactReference,
+    *,
+    pipeline_run_id: str,
+    artifact_reader: ArtifactReader | None = None,
+) -> ValidationResult:
+    """Validate that the validation result artifact was created."""
+    output_exists = artifact_exists(
+        output_reference,
+        artifact_reader or ArtifactReader(),
+    )
+    return make_pipeline_validation_result(
+        pipeline_run_id=pipeline_run_id,
+        check_definition=RAW_VALIDATION_RESULT_CREATED,
+        source_system=VALIDATION_RESULTS_SOURCE_SYSTEM,
+        source_dataset=VALIDATION_RESULTS_DATASET_NAME,
+        source_resource_name=VALIDATION_RESULTS_RESOURCE_NAME,
+        passed=output_exists,
+        expected_value="validation output file exists",
+        observed_value=artifact_uri(output_reference),
+        failed_message="Validation output file is missing.",
     )
 
 
@@ -200,30 +228,6 @@ def _write_validation_output_with_self_check(
         destination=destination,
     )
     return final_validation_results
-
-
-def check_validation_output_created(
-    output_reference: ArtifactReference,
-    *,
-    pipeline_run_id: str,
-    artifact_reader: ArtifactReader | None = None,
-) -> ValidationResult:
-    """Validate that the validation result artifact was created."""
-    output_exists = artifact_exists(
-        output_reference,
-        artifact_reader or ArtifactReader(),
-    )
-    return make_pipeline_validation_result(
-        pipeline_run_id=pipeline_run_id,
-        check_definition=RAW_VALIDATION_RESULT_CREATED,
-        source_system=VALIDATION_RESULTS_SOURCE_SYSTEM,
-        source_dataset=VALIDATION_RESULTS_DATASET_NAME,
-        source_resource_name=VALIDATION_RESULTS_RESOURCE_NAME,
-        passed=output_exists,
-        expected_value="validation output file exists",
-        observed_value=artifact_uri(output_reference),
-        failed_message="Validation output file is missing.",
-    )
 
 
 def _validation_artifact_store(

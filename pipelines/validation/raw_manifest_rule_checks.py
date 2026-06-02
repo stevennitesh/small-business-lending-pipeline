@@ -202,6 +202,7 @@ def _check_raw_file_exists(
     manifest: RawManifest,
     inspection: RawArtifactInspection,
 ) -> ValidationResult:
+    """Build the raw file existence validation result."""
     raw_uri = _raw_artifact_uri(manifest)
     return _result(
         manifest=manifest,
@@ -217,6 +218,7 @@ def _check_raw_file_size(
     manifest: RawManifest,
     inspection: RawArtifactInspection,
 ) -> ValidationResult:
+    """Build the positive raw file size validation result."""
     observed_size = inspection.size_bytes
     return _result(
         manifest=manifest,
@@ -232,6 +234,7 @@ def _check_checksum(
     manifest: RawManifest,
     inspection: RawArtifactInspection,
 ) -> ValidationResult:
+    """Build the raw artifact checksum validation result."""
     expected_checksum = str(manifest.get("sha256_checksum", ""))
     observed_checksum = inspection.sha256_checksum
     return _result(
@@ -245,7 +248,10 @@ def _check_checksum(
 
 
 def _raw_artifact_uri(manifest: RawManifest) -> str:
+    """Return the best available route-neutral raw artifact URI."""
     normalized_manifest = normalize_manifest_storage_fields(manifest)
+    # Older local manifests may only have local_raw_path; cloud manifests should
+    # carry raw_uri/s3_raw_uri. The result uses whichever identity exists.
     return str(
         normalized_manifest.get("raw_uri")
         or normalized_manifest.get("local_raw_path")
@@ -255,6 +261,7 @@ def _raw_artifact_uri(manifest: RawManifest) -> str:
 
 
 def _check_required_metadata(manifest: RawManifest) -> ValidationResult:
+    """Build the required manifest metadata validation result."""
     normalized_manifest = normalize_manifest_storage_fields(manifest)
     missing_fields = sorted(REQUIRED_MANIFEST_FIELDS - set(normalized_manifest))
     return _result(
@@ -268,6 +275,7 @@ def _check_required_metadata(manifest: RawManifest) -> ValidationResult:
 
 
 def _check_row_count(manifest: RawManifest) -> ValidationResult:
+    """Build the row-count metadata validation result."""
     row_count = manifest.get("row_count")
     return _result(
         manifest=manifest,
@@ -280,6 +288,7 @@ def _check_row_count(manifest: RawManifest) -> ValidationResult:
 
 
 def _check_schema_hash(manifest: RawManifest) -> ValidationResult:
+    """Build the schema-hash metadata validation result."""
     schema_hash = manifest.get("schema_hash")
     return _result(
         manifest=manifest,
@@ -292,6 +301,7 @@ def _check_schema_hash(manifest: RawManifest) -> ValidationResult:
 
 
 def _check_column_count(manifest: RawManifest) -> ValidationResult:
+    """Build the optional column-count metadata validation result."""
     column_count = manifest.get("column_count")
     return _result(
         manifest=manifest,

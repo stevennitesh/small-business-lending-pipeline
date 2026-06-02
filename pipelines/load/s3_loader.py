@@ -29,11 +29,17 @@ TRANSIENT_ERROR_CODES = {
 
 
 class S3ClientProtocol(Protocol):
-    def upload_file(self, filename: str, bucket: str, key: str) -> None: ...
+    """Minimal S3 client surface used by the upload route."""
+
+    def upload_file(self, filename: str, bucket: str, key: str) -> None:
+        """Upload one local file to an S3 bucket/key."""
+        ...
 
 
 @dataclass(frozen=True)
 class S3UploadSummary:
+    """Result of attempting to upload run artifacts to S3."""
+
     bucket: str | None
     uploaded_objects: tuple[str, ...]
     skipped: bool = False
@@ -41,14 +47,16 @@ class S3UploadSummary:
 
     @property
     def uploaded_count(self) -> int:
+        """Return the number of uploaded S3 objects."""
         return len(self.uploaded_objects)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the upload summary for flow output or CLI JSON."""
         return asdict(self)
 
 
 class S3UploadRequiredError(RuntimeError):
-    pass
+    """Raised when a required cloud upload cannot complete."""
 
 
 def upload_run_artifacts_to_s3(
@@ -62,6 +70,7 @@ def upload_run_artifacts_to_s3(
     max_attempts: int = 3,
     base_delay_seconds: float = 1.0,
 ) -> S3UploadSummary:
+    """Build and upload all S3 artifacts for one pipeline run."""
     if run_mode not in {"local", "cloud"}:
         raise ValueError("run_mode must be 'local' or 'cloud'.")
     return upload_items_to_s3(
@@ -87,6 +96,7 @@ def upload_items_to_s3(
     max_attempts: int = 3,
     base_delay_seconds: float = 1.0,
 ) -> S3UploadSummary:
+    """Upload prepared items with route-specific required/optional behavior."""
     if not bucket:
         warning = "S3 upload skipped because no S3 bucket is configured."
         if required:
@@ -114,6 +124,8 @@ def upload_items_to_s3(
                 base_delay_seconds=base_delay_seconds,
             )
         except Exception as exc:
+            # Local runs surface upload failures as warnings; cloud runs must fail
+            # so downstream Snowflake loads do not point at missing S3 artifacts.
             message_prefix = (
                 "required S3 upload failed" if required else "S3 upload failed"
             )
@@ -139,6 +151,7 @@ def _upload_with_retries(
     max_attempts: int,
     base_delay_seconds: float,
 ) -> None:
+    """Upload one item, retrying transient S3 or network failures."""
     for attempt in range(1, max_attempts + 1):
         try:
             client.upload_file(str(item.local_path), bucket, item.s3_key)
@@ -151,6 +164,7 @@ def _upload_with_retries(
 
 
 def _validate_upload_item(item: S3UploadItem) -> None:
+    """Validate a local upload source path and destination key."""
     if not item.local_path.is_file():
         raise FileNotFoundError(f"S3 upload source does not exist: {item.local_path}")
     if not item.s3_key or item.s3_key.startswith("/"):
@@ -158,6 +172,7 @@ def _validate_upload_item(item: S3UploadItem) -> None:
 
 
 def _is_transient_upload_error(exc: Exception) -> bool:
+    """Return whether an upload exception is worth retrying."""
     if isinstance(exc, EndpointConnectionError):
         return True
     if isinstance(exc, ClientError):
@@ -167,6 +182,7 @@ def _is_transient_upload_error(exc: Exception) -> bool:
 
 
 def main() -> None:
+    """Run the S3 artifact uploader from CLI arguments."""
     parser = argparse.ArgumentParser(description="Upload raw landing artifacts to S3.")
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--manifest-path", action="append", default=[])

@@ -22,10 +22,14 @@ from tests.unit.validation_source_test_helpers import (
 
 
 def test_source_validation_dispatch_honors_enabled_sources_in_registry_order():
+    """Validate that source validation dispatch honors enabled sources in registry order."""
     calls: list[str] = []
 
     def validator(source_name: str):
+        """Provide validator test data for tests."""
+
         def validate(context):
+            """Validate test data for tests."""
             calls.append(source_name)
             assert context.pipeline_run_id == "run-123"
             assert context.raw_file_exists_resource_names == {CENSUS_BDS_RESOURCE_NAME}
@@ -74,6 +78,7 @@ def test_source_validation_dispatch_honors_enabled_sources_in_registry_order():
 
 
 def test_census_validation_uses_required_variables_from_expectations(monkeypatch):
+    """Validate that census validation uses required variables from expectations."""
     captured = {}
     project_config = census_validation_project_config()
 
@@ -85,6 +90,7 @@ def test_census_validation_uses_required_variables_from_expectations(monkeypatch
         pipeline_run_id,
         source_identity,
     ):
+        """Provide fake census payload check for tests."""
         captured["required_variables"] = required_variables
         captured["expected_state_count"] = expected_state_count
         captured["pipeline_run_id"] = pipeline_run_id
@@ -118,6 +124,7 @@ def test_census_validation_uses_required_variables_from_expectations(monkeypatch
 
 
 def test_census_validation_coerces_unexpected_payload_shape(monkeypatch):
+    """Validate that census validation coerces unexpected payload shape."""
     captured = {}
     project_config = census_validation_project_config()
 
@@ -129,6 +136,7 @@ def test_census_validation_coerces_unexpected_payload_shape(monkeypatch):
         pipeline_run_id,
         source_identity,
     ):
+        """Provide fake census payload check for tests."""
         captured["payload"] = payload
         return []
 
@@ -153,6 +161,7 @@ def test_census_validation_coerces_unexpected_payload_shape(monkeypatch):
 
 
 def test_bls_validation_coerces_unexpected_payload_shape(monkeypatch):
+    """Validate that BLS validation coerces unexpected payload shape."""
     captured = {}
     project_config = bls_validation_project_config()
 
@@ -166,6 +175,7 @@ def test_bls_validation_coerces_unexpected_payload_shape(monkeypatch):
         unemployment_rate_max,
         source_identity,
     ):
+        """Provide fake BLS payload check for tests."""
         captured["payload"] = payload
         return []
 

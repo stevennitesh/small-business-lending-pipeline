@@ -41,6 +41,8 @@ SNOWFLAKE_RAW_TABLES = {
 
 @dataclass(frozen=True)
 class SnowflakeConfig:
+    """Connection and schema configuration for Snowflake raw loads."""
+
     account: str
     user: str
     password: str
@@ -53,6 +55,7 @@ class SnowflakeConfig:
 
     @classmethod
     def from_env(cls) -> "SnowflakeConfig":
+        """Build Snowflake configuration from environment variables."""
         load_dotenv(override=False)
         values = {
             "account": os.getenv("SNOWFLAKE_ACCOUNT"),
@@ -93,6 +96,7 @@ class SnowflakeConfig:
         )
 
     def connect_kwargs(self) -> dict[str, str]:
+        """Return keyword arguments accepted by Snowflake connector."""
         return {
             "account": self.account,
             "user": self.user,
@@ -106,6 +110,8 @@ class SnowflakeConfig:
 
 @dataclass(frozen=True)
 class SnowflakeRawLoadSummary:
+    """Summary of a completed Snowflake raw load."""
+
     database: str
     raw_schema: str
     audit_schema: str
@@ -114,10 +120,12 @@ class SnowflakeRawLoadSummary:
     loaded_at_utc: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the Snowflake raw load summary."""
         return asdict(self)
 
 
 def connect_to_snowflake(config: SnowflakeConfig):
+    """Open a Snowflake connection from raw-load configuration."""
     return snowflake.connector.connect(**config.connect_kwargs())
 
 
@@ -138,8 +146,9 @@ def load_raw_extracts_to_snowflake_from_s3(
     s3_client: Any | None = None,
 ) -> SnowflakeRawLoadSummary:
     """Production-style cloud raw load from S3-backed artifacts."""
-
     artifact_reader = ArtifactReader(s3_client=s3_client)
+    # Snowflake loads only from manifests and validation outputs already promoted
+    # to S3, so all references are read through the artifact route reader.
     prepared_inputs = prepare_raw_load_inputs(
         sba_7a_manifest_paths=sba_7a_manifest_paths,
         sba_504_manifest_paths=sba_504_manifest_paths,
@@ -219,7 +228,10 @@ def _create_required_schemas(
     raw_schema: str = "RAW",
     audit_schema: str = "AUDIT",
 ) -> None:
+    """Create the schemas needed by the raw load route."""
     schema_names = {raw_schema, audit_schema}
+    # The default local-first model expects all dbt schemas; custom raw/audit
+    # schemas keep the bootstrap limited to the explicitly requested schemas.
     if raw_schema.upper() == "RAW" and audit_schema.upper() == "AUDIT":
         schema_names.update(REQUIRED_SCHEMAS)
 
@@ -231,6 +243,7 @@ def _create_required_schemas(
 def _require_s3_backed_manifests(
     manifest_groups: dict[str, list[dict[str, Any]]],
 ) -> None:
+    """Require every manifest to point at raw data already stored in S3."""
     non_s3_resources = [
         str(manifest.get("resource_name"))
         for manifests in manifest_groups.values()
@@ -245,6 +258,7 @@ def _require_s3_backed_manifests(
 
 
 def _single_s3_bucket(manifest_groups: dict[str, list[dict[str, Any]]]) -> str:
+    """Return the one S3 bucket shared by all manifest raw URIs."""
     buckets = {
         parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"])).bucket
         for manifests in manifest_groups.values()
@@ -259,6 +273,7 @@ def _single_s3_bucket(manifest_groups: dict[str, list[dict[str, Any]]]) -> str:
 
 
 def _snowflake_table_count(connection, raw_schema: str, table_name: str) -> int:
+    """Return the row count for a Snowflake raw table."""
     with connection.cursor() as cursor:
         cursor.execute(f"select count(*) from {raw_schema}.{table_name}")
         row = cursor.fetchone()

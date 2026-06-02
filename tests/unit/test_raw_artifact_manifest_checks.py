@@ -21,6 +21,7 @@ from tests.unit.validation_test_helpers import raw_check_result, validation_chec
 
 
 def test_raw_artifact_manifest_checks_pass_for_complete_manifest(tmp_path):
+    """Validate that raw artifact manifest checks pass for complete manifest."""
     raw_file = write_raw_file(
         tmp_path,
         '[["YEAR","state"],["2023","01"],["2023","02"]]\n',
@@ -43,6 +44,7 @@ def test_raw_artifact_manifest_checks_pass_for_complete_manifest(tmp_path):
 
 
 def test_raw_manifest_artifact_validation_checks_loaded_manifest(tmp_path):
+    """Validate that raw manifest artifact validation checks loaded manifest."""
     raw_file = write_raw_file(
         tmp_path,
         '[["YEAR","state"],["2023","01"],["2023","02"]]\n',
@@ -69,6 +71,7 @@ def test_raw_manifest_artifact_validation_checks_loaded_manifest(tmp_path):
 
 
 def test_raw_manifest_artifact_validation_reports_missing_manifest_as_raw_004(tmp_path):
+    """Validate that raw manifest artifact validation reports missing manifest as raw 004."""
     results = check_raw_manifest(tmp_path / "missing-manifest.json")
 
     assert len(results) == 1
@@ -80,6 +83,7 @@ def test_raw_manifest_artifact_validation_reports_missing_manifest_as_raw_004(tm
 def test_raw_manifest_artifact_validation_reports_malformed_manifest_as_raw_014(
     tmp_path,
 ):
+    """Validate that raw manifest artifact validation reports malformed manifest as raw 014."""
     manifest_path = tmp_path / "malformed-manifest.json"
     manifest_path.write_text("{not-json", encoding="utf-8")
 
@@ -93,6 +97,7 @@ def test_raw_manifest_artifact_validation_reports_malformed_manifest_as_raw_014(
 
 
 def test_raw_manifest_artifact_validation_fails_for_missing_file(tmp_path):
+    """Validate that raw manifest artifact validation fails for missing file."""
     missing_file = tmp_path / "missing.json"
     placeholder_file = write_raw_file(tmp_path, "[]\n", filename="placeholder.json")
     manifest = manifest_for(placeholder_file)
@@ -110,6 +115,7 @@ def test_raw_manifest_artifact_validation_fails_for_missing_file(tmp_path):
 def test_raw_manifest_artifact_validation_returns_failure_for_missing_metadata(
     tmp_path,
 ):
+    """Validate that raw manifest artifact validation returns failure for missing metadata."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
     manifest.pop("schema_hash")
@@ -124,6 +130,7 @@ def test_raw_manifest_artifact_validation_returns_failure_for_missing_metadata(
 
 
 def test_required_manifest_resource_check_fails_when_resource_missing(tmp_path):
+    """Validate that required manifest resource check fails when resource missing."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
 
@@ -142,6 +149,7 @@ def test_required_manifest_resource_check_fails_when_resource_missing(tmp_path):
 
 
 def test_manifest_source_identity_check_fails_on_config_mismatch(tmp_path):
+    """Validate that manifest source identity check fails on config mismatch."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
 
@@ -167,6 +175,7 @@ def test_manifest_source_identity_check_fails_on_config_mismatch(tmp_path):
 
 
 def test_manifest_identity_validation_reports_missing_resource_name(tmp_path):
+    """Validate that manifest identity validation reports missing resource name."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
     manifest.pop("resource_name")
@@ -187,6 +196,7 @@ def test_manifest_identity_validation_reports_missing_resource_name(tmp_path):
 
 
 def test_manifest_identity_validation_reports_unknown_resource_name(tmp_path):
+    """Validate that manifest identity validation reports unknown resource name."""
     raw_file = write_raw_file(tmp_path)
     manifest = manifest_for(raw_file)
     manifest["resource_name"] = "unknown_resource"

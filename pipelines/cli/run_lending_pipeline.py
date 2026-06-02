@@ -7,6 +7,7 @@ from pipelines.flows.lending_pipeline_flow import lending_pipeline_flow
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the local lending pipeline command-line parser."""
     parser = argparse.ArgumentParser(description="Run the local lending pipeline flow.")
     parser.add_argument("--run-mode", default="local")
     parser.add_argument(
@@ -31,6 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    """Parse CLI arguments and run the local lending pipeline flow."""
     args = build_parser().parse_args()
     summary_path = lending_pipeline_flow(
         run_mode=args.run_mode,

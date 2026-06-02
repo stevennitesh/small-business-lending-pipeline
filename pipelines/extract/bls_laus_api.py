@@ -85,6 +85,8 @@ def fetch_bls_laus_responses(
         year_window_size=year_window_size,
     )
 
+    # BLS enforces both series-count and year-window limits, so the full request
+    # grid must be split across both dimensions.
     for year_start, year_end in chunk_year_range(
         start_year,
         end_year,
@@ -148,11 +150,15 @@ def normalize_bls_response(
                     str(observation["period"]),
                 )
                 if observed_month is None:
+                    # BLS can include non-monthly period codes; LAUS modeling
+                    # expects only month-level observations.
                     continue
 
                 try:
                     value = float(observation["value"])
                 except ValueError:
+                    # Preserve raw responses in the payload, but only publish
+                    # numeric normalized rows for downstream warehouse loads.
                     continue
 
                 rows.append(
@@ -173,6 +179,7 @@ def normalize_bls_response(
 
 
 def _validate_bls_response_status(response: dict[str, Any]) -> None:
+    """Raise when a BLS API response status reports a failed request."""
     status = response.get("status")
     if status != "REQUEST_SUCCEEDED":
         messages = response.get("message") or []
@@ -180,6 +187,7 @@ def _validate_bls_response_status(response: dict[str, Any]) -> None:
 
 
 def _clean_footnotes(footnotes: Any) -> list[dict[str, str]]:
+    """Keep only populated BLS footnote dictionaries."""
     if not isinstance(footnotes, list):
         return []
     return [

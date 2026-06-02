@@ -13,7 +13,30 @@ from pipelines.storage.raw_artifacts import (
 )
 
 
+def _route_context(
+    tmp_path: Path,
+    *,
+    run_mode: str,
+    data_root_name: str,
+    pipeline_run_id: str,
+    s3_bucket: str | None = None,
+) -> LocalRunContext:
+    """Build route context for tests."""
+    return local_flow.initialize_run.fn(
+        run_mode=run_mode,
+        extract_mode="fixture",
+        dbt_target="prod_snowflake" if run_mode == "cloud" else "dev_duckdb",
+        data_root=str(tmp_path / data_root_name),
+        duckdb_path=str(tmp_path / "warehouse.duckdb"),
+        dbt_project_dir="dbt",
+        dbt_profiles_dir=str(tmp_path / "profiles"),
+        s3_bucket=s3_bucket,
+        pipeline_run_id=pipeline_run_id,
+    )
+
+
 def test_raw_artifact_store_matches_route(tmp_path):
+    """Validate that raw artifact store matches route."""
     local_context = _route_context(
         tmp_path,
         run_mode="local",
@@ -65,6 +88,7 @@ def test_raw_artifact_store_matches_route(tmp_path):
 
 
 def test_extraction_bucket_rejects_missing_cloud_bucket(tmp_path):
+    """Validate that extraction bucket rejects missing cloud bucket."""
     context = _route_context(
         tmp_path,
         run_mode="cloud",
@@ -81,6 +105,7 @@ def test_extraction_bucket_rejects_missing_cloud_bucket(tmp_path):
 
 
 def test_extraction_bucket_uses_default_only_for_local_route(tmp_path):
+    """Validate that extraction bucket uses default only for local route."""
     context = _route_context(
         tmp_path,
         run_mode="local",
@@ -95,25 +120,4 @@ def test_extraction_bucket_uses_default_only_for_local_route(tmp_path):
             s3_bucket_resolver=lambda _: None,
         )
         == "local-live"
-    )
-
-
-def _route_context(
-    tmp_path: Path,
-    *,
-    run_mode: str,
-    data_root_name: str,
-    pipeline_run_id: str,
-    s3_bucket: str | None = None,
-) -> LocalRunContext:
-    return local_flow.initialize_run.fn(
-        run_mode=run_mode,
-        extract_mode="fixture",
-        dbt_target="prod_snowflake" if run_mode == "cloud" else "dev_duckdb",
-        data_root=str(tmp_path / data_root_name),
-        duckdb_path=str(tmp_path / "warehouse.duckdb"),
-        dbt_project_dir="dbt",
-        dbt_profiles_dir=str(tmp_path / "profiles"),
-        s3_bucket=s3_bucket,
-        pipeline_run_id=pipeline_run_id,
     )

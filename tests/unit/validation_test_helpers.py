@@ -13,14 +13,17 @@ from pipelines.validation.validation_result import (
 
 
 def read_json(path: Path) -> Any:
+    """Read a JSON test fixture from a path."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def read_json_bytes(payload: bytes) -> Any:
+    """Read a JSON test payload from bytes."""
     return json.loads(payload)
 
 
 def rewrite_json(path: Path, **updates) -> None:
+    """Patch a JSON fixture file with field updates."""
     payload = read_json(path)
     payload.update(updates)
     path.write_text(
@@ -38,6 +41,7 @@ def raw_file_exists_result(
     passed: bool = True,
     observed_value: Any = "file exists",
 ) -> ValidationResult:
+    """Build a raw-file-exists validation result fixture."""
     return make_validation_result(
         pipeline_run_id=pipeline_run_id,
         validation_check_id=RAW_FILE_EXISTS.validation_check_id,
@@ -58,6 +62,7 @@ def raw_check_result(
     results: list[ValidationResult],
     validation_check_id: str,
 ) -> ValidationResult:
+    """Return the first validation result matching a check ID."""
     return next(
         result
         for result in results
@@ -68,21 +73,25 @@ def raw_check_result(
 def validation_check_ids(
     results: Iterable[ValidationResult | dict[str, Any]],
 ) -> list[str]:
+    """Return validation check IDs from result objects or dictionaries."""
     return [_validation_check_id(result) for result in results]
 
 
 def validation_check_id_set(
     results: Iterable[ValidationResult | dict[str, Any]],
 ) -> set[str]:
+    """Return validation check IDs as a set."""
     return set(validation_check_ids(results))
 
 
 def assert_validation_output_contains(path: Path, *expected_check_ids: str) -> None:
+    """Assert a persisted validation output includes expected checks."""
     observed_ids = validation_check_id_set(read_json(path))
     assert set(expected_check_ids) <= observed_ids
 
 
 def failed_check_ids(results: Iterable[ValidationResult | dict[str, Any]]) -> set[str]:
+    """Return check IDs whose validation status is failed."""
     return {
         _validation_check_id(result)
         for result in results
@@ -91,12 +100,14 @@ def failed_check_ids(results: Iterable[ValidationResult | dict[str, Any]]) -> se
 
 
 def _validation_check_id(result: ValidationResult | dict[str, Any]) -> str:
+    """Return a check ID from a validation result object or dictionary."""
     if isinstance(result, ValidationResult):
         return result.validation_check_id
     return str(result["validation_check_id"])
 
 
 def _validation_status(result: ValidationResult | dict[str, Any]) -> str:
+    """Return a status from a validation result object or dictionary."""
     if isinstance(result, ValidationResult):
         return result.status
     return str(result["status"])

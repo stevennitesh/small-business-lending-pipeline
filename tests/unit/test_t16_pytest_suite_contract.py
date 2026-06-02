@@ -18,12 +18,14 @@ BLS_SAMPLE = FIXTURE_DIR / "bls_laus_sample.json"
 
 
 def test_source_fixtures_are_committed_and_small():
+    """Validate that source fixtures are committed and small."""
     for fixture_path in (SBA_SAMPLE, CENSUS_SAMPLE, BLS_SAMPLE):
         assert fixture_path.is_file()
         assert fixture_path.stat().st_size < 5_000
 
 
 def test_optional_live_and_cloud_markers_are_declared():
+    """Validate that optional live and cloud markers are declared."""
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     markers = pyproject["tool"]["pytest"]["ini_options"]["markers"]
 
@@ -32,6 +34,7 @@ def test_optional_live_and_cloud_markers_are_declared():
 
 
 def test_source_validation_helpers_accept_committed_fixtures():
+    """Validate that source validation helpers accept committed fixtures."""
     with SBA_SAMPLE.open("r", encoding="utf-8", newline="") as file:
         sba_rows = list(csv.DictReader(file))
 

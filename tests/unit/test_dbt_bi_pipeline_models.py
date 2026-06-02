@@ -58,6 +58,7 @@ PIPELINE_SCHEMA = Path("dbt/models/marts/pipeline/schema.yml")
 
 
 def test_required_bi_and_pipeline_models_exist():
+    """Validate that required BI and pipeline models exist."""
     required_paths = [*BI_MODELS.values(), *PIPELINE_MARTS.values()]
     missing_paths = [str(path) for path in required_paths if not path.is_file()]
 
@@ -66,6 +67,7 @@ def test_required_bi_and_pipeline_models_exist():
 
 
 def test_bi_schema_declares_grain_rows_and_safe_columns():
+    """Validate that BI schema declares grain rows and safe columns."""
     schema_text = BI_SCHEMA.read_text()
     assert "Deprecated compatibility field" not in schema_text
     schema_yml = yaml.safe_load(schema_text)
@@ -177,6 +179,7 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
 
 
 def test_bi_schema_marks_fast_quality_tests_critical():
+    """Validate that BI schema marks fast quality tests critical."""
     models = models_by_name([BI_SCHEMA])
 
     for model_name, model in models.items():
@@ -194,6 +197,7 @@ def test_bi_schema_marks_fast_quality_tests_critical():
 
 
 def test_pipeline_schema_declares_health_columns():
+    """Validate that pipeline schema declares health columns."""
     models = models_by_name([PIPELINE_SCHEMA])
 
     assert set(PIPELINE_MARTS) <= set(models)
@@ -232,6 +236,7 @@ def test_pipeline_schema_declares_health_columns():
 
 
 def test_pipeline_run_summary_mart_uses_staging_contract():
+    """Validate that pipeline run summary mart uses staging contract."""
     model_sql = PIPELINE_MARTS["mart_pipeline_run_summary"].read_text(encoding="utf-8")
 
     assert "ref('stg_pipeline_run_summary')" in model_sql
@@ -239,6 +244,7 @@ def test_pipeline_run_summary_mart_uses_staging_contract():
 
 
 def test_pipeline_source_freshness_uses_latest_manifest_row_values():
+    """Validate that pipeline source freshness uses latest manifest row values."""
     model_sql = PIPELINE_MARTS["mart_pipeline_source_freshness"].read_text(
         encoding="utf-8"
     )
@@ -250,6 +256,7 @@ def test_pipeline_source_freshness_uses_latest_manifest_row_values():
 
 
 def test_bi_lender_outputs_document_known_lender_semantics():
+    """Validate that BI lender outputs document known lender semantics."""
     models = models_by_name([BI_SCHEMA])
     lender_mix_sql = BI_MODELS["bi_lender_mix"].read_text(encoding="utf-8")
 
@@ -279,6 +286,7 @@ def test_bi_lender_outputs_document_known_lender_semantics():
 
 
 def test_bi_filter_tables_are_built_from_dbt_models():
+    """Validate that BI filter tables are built from dbt models."""
     year_sql = BI_MODELS["bi_year_filter"].read_text(encoding="utf-8")
     program_sql = BI_MODELS["bi_loan_program_filter"].read_text(encoding="utf-8")
     naics_sql = BI_MODELS["bi_naics_filter"].read_text(encoding="utf-8")

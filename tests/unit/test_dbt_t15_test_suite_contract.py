@@ -38,6 +38,7 @@ MODELS_WITH_STATE_KEYS = {
 
 
 def test_all_documented_dbt_models_declare_grain():
+    """Validate that all documented dbt models declare grain."""
     missing_grain = []
 
     for schema_file in SCHEMA_FILES:
@@ -49,6 +50,7 @@ def test_all_documented_dbt_models_declare_grain():
 
 
 def test_state_key_models_have_dim_state_relationship_tests():
+    """Validate that state key models have dim state relationship tests."""
     schemas = models_by_name(SCHEMA_FILES)
 
     missing_relationships = []
@@ -61,6 +63,7 @@ def test_state_key_models_have_dim_state_relationship_tests():
 
 
 def test_t15_singular_reconciliation_tests_exist():
+    """Validate that t15 singular reconciliation tests exist."""
     singular_tests = {path.name for path in Path("dbt/tests").glob("assert_*.sql")}
 
     assert {

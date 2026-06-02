@@ -39,12 +39,14 @@ LENDING_SCHEMA = Path("dbt/models/marts/lending/schema.yml")
 
 
 def test_required_lending_marts_exist():
+    """Validate that required lending marts exist."""
     missing_paths = [str(path) for path in LENDING_MARTS.values() if not path.is_file()]
 
     assert missing_paths == []
 
 
 def test_lending_schema_declares_grains_and_kpi_tests():
+    """Validate that lending schema declares grains and kpi tests."""
     models = models_by_name([LENDING_SCHEMA])
 
     assert set(LENDING_MARTS) <= set(models)
@@ -123,6 +125,7 @@ def test_lending_schema_declares_grains_and_kpi_tests():
 
 
 def test_state_lending_marts_exclude_unmapped_project_states():
+    """Validate that state lending marts exclude unmapped project states."""
     for model_name in (
         "mart_lending_monthly_state",
         "mart_lending_annual_state",
@@ -140,6 +143,7 @@ def test_state_lending_marts_exclude_unmapped_project_states():
 
 
 def test_annual_lending_marts_reuse_fact_approval_year():
+    """Validate that annual lending marts reuse fact approval year."""
     annual_mart_paths = [
         LENDING_MARTS["mart_lending_annual_state"],
         LENDING_MARTS["mart_lending_lender_state_period"],
@@ -161,6 +165,7 @@ def test_annual_lending_marts_reuse_fact_approval_year():
 
 
 def test_lender_mart_excludes_unknown_before_share_and_rank():
+    """Validate that lender mart excludes unknown before share and rank."""
     lender_sql = LENDING_MARTS["mart_lending_lender_state_period"].read_text(
         encoding="utf-8"
     )
@@ -177,6 +182,7 @@ def test_lender_mart_excludes_unknown_before_share_and_rank():
 
 
 def test_lender_concentration_exposes_top_1_and_top_5_metrics():
+    """Validate that lender concentration exposes top 1 and top 5 metrics."""
     concentration_sql = LENDING_MARTS[
         "mart_lending_concentration_state_period"
     ].read_text(encoding="utf-8")
@@ -206,6 +212,7 @@ def test_lender_concentration_exposes_top_1_and_top_5_metrics():
 
 
 def test_lending_performance_mart_uses_status_group_without_canceled_losses():
+    """Validate that lending performance mart uses status group without canceled losses."""
     performance_sql = LENDING_MARTS["mart_lending_performance_state_period"].read_text(
         encoding="utf-8"
     )
@@ -234,6 +241,7 @@ def test_lending_performance_mart_uses_status_group_without_canceled_losses():
 
 
 def test_lending_status_mix_mart_reconciles_status_group_shares():
+    """Validate that lending status mix mart reconciles status group shares."""
     status_mix_sql = LENDING_MARTS["mart_lending_status_mix_state_period"].read_text(
         encoding="utf-8"
     )
@@ -267,6 +275,7 @@ def test_lending_status_mix_mart_reconciles_status_group_shares():
 
 
 def test_lending_terms_pricing_mart_documents_availability_and_program_semantics():
+    """Validate that lending terms pricing mart documents availability and program semantics."""
     terms_sql = LENDING_MARTS["mart_lending_terms_pricing_state_period"].read_text(
         encoding="utf-8"
     )
@@ -309,6 +318,7 @@ def test_lending_terms_pricing_mart_documents_availability_and_program_semantics
 
 
 def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
+    """Validate that lending jobs impact mart is descriptive and reconciles."""
     jobs_sql = LENDING_MARTS["mart_lending_jobs_impact_state_period"].read_text(
         encoding="utf-8"
     )

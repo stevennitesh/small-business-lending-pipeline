@@ -19,7 +19,36 @@ from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 from tests.unit.validation_test_helpers import read_json, read_json_bytes
 
 
+def run_context(
+    tmp_path: Path,
+    *,
+    run_mode: str,
+    pipeline_run_id: str,
+    s3_bucket: str | None = None,
+) -> LocalRunContext:
+    """Run context for tests."""
+    data_root = tmp_path / "data"
+    context = LocalRunContext(
+        pipeline_run_id=pipeline_run_id,
+        run_mode=run_mode,
+        extract_mode="fixture",
+        data_root=data_root,
+        duckdb_path=tmp_path / "warehouse.duckdb",
+        dbt_project_dir=Path("dbt"),
+        dbt_profiles_dir=tmp_path / "profiles",
+        dbt_target="prod_snowflake" if run_mode == "cloud" else "dev_duckdb",
+        powerbi_export_dir=data_root / "exports" / "powerbi",
+        run_started_at_utc="2026-05-30T00:00:00+00:00",
+        s3_bucket=s3_bucket,
+    )
+    context.data_root.mkdir(parents=True, exist_ok=True)
+    context.run_validation_dir.mkdir(parents=True, exist_ok=True)
+    context.run_export_dir.mkdir(parents=True, exist_ok=True)
+    return context
+
+
 def test_fixture_extraction_and_validation_are_local_only(tmp_path):
+    """Validate that fixture extraction and validation are local only."""
     project_config = load_project_config()
     context = run_context(tmp_path, run_mode="local", pipeline_run_id="test-run")
 
@@ -47,6 +76,7 @@ def test_fixture_extraction_and_validation_are_local_only(tmp_path):
 
 
 def test_fixture_manifests_use_source_config_identity(tmp_path):
+    """Validate that fixture manifests use source config identity."""
     project_config = load_project_config()
     sources = {
         **project_config.sources,
@@ -79,6 +109,7 @@ def test_fixture_manifests_use_source_config_identity(tmp_path):
 
 
 def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(tmp_path):
+    """Validate that cloud fixture extraction and validation use S3 backed manifests."""
     project_config = load_project_config()
     s3_client = FakeS3ObjectClient()
     context = run_context(
@@ -89,19 +120,23 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(tmp_pat
     )
 
     def raw_artifact_store_factory(context: LocalRunContext, bucket: str):
+        """Build raw artifact store factory for tests."""
         if context.is_cloud_route:
             return S3RawArtifactStore(bucket=bucket, s3_client=s3_client)
         return LocalRawArtifactStore(data_root=context.data_root, s3_bucket=bucket)
 
     def artifact_store_factory(context: LocalRunContext, bucket: str):
+        """Build artifact store factory for tests."""
         if context.is_cloud_route:
             return S3ArtifactStore(bucket=bucket, s3_client=s3_client)
         return LocalArtifactStore(data_root=context.data_root, s3_bucket=bucket)
 
     def artifact_reader_factory(context: LocalRunContext):
+        """Build artifact reader factory for tests."""
         return ArtifactReader(s3_client=s3_client if context.is_cloud_route else None)
 
     def raw_artifact_reader_factory(context: LocalRunContext):
+        """Build raw artifact reader factory for tests."""
         return RawArtifactReader(
             s3_client=s3_client if context.is_cloud_route else None
         )
@@ -140,30 +175,3 @@ def test_cloud_fixture_extraction_and_validation_use_s3_backed_manifests(tmp_pat
     assert read_json_bytes(s3_client.objects[("unit-test-bucket", validation_key)]) == (
         validation_results
     )
-
-
-def run_context(
-    tmp_path: Path,
-    *,
-    run_mode: str,
-    pipeline_run_id: str,
-    s3_bucket: str | None = None,
-) -> LocalRunContext:
-    data_root = tmp_path / "data"
-    context = LocalRunContext(
-        pipeline_run_id=pipeline_run_id,
-        run_mode=run_mode,
-        extract_mode="fixture",
-        data_root=data_root,
-        duckdb_path=tmp_path / "warehouse.duckdb",
-        dbt_project_dir=Path("dbt"),
-        dbt_profiles_dir=tmp_path / "profiles",
-        dbt_target="prod_snowflake" if run_mode == "cloud" else "dev_duckdb",
-        powerbi_export_dir=data_root / "exports" / "powerbi",
-        run_started_at_utc="2026-05-30T00:00:00+00:00",
-        s3_bucket=s3_bucket,
-    )
-    context.data_root.mkdir(parents=True, exist_ok=True)
-    context.run_validation_dir.mkdir(parents=True, exist_ok=True)
-    context.run_export_dir.mkdir(parents=True, exist_ok=True)
-    return context

@@ -19,6 +19,7 @@ def write_raw_load_manifest(
     file_format: str,
     schema_fields: list[str],
 ) -> Path:
+    """Write a manifest fixture for raw load tests."""
     manifest = {
         "pipeline_run_id": "run-123",
         "source_system": source_system,
@@ -28,6 +29,8 @@ def write_raw_load_manifest(
         "extracted_at_utc": "2026-05-07T12:00:00Z",
         "ingestion_date": "2026-05-07",
         "storage_backend": "local",
+        # The fixture includes both local and S3 identities so tests can toggle
+        # route behavior without rebuilding source payloads.
         "raw_uri": str(raw_file),
         "local_raw_path": str(raw_file),
         "s3_raw_uri": f"s3://bucket/raw/{source_system}/{dataset_name}/{raw_file.name}",
@@ -45,6 +48,7 @@ def write_raw_load_manifest(
 
 
 def raw_load_validation_result(status: str = "passed") -> ValidationResult:
+    """Build a raw validation gate result for raw load tests."""
     return ValidationResult(
         pipeline_run_id="run-123",
         validation_check_id="RAW_001",
@@ -64,6 +68,7 @@ def raw_load_validation_result(status: str = "passed") -> ValidationResult:
 
 
 def build_raw_load_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:
+    """Build fixture raw files and manifests for every raw load source group."""
     raw_dir = tmp_path / "raw"
     manifest_dir = tmp_path / "manifests"
     raw_dir.mkdir()
@@ -155,6 +160,7 @@ def build_raw_load_fixture_manifests(tmp_path: Path) -> dict[str, list[Path]]:
 
 
 def make_manifests_s3_backed(manifests: dict[str, list[Path]]) -> None:
+    """Rewrite manifest fixtures to behave like cloud-backed manifests."""
     for manifest_paths in manifests.values():
         for manifest_path in manifest_paths:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -167,6 +173,7 @@ def make_manifests_s3_backed(manifests: dict[str, list[Path]]) -> None:
 def manifest_artifact_locations(
     manifests: dict[str, list[Path]],
 ) -> tuple[dict[str, list[ArtifactLocation]], dict[tuple[str, str], bytes]]:
+    """Build artifact locations and fake S3 objects for manifest fixtures."""
     objects: dict[tuple[str, str], bytes] = {}
     locations: dict[str, list[ArtifactLocation]] = {}
     for source_group, manifest_paths in manifests.items():

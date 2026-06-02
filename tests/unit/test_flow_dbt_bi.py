@@ -9,6 +9,7 @@ from tests.unit.snowflake_test_helpers import FakeSnowflakeConnection
 
 
 def test_flow_uses_shared_powerbi_export_contract(tmp_path, monkeypatch):
+    """Validate that flow uses shared Power BI export contract."""
     monkeypatch.delenv("POWERBI_EXPORT_DIR", raising=False)
 
     context = local_flow.initialize_run.fn(
@@ -28,6 +29,7 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path, monkeypatch):
 
 
 def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
+    """Validate that snowflake BI schema can use cloud smoke prefix."""
     monkeypatch.delenv("SNOWFLAKE_BI_SCHEMA", raising=False)
     monkeypatch.setenv("DBT_SCHEMA_PREFIX", "SMOKE")
 
@@ -41,6 +43,7 @@ def test_snowflake_bi_schema_can_use_cloud_smoke_prefix(monkeypatch):
 def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(
     monkeypatch,
 ):
+    """Validate that cloud BI validation uses expanded contract without live credentials."""
     connection = FakeSnowflakeConnection(
         table_counts={
             f'"SMOKE_BI"."{table_name.upper()}"': 1 for table_name in BI_EXPORT_TABLES
@@ -61,6 +64,7 @@ def test_cloud_bi_validation_uses_expanded_contract_without_live_credentials(
 
 
 def test_cloud_bi_validation_rejects_invalid_schema_identifier(monkeypatch):
+    """Validate that cloud BI validation rejects invalid schema identifier."""
     monkeypatch.setenv("SNOWFLAKE_BI_SCHEMA", "SMOKE_BI;drop table BI")
     monkeypatch.setattr(dbt_bi.SnowflakeConfig, "from_env", lambda: object())
     monkeypatch.setattr(dbt_bi, "load_dotenv", lambda override=True: None)

@@ -38,6 +38,7 @@ def prepare_raw_load_inputs(
     artifact_reader: ArtifactReader | None = None,
 ) -> PreparedRawLoadInputs:
     """Load, validate, and group raw-load manifests for a warehouse route."""
+    # Validation must pass before callers replace destination raw tables.
     validation_results = load_validation_results(
         validation_result_paths,
         error_cls=error_cls,
@@ -71,6 +72,7 @@ def load_raw_manifest_groups(
     table_prefix: str = "",
     artifact_reader: ArtifactReader | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
+    """Load source manifests into the raw table groups expected by loaders."""
     return {
         f"{table_prefix}raw_sba_7a_foia": load_manifests(
             sba_7a_manifest_paths,
@@ -96,6 +98,7 @@ def load_manifests(
     *,
     artifact_reader: ArtifactReader | None = None,
 ) -> list[dict[str, Any]]:
+    """Read manifest JSON documents from local paths or artifact locations."""
     reader = artifact_reader or ArtifactReader()
     return [json.loads(_read_reference_text(path, reader)) for path in paths]
 
@@ -107,6 +110,7 @@ def load_validation_results(
     missing_message: str,
     artifact_reader: ArtifactReader | None = None,
 ) -> list[ValidationResult]:
+    """Read validation-result JSON documents and expand their records."""
     validation_paths = list(paths)
     if not validation_paths:
         raise error_cls(missing_message)
@@ -124,6 +128,7 @@ def assert_validation_passed(
     *,
     error_cls: type[Exception],
 ) -> None:
+    """Raise the loader-specific error type when validation blocks loading."""
     try:
         assert_no_blocking_failures(validation_results)
     except ValidationFailedError as exc:
@@ -135,6 +140,7 @@ def require_manifest_groups(
     *,
     error_cls: type[Exception],
 ) -> None:
+    """Require every raw source table to have at least one manifest."""
     empty_group_names = [
         table_name for table_name, manifests in manifest_groups.items() if not manifests
     ]
@@ -147,6 +153,7 @@ def require_manifest_groups(
 def pipeline_run_ids_from_manifest_groups(
     manifest_groups: dict[str, list[dict[str, Any]]],
 ) -> tuple[str, ...]:
+    """Return the unique pipeline run IDs represented by manifest groups."""
     return tuple(
         sorted(
             {
@@ -161,12 +168,14 @@ def pipeline_run_ids_from_manifest_groups(
 def flatten_manifest_groups(
     manifest_groups: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
+    """Flatten table-keyed manifest groups into manifest order by group."""
     return [
         manifest for manifests in manifest_groups.values() for manifest in manifests
     ]
 
 
 def expected_manifest_row_count(manifests: Iterable[dict[str, Any]]) -> int:
+    """Return the total row count promised by a manifest collection."""
     return sum(int(manifest["row_count"]) for manifest in manifests)
 
 
@@ -174,6 +183,7 @@ def _read_reference_text(
     reference: ManifestReference,
     artifact_reader: ArtifactReader,
 ) -> str:
+    """Read a local or routed artifact reference as UTF-8 text."""
     if isinstance(reference, ArtifactLocation):
         return artifact_reader.read_text(reference)
     return Path(reference).read_text(encoding="utf-8")

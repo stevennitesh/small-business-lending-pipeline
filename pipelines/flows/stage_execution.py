@@ -34,7 +34,7 @@ def run_timed_flow_stage(
     completed_stages: tuple[str, ...] | None = None,
     **kwargs,
 ):
-    """Execute a timed stage and mark its flow stages complete."""
+    """Execute a timed stage and mark one or more logical flow stages complete."""
     result = run_timed_stage(
         state.stage_durations_seconds,
         stage_name,
@@ -45,5 +45,8 @@ def run_timed_flow_stage(
     if completed_stages is None:
         state.complete(stage_name)
     else:
+        # A single adapter can complete multiple logical stages; extraction
+        # returns both raw artifacts and manifests, so failure summaries keep the
+        # user-facing stage order even when implementation is consolidated.
         state.complete_many(list(completed_stages))
     return result

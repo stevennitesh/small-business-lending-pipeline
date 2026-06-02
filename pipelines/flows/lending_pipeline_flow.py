@@ -83,7 +83,7 @@ def extract_sources(
     context: LocalRunContext,
     project_config: ProjectConfig,
 ) -> ExtractionPaths:
-    """Run fixture or live source extraction and return manifest references."""
+    """Run fixture or live extraction and return route-aware manifest references."""
     if context.run_mode not in VALID_RUN_MODES:
         allowed = ", ".join(f"'{mode}'" for mode in VALID_RUN_MODES)
         raise ValueError(
@@ -131,7 +131,7 @@ def record_raw_artifact_locations(
     extraction_paths: ExtractionPaths,
     validation_output: RawValidationOutput,
 ) -> S3UploadSummary:
-    """Record cloud raw artifact locations for summary reporting."""
+    """Record durable raw artifact locations for summary reporting."""
     return raw_loads.record_raw_artifact_locations_for_context(
         context,
         extraction_paths,
@@ -171,7 +171,7 @@ def upload_dbt_artifacts_to_s3(
     extraction_paths: ExtractionPaths,
     dbt_artifacts: dict[str, str],
 ) -> S3UploadSummary:
-    """Upload dbt artifacts for cloud-run lineage."""
+    """Upload dbt artifacts for cloud-run lineage and reproducibility."""
     return dbt_bi.upload_dbt_artifacts_for_context(
         context,
         extraction_paths,
@@ -261,7 +261,7 @@ def lending_pipeline_flow(
     source_start_year: int | None = None,
     source_end_year: int | None = None,
 ) -> str:
-    """Run the end-to-end lending pipeline and return the run summary path."""
+    """Run the route-specific pipeline and return the run summary path."""
     logger = get_run_logger()
     state = FlowRunState()
     context = initialize_run(
@@ -296,6 +296,8 @@ def lending_pipeline_flow(
             project_config,
             completed_stages=("extract_sources", "write_manifests"),
         )
+        # Extraction owns raw files and manifests together, but summaries expose
+        # `write_manifests` as a logical checkpoint for easier failure triage.
         state.manifest_artifact_uris = [
             location.artifact_uri for location in extraction_paths.manifest_locations
         ]
@@ -310,6 +312,8 @@ def lending_pipeline_flow(
         )
 
         if context.is_cloud_route:
+            # Cloud route records already-durable S3 artifacts, loads Snowflake
+            # from those manifests, and leaves BI consumption in Snowflake.
             raw_s3_summary = run_timed_flow_stage(
                 state,
                 "record_raw_artifact_locations",
@@ -330,6 +334,7 @@ def lending_pipeline_flow(
             )
             state.snowflake_raw_load_summary = snowflake_summary.to_dict()
         else:
+            # Local route loads DuckDB and exports CSVs for the Power BI file.
             run_timed_flow_stage(
                 state,
                 "load_duckdb_raw_tables",
@@ -404,6 +409,7 @@ def lending_pipeline_flow(
 
 
 def main() -> None:
+    """Delegate CLI parsing to the shared pipeline CLI entry point."""
     from pipelines.cli.run_lending_pipeline import main as cli_main
 
     cli_main()

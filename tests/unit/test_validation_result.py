@@ -32,6 +32,7 @@ from tests.unit.validation_test_helpers import raw_file_exists_result
 
 
 def test_validation_result_serializes_and_writes_json(tmp_path):
+    """Validate that validation result serializes and writes JSON."""
     result = raw_file_exists_result()
 
     output_path = write_validation_results([result], tmp_path / "validation.json")
@@ -41,6 +42,7 @@ def test_validation_result_serializes_and_writes_json(tmp_path):
 
 
 def test_blocking_failures_raise_before_load():
+    """Validate that blocking failures raise before load."""
     failed_result = raw_file_exists_result(
         source_system="sba",
         source_dataset="7a_504_foia",
@@ -54,6 +56,7 @@ def test_blocking_failures_raise_before_load():
 
 
 def test_make_validation_result_defaults_passed_message():
+    """Validate that make validation result defaults passed message."""
     result = make_validation_result(
         pipeline_run_id="run-123",
         validation_check_id="RAW_001",
@@ -74,6 +77,7 @@ def test_make_validation_result_defaults_passed_message():
 
 
 def test_manifest_validation_result_uses_manifest_identity():
+    """Validate that manifest validation result uses manifest identity."""
     result = make_manifest_validation_result(
         manifest={
             "pipeline_run_id": "run-123",
@@ -95,6 +99,7 @@ def test_manifest_validation_result_uses_manifest_identity():
 
 
 def test_source_identity_validation_result_uses_source_identity():
+    """Validate that source identity validation result uses source identity."""
     result = make_source_identity_validation_result(
         pipeline_run_id="run-123",
         check_definition=BDS_REQUIRED_VARIABLES,
@@ -113,6 +118,7 @@ def test_source_identity_validation_result_uses_source_identity():
 
 
 def test_pipeline_validation_result_defaults_raw_validation_identity():
+    """Validate that pipeline validation result defaults raw validation identity."""
     result = make_pipeline_validation_result(
         pipeline_run_id="run-123",
         check_definition=RAW_VALIDATION_RESULT_CREATED,

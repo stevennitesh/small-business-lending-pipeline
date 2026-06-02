@@ -28,9 +28,11 @@ lint:
 
 format-check:
 	$(VENV_PYTHON) -m ruff format --check .
+	$(VENV_PYTHON) -m ruff check --select D202,D204 .
 
 format:
 	$(VENV_PYTHON) -m ruff format .
+	$(VENV_PYTHON) -m ruff check --select D202,D204 --fix .
 
 runtime-smoke: $(PREFECT_HOME)
 	$(VENV_PYTHON) -c "import boto3, duckdb, pandas, prefect, requests, snowflake.connector, yaml; import dbt.cli.main"

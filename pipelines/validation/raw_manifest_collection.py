@@ -39,6 +39,7 @@ class ManifestLoadResult:
 
     @property
     def loaded_manifest_or_raise(self) -> LoadedManifestReference:
+        """Return the loaded manifest or raise when this result is a failure."""
         if self.loaded_manifest is None:
             raise AssertionError("Manifest load result has no loaded manifest.")
         return self.loaded_manifest
@@ -113,6 +114,7 @@ def _manifest_reference_failure(
     expected_value: str,
     failed_message: str,
 ) -> ValidationResult:
+    """Build a validation failure for an unreadable manifest reference."""
     return make_pipeline_validation_result(
         pipeline_run_id=pipeline_run_id,
         check_definition=check_definition,
@@ -125,6 +127,7 @@ def _manifest_reference_failure(
 
 
 def _loaded_manifest_reference(reference: ArtifactReference) -> Path | ArtifactLocation:
+    """Normalize a manifest reference into the loaded-reference shape."""
     if isinstance(reference, ArtifactLocation):
         return reference
     return Path(reference)

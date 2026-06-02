@@ -10,6 +10,7 @@ from tests.unit.validation_test_helpers import read_json, rewrite_json
 
 
 def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
+    """Validate that failed validation can write summary before downstream work."""
     project_config, context, extraction_paths = fixture_validation_inputs(
         tmp_path,
         pipeline_run_id="failed-run",

@@ -21,7 +21,33 @@ from tests.unit.validation_test_helpers import (
 from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
+def _validation_output_request(
+    tmp_path,
+    *,
+    validation_results=None,
+    validation_path=None,
+    is_cloud_route=False,
+    bucket=None,
+    artifact_store=None,
+    artifact_reader=None,
+) -> ValidationOutputWriteRequest:
+    """Build validation output request for tests."""
+    return ValidationOutputWriteRequest(
+        validation_results=validation_results or [],
+        manifests=[],
+        validation_path=validation_path or tmp_path / VALIDATION_RESULTS_FILENAME,
+        pipeline_run_id="run-123",
+        is_cloud_route=is_cloud_route,
+        data_root=tmp_path,
+        run_started_at_utc="2026-05-31T00:00:00Z",
+        bucket=bucket,
+        artifact_reader=artifact_reader or ArtifactReader(),
+        artifact_store=artifact_store,
+    )
+
+
 def test_validation_output_created_check(tmp_path):
+    """Validate that validation output created check."""
     output_path = tmp_path / VALIDATION_RESULTS_FILENAME
 
     missing_result = check_validation_output_created(
@@ -44,6 +70,7 @@ def test_validation_output_created_check(tmp_path):
 def test_validation_output_self_check_returns_final_results_without_mutating_input(
     tmp_path,
 ):
+    """Validate that validation output self check returns final results without mutating input."""
     output_path = tmp_path / VALIDATION_RESULTS_FILENAME
     initial_results = [raw_file_exists_result()]
 
@@ -67,6 +94,7 @@ def test_validation_output_self_check_returns_final_results_without_mutating_inp
 
 
 def test_validation_output_route_writer_returns_destination_and_final_results(tmp_path):
+    """Validate that validation output route writer returns destination and final results."""
     output_path = tmp_path / VALIDATION_RESULTS_FILENAME
 
     output_write = write_validation_output_for_route(
@@ -80,6 +108,7 @@ def test_validation_output_route_writer_returns_destination_and_final_results(tm
 
 
 def test_raw_validation_output_formats_summary_references(tmp_path):
+    """Validate that raw validation output formats summary references."""
     local_output = RawValidationOutput(
         local_path=tmp_path / VALIDATION_RESULTS_FILENAME,
     )
@@ -104,15 +133,20 @@ def test_raw_validation_output_formats_summary_references(tmp_path):
 def test_cloud_validation_output_route_writer_uses_provided_store(
     tmp_path,
 ):
+    """Validate that cloud validation output route writer uses provided store."""
     writes = []
     s3_client = FakeS3ObjectClient()
 
     class FakeStore:
+        """Artifact store test double for validation output tests."""
+
         def __init__(self, bucket: str, s3_client: FakeS3ObjectClient):
+            """Initialize the test double."""
             self.bucket = bucket
             self.s3_client = s3_client
 
         def location(self, **kwargs):
+            """Return a fake artifact location."""
             return ArtifactLocation(
                 storage_backend="s3",
                 artifact_uri=f"s3://{self.bucket}/{kwargs['filename']}",
@@ -121,6 +155,7 @@ def test_cloud_validation_output_route_writer_uses_provided_store(
             )
 
         def write_bytes(self, location, payload):
+            """Record fake artifact bytes."""
             writes.append((location.artifact_uri, payload))
             self.s3_client.put_object(
                 Bucket=self.bucket,
@@ -155,27 +190,3 @@ def test_cloud_validation_output_route_writer_uses_provided_store(
         "RAW_001",
         "RAW_009",
     ]
-
-
-def _validation_output_request(
-    tmp_path,
-    *,
-    validation_results=None,
-    validation_path=None,
-    is_cloud_route=False,
-    bucket=None,
-    artifact_store=None,
-    artifact_reader=None,
-) -> ValidationOutputWriteRequest:
-    return ValidationOutputWriteRequest(
-        validation_results=validation_results or [],
-        manifests=[],
-        validation_path=validation_path or tmp_path / VALIDATION_RESULTS_FILENAME,
-        pipeline_run_id="run-123",
-        is_cloud_route=is_cloud_route,
-        data_root=tmp_path,
-        run_started_at_utc="2026-05-31T00:00:00Z",
-        bucket=bucket,
-        artifact_reader=artifact_reader or ArtifactReader(),
-        artifact_store=artifact_store,
-    )

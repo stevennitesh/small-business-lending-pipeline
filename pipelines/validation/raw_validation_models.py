@@ -61,6 +61,7 @@ class RawManifestIndex:
         cls,
         manifests: Iterable[RawManifest],
     ) -> "RawManifestIndex":
+        """Build a resource-name lookup index from loaded manifests."""
         manifest_list = list(manifests)
         return cls(
             manifests=manifest_list,

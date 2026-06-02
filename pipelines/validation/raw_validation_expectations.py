@@ -159,6 +159,7 @@ def _live_census_expected_state_count(
 def _census_required_variables_from(
     census_expectations: SourceExpectationConfig,
 ) -> tuple[str, ...]:
+    """Return required Census variables from raw expectation config."""
     return tuple(census_expectations["required_variables"])
 
 

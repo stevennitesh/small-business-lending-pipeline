@@ -86,6 +86,8 @@ def extract_live_sources(
         requested_bls_start_year = (
             context.source_start_year or project_config.bls_laus.start_year
         )
+        # Include the previous year so monthly context and rolling comparisons
+        # remain available when a caller requests a narrow source year window.
         bls_start_year = max(requested_bls_start_year - 1, 1976)
         bls_summary = extract_bls_laus(
             config=project_config.bls_laus,
@@ -114,7 +116,7 @@ def extract_live_sources(
 def _ensure_required_sba_program_manifests(
     extraction_paths: ExtractionPaths,
 ) -> None:
-    """Fail live SBA extraction unless both 7(a) and 504 manifests exist."""
+    """Fail live SBA extraction unless both required program manifests exist."""
     if (
         extraction_paths.sba_7a_manifest_paths
         and extraction_paths.sba_504_manifest_paths
@@ -130,7 +132,7 @@ def _ensure_required_sba_program_manifests(
 
 
 def _discovered_sba_programs(extraction_paths: ExtractionPaths) -> tuple[str, ...]:
-    """Return SBA program names discovered from extraction manifest groups."""
+    """Return human-readable SBA programs discovered from manifest groups."""
     discovered_programs = []
     if extraction_paths.sba_7a_manifest_paths:
         discovered_programs.append("7(a)")

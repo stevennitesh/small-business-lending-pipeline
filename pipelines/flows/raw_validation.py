@@ -46,10 +46,12 @@ def validate_raw_outputs_for_flow(
     artifact_store_factory: ValidationArtifactStoreFactory | None = None,
     s3_bucket_resolver: BucketResolver | None = None,
 ) -> RawValidationOutput:
-    """Build raw-validation inputs from flow context and extraction paths."""
+    """Build route-aware raw-validation inputs and execute validation."""
     validation_bucket = (s3_bucket_resolver or resolve_s3_bucket)(
         context
     ) or "local-validation"
+    # Local validation only needs a placeholder bucket for URI construction;
+    # cloud validation uses the real S3 bucket and optional artifact store.
     validation_artifact_store = (
         artifact_store_factory(context, validation_bucket)
         if artifact_store_factory is not None
@@ -82,7 +84,7 @@ def default_artifact_reader(
     context: LocalRunContext,
     s3_client=None,
 ) -> ArtifactReader:
-    """Create the route-specific reader for manifest and validation artifacts."""
+    """Create the manifest/validation reader for local files or S3 objects."""
     return artifact_reader_for_route(
         cloud_route=context.is_cloud_route,
         s3_client=s3_client,
@@ -93,7 +95,7 @@ def default_raw_artifact_reader(
     context: LocalRunContext,
     s3_client=None,
 ) -> RawArtifactReader:
-    """Create the route-specific reader for raw extraction artifacts."""
+    """Create the raw payload reader for local files or S3 objects."""
     return raw_artifact_reader_for_route(
         cloud_route=context.is_cloud_route,
         s3_client=s3_client,
@@ -104,7 +106,7 @@ def manifest_references_for_validation(
     context: LocalRunContext,
     extraction_paths: ExtractionPaths,
 ) -> tuple[Path | ArtifactLocation, ...]:
-    """Choose manifest references that validation should read for this route."""
+    """Choose the manifest references that validation should read for the route."""
     return extraction_paths.manifest_references_for_validation(
         cloud_route=context.is_cloud_route,
     )

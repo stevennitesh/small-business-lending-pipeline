@@ -32,7 +32,7 @@ def write_run_summary_for_context(
     snowflake_raw_load_summary: dict[str, Any] | None = None,
     stage_durations_seconds: dict[str, float] | None = None,
 ) -> Path:
-    """Write a JSON summary for a successful or failed pipeline run."""
+    """Write the durable JSON summary for a successful or failed run attempt."""
     summary_started_at = time.perf_counter()
     stage_durations = dict(stage_durations_seconds or {})
     summary = PipelineRunSummary(
@@ -104,7 +104,7 @@ def write_state_run_summary_for_context(
 def validation_output_local_path(
     validation_output: Path | RawValidationOutput | None,
 ) -> str | None:
-    """Resolve the local validation result path for summary output."""
+    """Resolve the runner-local validation result path for summary output."""
     if validation_output is None:
         return None
     if isinstance(validation_output, RawValidationOutput):
@@ -115,7 +115,7 @@ def validation_output_local_path(
 def validation_output_uri(
     validation_output: Path | RawValidationOutput | None,
 ) -> str | None:
-    """Resolve the durable validation result URI for summary output."""
+    """Resolve the durable validation result reference for summary output."""
     if validation_output is None:
         return None
     if isinstance(validation_output, RawValidationOutput):
