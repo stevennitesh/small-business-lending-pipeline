@@ -10,7 +10,10 @@ class LocalSourceFrameError(RuntimeError):
 
 
 def test_local_source_frame_rejects_empty_manifests():
-    with pytest.raises(LocalSourceFrameError, match="No manifests provided"):
+    with pytest.raises(
+        LocalSourceFrameError,
+        match="^No manifests provided for raw table: raw_census_bds_state_year$",
+    ):
         load_local_source_frame(
             "raw_census_bds_state_year",
             [],

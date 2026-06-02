@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 
-from repo_bootstrap import add_repo_root_to_path
+try:
+    from scripts.repo_bootstrap import add_repo_root_to_path
+except ModuleNotFoundError:
+    from repo_bootstrap import add_repo_root_to_path
 
 add_repo_root_to_path()
 

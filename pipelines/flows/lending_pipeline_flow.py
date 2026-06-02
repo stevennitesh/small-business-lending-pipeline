@@ -82,7 +82,10 @@ def extract_sources(
 ) -> ExtractionPaths:
     """Run fixture or live source extraction and return manifest references."""
     if context.run_mode not in VALID_RUN_MODES:
-        raise ValueError("run_mode must be 'local' or 'cloud'.")
+        allowed = ", ".join(f"'{mode}'" for mode in VALID_RUN_MODES)
+        raise ValueError(
+            f"run_mode must be one of {allowed}; got {context.run_mode!r}."
+        )
     if context.extract_mode == "live":
         return source_extracts.extract_live_sources(context, project_config)
     return fixture_source_extracts.extract_fixture_sources_for_flow(
