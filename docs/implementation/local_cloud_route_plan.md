@@ -134,7 +134,7 @@ Likely files:
 Verification:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_paths.py tests/unit/test_s3_loader.py tests/unit/test_prefect_local_flow.py
+.venv/bin/python -m pytest tests/unit/test_ingestion_utils.py tests/unit/test_s3_loader.py tests/unit/test_prefect_local_flow.py
 ```
 
 ### 3. Update manifests to describe storage explicitly
@@ -161,7 +161,7 @@ Likely files:
 Verification:
 
 ```bash
-.venv/bin/python -m pytest tests/unit/test_manifest.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_raw_manifest_storage_checks.py tests/integration/test_duckdb_loader.py
+.venv/bin/python -m pytest tests/unit/test_ingestion_utils.py tests/unit/test_raw_artifact_manifest_checks.py tests/unit/test_raw_manifest_storage_checks.py tests/integration/test_duckdb_loader.py
 ```
 
 ### 4. Make cloud extraction land raw artifacts directly in S3

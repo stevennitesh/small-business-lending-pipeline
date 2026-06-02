@@ -1,8 +1,11 @@
 # Power BI Model
 
-This folder stores the source-controlled Power BI model contract for `lending_dashboard`.
+This folder stores the source-controlled Power BI model contract and desktop
+artifact for `lending_dashboard`.
 
-The target desktop artifact is `powerbi/lending_dashboard.pbix`, but PBIX creation requires Power BI Desktop on Windows. The WSL implementation keeps the reproducible pieces in Git:
+The desktop artifact is `powerbi/lending_dashboard.pbix`, and PBIX updates
+require Power BI Desktop on Windows. The WSL implementation keeps the
+reproducible pieces in Git:
 
 - `powerbi/lending_dashboard_model.json` defines local CSV and Snowflake BI sources, dashboard tables, filter tables, one-to-many relationships, allowed measures, and filter coverage.
 - `powerbi/power_query/local_csv_queries.pq` provides the local CSV source queries.

@@ -477,7 +477,7 @@ models:
 Example singular test for negative loan amounts:
 
 ```sql
--- tests/assert_sba_loan_amount_non_negative.sql
+-- Example: assert_sba_loan_amount_non_negative
 select
     loan_record_key,
     gross_approval_amount
@@ -518,7 +518,7 @@ Recommended tests:
 Example singular grain test:
 
 ```sql
--- tests/assert_bds_state_year_grain.sql
+-- Example: assert_bds_state_year_grain
 select
     state_fips,
     calendar_year,
@@ -561,7 +561,7 @@ Recommended tests:
 Example singular range test:
 
 ```sql
--- tests/assert_laus_unemployment_rate_range.sql
+-- Example: assert_laus_unemployment_rate_range
 select
     laus_record_key,
     state_fips,
@@ -601,7 +601,7 @@ The model should include controlled unknown/default rows where appropriate.
 Example singular test:
 
 ```sql
--- tests/assert_dim_naics_unknown_row_exists.sql
+-- Example: assert_dim_naics_unknown_row_exists
 select 1
 where not exists (
     select 1
@@ -707,7 +707,7 @@ Recommended tests:
 Example grain test:
 
 ```sql
--- tests/assert_mart_lending_monthly_state_grain.sql
+-- Example: assert_mart_lending_monthly_state_grain
 select
     state_key,
     month_start_date,
@@ -720,7 +720,7 @@ having count(*) > 1
 Example reconciliation test:
 
 ```sql
--- tests/assert_mart_lending_monthly_state_reconciles_to_fact.sql
+-- Example: assert_mart_lending_monthly_state_reconciles_to_fact
 with fact_totals as (
     select
         state_key,
@@ -794,7 +794,7 @@ Recommended tests:
 Example lender-share test:
 
 ```sql
--- tests/assert_lender_share_between_zero_and_one.sql
+-- Example: assert_lender_share_between_zero_and_one
 select
     state_key,
     calendar_year,
@@ -808,7 +808,7 @@ where lender_approved_amount_share < 0
 Example share-sum test:
 
 ```sql
--- tests/assert_lender_shares_sum_to_one.sql
+-- Example: assert_lender_shares_sum_to_one
 select
     state_key,
     calendar_year,
@@ -1045,7 +1045,7 @@ The KPI dictionary defines null and edge-case handling. dbt tests should enforce
 Example denominator test:
 
 ```sql
--- tests/assert_no_infinite_or_invalid_normalized_metrics.sql
+-- Example: assert_no_infinite_or_invalid_normalized_metrics
 select
     state_key,
     calendar_year,
@@ -1086,7 +1086,7 @@ Tests must ensure that old snapshots are not accidentally double-counted.
 Example singular test:
 
 ```sql
--- tests/assert_fact_sba_uses_latest_successful_snapshots.sql
+-- Example: assert_fact_sba_uses_latest_successful_snapshots
 with latest_sources as (
     select source_file_key
     from {{ ref('int_pipeline_latest_successful_sources') }}

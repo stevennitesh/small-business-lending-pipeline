@@ -6,12 +6,21 @@ Make local verification safe for WSL2 while preserving the ability to run a full
 
 GitHub issue: #52
 
+## Current Status Note
+
+The safe command boundary has landed: `make dbt-local` now aliases
+`dbt-compile-local`, and the full local dbt build is explicit as
+`make dbt-build-local-full`. Local cleanup is available through
+`make cleanup-local-data-dry-run` and requires explicit apply mode for
+deletion.
+
 ## Non-goals
 
 - Do not remove the local route, DuckDB, dbt, S3, or Snowflake.
 - Do not change KPI logic, BI contracts, or source data semantics.
 - Do not delete the current useful raw extract, manifests, validation results, or Power BI artifacts without explicit approval.
-- Do not run the current full `make dbt-local` command again until guardrails are in place.
+- Do not run the explicit full local dbt build unless WSL has enough memory
+  headroom.
 
 ## Constraints
 
@@ -29,9 +38,11 @@ Parallel groups: None
 
 ## Baseline
 
-- Failing symptom: full local dbt verification can destabilize WSL2.
-- Trigger command: `make dbt-local`
-- Underlying command: `dbt build --target dev_duckdb`
+- Historical failing symptom: full local dbt verification could destabilize
+  WSL2.
+- Historical trigger command: `make dbt-local`
+- Current lightweight command: `make dbt-local` / `make dbt-compile-local`
+- Current explicit full command: `make dbt-build-local-full`
 - Current dbt local profile: DuckDB target with `threads: 4`
 - Current local data footprint:
   - `data/raw/sba`: about 4.2 GiB
@@ -73,7 +84,7 @@ Parallel groups: None
   - `dbt/profiles.yml.example`
   - docs mentioning `make dbt-local`
 - Change boundary:
-  - Add a lightweight dbt check target such as `dbt-compile-local` or `dbt-smoke-local`.
+  - Add a lightweight dbt check target such as `dbt-compile-local`.
   - Keep full dbt build available under an explicit name such as `dbt-build-local-full`.
   - Make `make test` avoid unexpected full live dbt builds unless it already does so.
   - Lower local DuckDB dbt threads from 4 to 1 by default.
@@ -176,7 +187,7 @@ Parallel groups: None
   - Do not weaken dbt tests just to make them pass faster.
 - Verification command:
   - Prefer targeted dbt selection first, not full build.
-  - Example after guardrails: `make dbt-smoke-local`
+  - Lightweight guardrail: `make dbt-local` or `make dbt-compile-local`
   - Full build can be manually run later with `make dbt-build-local-full` when WSL has enough memory headroom.
 - Review focus:
   - Heavy models are computed once when full build is requested instead of repeatedly through view chains.
@@ -215,12 +226,14 @@ Parallel groups: None
 
 ## Final Verification
 
-Do not use `make dbt-local` as final verification for this plan until the safe command boundary lands.
+Use `make dbt-local` for lightweight compile verification. Use
+`make dbt-build-local-full` only when an explicit full live-data DuckDB build
+is needed and WSL has enough memory headroom.
 
 Recommended final checks after implementation:
 
 - `.venv/bin/python -m pytest tests/unit/test_prefect_local_flow.py tests/integration/test_duckdb_loader.py tests/unit/test_dbt_bi_pipeline_models.py tests/unit/test_dbt_marts_models.py`
-- `make dbt-compile-local` or the new lightweight dbt target
+- `make dbt-local` or `make dbt-compile-local`
 - cleanup dry-run command
 - `git diff --check`
 - `git status --short --branch`

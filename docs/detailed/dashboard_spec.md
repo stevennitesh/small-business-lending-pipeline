@@ -835,7 +835,7 @@ The MVP is technically complete when:
 9. pytest passes for extraction, validation, manifest, hashing, and path utilities.
 10. Prefect orchestrates the pipeline with quality gates.
 11. Power BI connects to BI or mart tables, not raw source files.
-12. Dashboard screenshots are committed under `powerbi/screenshots/`.
+12. Dashboard screenshots are captured under `powerbi/screenshots/`.
 13. README explains how to run the local pipeline.
 14. README includes architecture, dashboard, and testing evidence.
 15. Predictive machine learning is not included in the MVP.

@@ -258,8 +258,11 @@ Planned change:
 
 - No raw-load behavior change should be required.
 - Preserve all existing raw SBA columns and row metadata.
-- If a candidate KPI field is missing after load, fix shared raw-load parsing in
-  `pipelines/load/raw_load_common.py` so DuckDB and Snowflake stay aligned.
+- If a candidate KPI field is missing after load, fix the route-specific raw
+  loaders plus shared metadata helpers so DuckDB and Snowflake stay aligned:
+  `pipelines/load/duckdb_loader.py`,
+  `pipelines/load/snowflake_stage_sources.py`, and
+  `pipelines/load/raw_load_metadata.py`.
 
 ### dbt Staging And Facts
 

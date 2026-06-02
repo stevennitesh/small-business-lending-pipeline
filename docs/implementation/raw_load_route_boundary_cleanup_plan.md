@@ -54,10 +54,13 @@ Parallel groups:
 - `record_raw_artifact_locations(...)` either summarizes cloud artifact URIs or runs the legacy local-to-S3 upload helper.
   - `load_raw_extracts_to_snowflake_from_s3(...)` is the active cloud raw-load path.
 - The local-file Snowflake testing/compatibility path has been removed.
-- `raw_load_common.load_local_source_frame(...)` reads local raw files.
+- `raw_load_local_sources.load_local_source_frame(...)` reads small local
+  non-CSV raw files.
 - Relevant source/tests/fixtures:
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_local_sources.py`
+  - `pipelines/load/raw_load_inputs.py`
+  - `pipelines/load/raw_load_metadata.py`
   - `pipelines/load/duckdb_loader.py`
   - `pipelines/load/snowflake_loader.py`
   - `pipelines/load/s3_loader.py`
@@ -142,14 +145,15 @@ Parallel groups:
   - Snowflake local-file testing/compatibility behavior.
   - Snowflake S3-stage loader not using local source-frame loading for cloud source tables.
 - Existing logic to reuse or extend:
-  - `raw_load_common.load_local_source_frame(...)`
+  - `raw_load_local_sources.load_local_source_frame(...)`
   - `duckdb_loader.load_raw_extracts(...)`
   - S3-stage Snowflake loader.
 - Public contract or state/data change:
   - Internal helper rename only.
 - Depends on: Task 2.
 - Likely files/modules:
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_local_sources.py`
+  - `pipelines/load/raw_load_metadata.py`
   - `pipelines/load/duckdb_loader.py`
   - `pipelines/load/snowflake_loader.py`
   - `tests/integration/test_duckdb_loader.py`

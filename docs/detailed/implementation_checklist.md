@@ -4,6 +4,10 @@
 
 This checklist converts the approved project specification into a practical build plan. The project should be built local-first, then promoted to S3/Snowflake, then polished for recruiter review.
 
+Status note: this is the original build-order checklist, not the current
+progress tracker. Current implementation state lives in GitHub issues, source,
+tests, and the implementation plans under `docs/implementation/`.
+
 ---
 
 ## Build Phase 0: Repository Skeleton

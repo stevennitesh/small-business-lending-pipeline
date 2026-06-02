@@ -201,7 +201,7 @@ Parallel groups:
 - Likely files/modules:
   - `pipelines/load/duckdb_loader.py`.
   - `pipelines/load/snowflake_loader.py`.
-  - `pipelines/load/raw_load_common.py`.
+  - `pipelines/load/raw_load_metadata.py`.
   - `dbt/models/staging/sba/stg_sba_7a_loans.sql`.
   - `dbt/models/staging/sba/stg_sba_504_loans.sql`.
   - loader and staging tests.
@@ -252,7 +252,7 @@ Parallel groups:
 - Depends on: Task 3.
 - Likely files/modules:
   - SBA staging models.
-  - raw source tests/schema docs if raw column contracts are documented.
+  - dbt schema docs if raw column contracts are documented.
   - loader tests to verify raw row number presence.
 - First command/check:
   - Compare old and new `loan_record_key` counts, distinct counts, and mismatch

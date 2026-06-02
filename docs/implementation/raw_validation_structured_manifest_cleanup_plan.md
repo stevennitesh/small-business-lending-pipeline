@@ -145,13 +145,13 @@ Execution mode: sequential.
   - `config/raw_validation_expectations.yml`
   - `pipelines/utils/config.py`
   - `pipelines/flows/lending_pipeline_flow.py`
-  - `tests/unit/test_config.py`
+  - `tests/unit/test_config_policy_contracts.py`
 - First command/check:
-  - `.venv/bin/python -m pytest tests/unit/test_config.py -q`
+  - `.venv/bin/python -m pytest tests/unit/test_config_policy_contracts.py -q`
 - Change boundary:
   - Keep this to naming and usage only. Do not add new public-data thresholds.
 - Verification command:
-  - `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_raw_validation_flow.py tests/unit/test_prefect_local_flow.py`
+  - `.venv/bin/python -m pytest tests/unit/test_config_policy_contracts.py tests/unit/test_raw_validation_flow.py tests/unit/test_prefect_local_flow.py`
 - Review focus:
   - `census_bds.expected_state_count` should describe state coverage directly.
   - BLS should rely on configured-series checks instead of a redundant state-count threshold.
@@ -164,7 +164,7 @@ Execution mode: sequential.
 ## Final Verification
 
 - `.venv/bin/python -m pytest tests/unit/test_raw_validation_flow.py tests/unit/test_raw_validation_sources.py tests/unit/test_raw_validation_manifest_failures.py tests/unit/test_raw_validation_output.py tests/unit/test_prefect_local_flow.py`
-- `.venv/bin/python -m pytest tests/unit/test_config.py tests/unit/test_t16_pytest_suite_contract.py`
+- `.venv/bin/python -m pytest tests/unit/test_config_policy_contracts.py tests/unit/test_t16_pytest_suite_contract.py`
 - `make test`
 - `git diff --check`
 
