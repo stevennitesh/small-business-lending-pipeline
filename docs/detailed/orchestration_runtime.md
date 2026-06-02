@@ -895,28 +895,42 @@ Pin versions once implementation begins and the environment is stable.
 
 Use `make` or shell scripts to make the project easy to run.
 
-## Recommended `Makefile`
+## Current `Makefile` Interface
 
 ```makefile
-.PHONY: install test run-local run-cloud dbt-local clean
+.PHONY: install test run-local run-local-fixture run-local-live run-cloud dbt-local dbt-build-local-fast dbt-build-local-full powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data
 
 install:
-	pip install -r requirements.txt
+	$(PYTHON) -m venv $(VENV)
+	$(VENV_PIP) install -r requirements.txt
 
 test:
-	pytest tests/
+	$(VENV_PYTHON) -m pytest
 
-run-local:
-	python -m pipelines.flows.lending_pipeline_flow --run-mode local --dbt-target dev_duckdb
+run-local: run-local-fixture
+
+run-local-fixture:
+	scripts/run_local_pipeline.sh --extract-mode fixture
+
+run-local-live:
+	scripts/run_local_pipeline.sh --extract-mode live
 
 run-cloud:
-	python -m pipelines.flows.lending_pipeline_flow --run-mode cloud --dbt-target prod_snowflake
+	scripts/run_cloud_pipeline.sh
 
 dbt-local:
-	cd dbt && dbt build --target dev_duckdb
+	scripts/run_dbt_local.sh compile
 
-clean:
-	rm -rf data/warehouse/*.duckdb data/exports/powerbi/*
+dbt-build-local-fast:
+	scripts/run_dbt_local.sh seed
+	scripts/run_dbt_local.sh run
+	scripts/run_dbt_local.sh test --select tag:critical
+
+dbt-build-local-full:
+	scripts/run_dbt_local.sh build
+
+cleanup-local-data-dry-run:
+	$(VENV_PYTHON) scripts/cleanup_local_data.py --dry-run
 ```
 
 ## Recommended Script Files
@@ -928,7 +942,9 @@ scripts/
 ├── run_dbt_local.sh
 ├── export_powerbi_tables.py
 ├── validate_powerbi_model.py
-└── cleanup_local_data.py
+├── benchmark_local_command.py
+├── cleanup_local_data.py
+└── repo_bootstrap.py
 ```
 
 ---
@@ -1040,33 +1056,38 @@ The Prefect flow should call dbt through subprocess commands or a thin wrapper u
 
 ## MVP dbt Command
 
-Use `dbt build` for simplicity.
+Use the lightweight local compile target for routine verification.
 
 ```bash
-cd dbt && dbt build --target dev_duckdb
+make dbt-local
 ```
 
-Final mode:
+Use the full local build only when the heavier DuckDB run is intentional:
 
 ```bash
-cd dbt && dbt build --target prod_snowflake
+make dbt-build-local-full
 ```
 
-`dbt build` is preferred for the MVP because it runs models and tests in dependency order.
+Cloud mode runs through the pipeline wrapper so the dbt target and artifact
+handoff stay aligned:
+
+```bash
+make run-cloud
+```
 
 ## Optional Split dbt Commands
 
 If more failure visibility is needed, split dbt into stages:
 
 ```bash
-dbt seed --target dev_duckdb
-dbt run --select staging --target dev_duckdb
-dbt test --select staging --target dev_duckdb
-dbt run --select intermediate --target dev_duckdb
-dbt run --select marts --target dev_duckdb
-dbt test --select marts --target dev_duckdb
-dbt run --select bi --target dev_duckdb
-dbt test --select bi --target dev_duckdb
+scripts/run_dbt_local.sh seed
+scripts/run_dbt_local.sh run --select staging
+scripts/run_dbt_local.sh test --select staging
+scripts/run_dbt_local.sh run --select intermediate
+scripts/run_dbt_local.sh run --select marts
+scripts/run_dbt_local.sh test --select marts
+scripts/run_dbt_local.sh run --select bi
+scripts/run_dbt_local.sh test --select bi
 ```
 
 MVP recommendation:

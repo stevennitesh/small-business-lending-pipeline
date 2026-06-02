@@ -1250,7 +1250,7 @@ The MVP should include a small local integration path using sample files.
 Recommended command:
 
 ```bash
-pytest tests/integration
+.venv/bin/python -m pytest tests/integration
 ```
 
 Integration tests should verify:
@@ -1278,10 +1278,8 @@ Live API and cloud tests should be opt-in.
 Recommended markers:
 
 ```python
-@pytest.mark.integration
-@pytest.mark.requires_aws
-@pytest.mark.requires_snowflake
 @pytest.mark.live_api
+@pytest.mark.cloud
 ```
 
 ---
@@ -1453,19 +1451,15 @@ Recommended fields:
 The repository should support these commands:
 
 ```bash
-pytest
-
-dbt deps
-
-dbt build --target duckdb_dev
+make test
+make dbt-local
+make dbt-build-local-fast
 ```
 
-If using a Makefile:
+For the heavier local build, use the explicit full target:
 
 ```bash
-make test
-make dbt-build-local
-make validate-local
+make dbt-build-local-full
 ```
 
 ## Optional GitHub Actions
@@ -1581,42 +1575,44 @@ models:
 ## Local Python Tests
 
 ```bash
-pytest
+make test
 ```
 
 ## Local dbt Build
 
 ```bash
-dbt build --target duckdb_dev
+make dbt-local
 ```
 
 ## Final Warehouse dbt Build
 
 ```bash
-dbt build --target snowflake_prod
+make run-cloud
 ```
 
 ## Suggested Full Local Validation Command
 
 ```bash
 make run-local-fixture \
-  && pytest \
-  && dbt build --target duckdb_dev
+  && make test \
+  && make dbt-build-local-fast
 ```
 
-## Suggested Makefile Targets
+## Current Makefile Targets
 
 ```makefile
 test:
-	pytest
+	$(VENV_PYTHON) -m pytest
 
-validate-raw:
-	$(MAKE) run-local-fixture
+dbt-local: dbt-compile-local
 
-dbt-build-local:
-	dbt build --target duckdb_dev
+dbt-build-local-fast:
+	scripts/run_dbt_local.sh seed
+	scripts/run_dbt_local.sh run
+	scripts/run_dbt_local.sh test --select tag:critical
 
-quality-local: validate-raw test dbt-build-local
+dbt-build-local-full:
+	scripts/run_dbt_local.sh build
 ```
 
 ---

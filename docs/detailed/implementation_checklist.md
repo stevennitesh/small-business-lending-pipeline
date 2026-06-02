@@ -119,7 +119,7 @@ This checklist converts the approved project specification into a practical buil
   - [ ] `bi_program_mix`
   - [ ] `bi_regional_business_health`
   - [ ] `bi_pipeline_health`
-- [ ] Run `dbt build --target dev_duckdb`.
+- [ ] Run `make dbt-build-local-full` when the full DuckDB build is intentional.
 
 ---
 
@@ -176,7 +176,7 @@ This checklist converts the approved project specification into a practical buil
 - [ ] Create Snowflake database and schemas.
 - [ ] Implement Snowflake raw loader.
 - [ ] Configure dbt Snowflake profile.
-- [ ] Run `dbt build --target prod_snowflake`.
+- [ ] Run `make run-cloud`.
 - [ ] Connect Power BI to Snowflake BI schema.
 - [ ] Capture S3/Snowflake evidence screenshots without secrets.
 

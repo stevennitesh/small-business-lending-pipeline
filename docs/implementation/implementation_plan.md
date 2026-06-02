@@ -66,7 +66,7 @@ small-business-lending-pipeline/
 
 - Repository installs locally.
 - `python --version` returns expected version.
-- `pip install -r requirements.txt` succeeds.
+- `make install` succeeds.
 - `make test` can run even if only placeholder tests exist.
 
 ### Acceptance Criteria
@@ -408,8 +408,7 @@ catalog metadata, manifest/artifact checks, result schema/factories, JSON I/O,
 output persistence, source dispatch, source expectations, and blocking-failure
 enforcement live in ownership modules. `pipelines/flows/pipeline_health.py`
 contains future row-count and freshness helper checks for a later
-pipeline-health layer; `pipelines/validation/pipeline_health.py` remains a
-compatibility import.
+pipeline-health layer.
 
 ### Non-Goals
 
@@ -530,9 +529,8 @@ date_spine.sql
 ### Test Criteria
 
 ```bash
-cd dbt && dbt debug --target dev_duckdb
-cd dbt && dbt parse --target dev_duckdb
-cd dbt && dbt seed --target dev_duckdb
+make dbt-local
+make dbt-seed-local
 ```
 
 ### Acceptance Criteria
@@ -822,7 +820,7 @@ latest-snapshot rule enforced
 
 ### Acceptance Criteria
 
-- `dbt build --target dev_duckdb` passes locally.
+- `make dbt-build-local-full` passes locally when the full DuckDB build is intentional.
 - Reconciliation tests pass.
 - dbt documentation includes model descriptions, grain, and column descriptions.
 
@@ -1066,7 +1064,7 @@ Snowflake STAGING, INTERMEDIATE, MARTS, BI, AUDIT tables/views
 ### Test Criteria
 
 ```bash
-cd dbt && dbt build --target prod_snowflake
+make run-cloud
 ```
 
 Required:
