@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import yaml
+from tests.unit.dbt_schema_test_helpers import dbt_test_names, models_by_name
 
 
 STAGING_MODELS = {
@@ -109,15 +109,7 @@ SBA_STAGING_COLUMNS = [
     "raw_row_number",
 ]
 
-
-def _test_names(column: dict) -> set[str]:
-    names: set[str] = set()
-    for data_test in column.get("data_tests", []):
-        if isinstance(data_test, str):
-            names.add(data_test)
-        else:
-            names.update(data_test)
-    return names
+STAGING_SCHEMA = Path("dbt/models/staging/schema.yml")
 
 
 def test_required_staging_models_exist():
@@ -127,14 +119,13 @@ def test_required_staging_models_exist():
 
 
 def test_staging_schema_declares_issue_acceptance_tests():
-    schema_yml = yaml.safe_load(Path("dbt/models/staging/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([STAGING_SCHEMA])
 
     assert set(STAGING_MODELS) <= set(models)
 
     sba_loans = models["stg_sba_loans"]
     sba_columns = {column["name"]: column for column in sba_loans["columns"]}
-    assert _test_names(sba_columns["loan_record_key"]) == {
+    assert dbt_test_names(sba_columns["loan_record_key"]["data_tests"]) == {
         "not_null",
         "unique",
     }
@@ -180,14 +171,13 @@ def test_staging_schema_declares_issue_acceptance_tests():
 
 
 def test_staging_schema_documents_and_tests_source_identity_contract():
-    schema_yml = yaml.safe_load(Path("dbt/models/staging/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([STAGING_SCHEMA])
 
     for model_name in SOURCE_ROW_STAGING_MODELS:
         columns = {column["name"]: column for column in models[model_name]["columns"]}
         for column_name in SOURCE_ROW_IDENTITY_COLUMNS:
             assert column_name in columns
-            assert "not_null" in _test_names(columns[column_name])
+            assert "not_null" in dbt_test_names(columns[column_name]["data_tests"])
 
         assert "route-neutral" in columns["raw_uri"]["description"].lower()
         assert "lineage" in columns["raw_file_path"]["description"]
@@ -200,7 +190,7 @@ def test_staging_schema_documents_and_tests_source_identity_contract():
     }
     for column_name in MANIFEST_IDENTITY_COLUMNS:
         assert column_name in manifest_columns
-        assert "not_null" in _test_names(manifest_columns[column_name])
+        assert "not_null" in dbt_test_names(manifest_columns[column_name]["data_tests"])
 
     assert "lineage" in manifest_columns["local_raw_path"]["description"]
     assert "lineage" in manifest_columns["s3_raw_uri"]["description"]

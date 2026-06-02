@@ -4,16 +4,8 @@ import pytest
 
 from pipelines.flows import dbt_bi
 import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES, EXTRA_SBA_KPI_BI_TABLES
 from tests.unit.snowflake_test_helpers import FakeSnowflakeConnection
-
-
-EXTRA_SBA_KPI_BI_TABLES = {
-    "bi_lending_performance",
-    "bi_lending_status_mix",
-    "bi_lending_terms_pricing",
-    "bi_lending_jobs_impact",
-}
 
 
 def test_flow_uses_shared_powerbi_export_contract(tmp_path, monkeypatch):
@@ -31,7 +23,7 @@ def test_flow_uses_shared_powerbi_export_contract(tmp_path, monkeypatch):
         pipeline_run_id="local-powerbi-contract",
     )
 
-    assert EXTRA_SBA_KPI_BI_TABLES <= set(BI_EXPORT_TABLES)
+    assert set(EXTRA_SBA_KPI_BI_TABLES) <= set(BI_EXPORT_TABLES)
     assert context.run_export_dir == tmp_path / "data" / "exports" / "powerbi"
 
 

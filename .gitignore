@@ -30,7 +30,6 @@ data/exports/**
 !data/manifests/.gitkeep
 !data/validation/.gitkeep
 !data/warehouse/.gitkeep
-!data/exports/.gitkeep
 !data/exports/powerbi/
 !data/exports/powerbi/.gitkeep
 *.duckdb

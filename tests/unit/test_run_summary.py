@@ -6,17 +6,9 @@ from pathlib import Path
 from pipelines.flows import run_summary
 import pipelines.flows.lending_pipeline_flow as local_flow
 from pipelines.flows.run_models import LocalRunContext
-from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
+from pipelines.powerbi.export_schema import BI_EXPORT_TABLES, EXTRA_SBA_KPI_BI_TABLES
 from pipelines.storage.raw_artifacts import ArtifactLocation
 from pipelines.validation.raw_validation_models import RawValidationOutput
-
-
-EXTRA_SBA_KPI_BI_TABLES = {
-    "bi_lending_performance",
-    "bi_lending_status_mix",
-    "bi_lending_terms_pricing",
-    "bi_lending_jobs_impact",
-}
 
 
 def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
@@ -39,7 +31,7 @@ def test_flow_summary_can_record_expanded_powerbi_contract(tmp_path):
     )
     summary = _read_summary(summary_path)
 
-    assert EXTRA_SBA_KPI_BI_TABLES <= set(summary["bi_row_counts"])
+    assert set(EXTRA_SBA_KPI_BI_TABLES) <= set(summary["bi_row_counts"])
     assert {
         f"{table_name}.csv"
         for table_name in EXTRA_SBA_KPI_BI_TABLES

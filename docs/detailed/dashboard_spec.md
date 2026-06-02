@@ -921,13 +921,13 @@ Use this checklist before calling the project complete.
 ## Documentation
 
 - [ ] `README.md` explains project overview, business problem, architecture, setup, and outputs.
-- [ ] `docs/project_spec.md` exists.
-- [ ] `docs/data_source_inventory.md` exists.
-- [ ] `docs/kpi_definitions.md` exists.
-- [ ] `docs/data_model.md` exists.
-- [ ] `docs/architecture.md` exists.
-- [ ] `docs/testing_plan.md` exists.
-- [ ] `docs/dashboard_spec.md` exists.
+- [ ] `docs/detailed/project_spec.md` exists.
+- [ ] `docs/detailed/data_source_inventory.md` exists.
+- [ ] `docs/detailed/kpi_definitions.md` exists.
+- [ ] `docs/detailed/data_model.md` exists.
+- [ ] `docs/detailed/architecture.md` exists.
+- [ ] `docs/detailed/testing_plan.md` exists.
+- [ ] `docs/detailed/dashboard_spec.md` exists.
 - [ ] Source limitations and caveats are documented.
 - [ ] ML is explicitly excluded from the MVP.
 

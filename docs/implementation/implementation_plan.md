@@ -5,7 +5,7 @@
 Use one master implementation plan document for the build:
 
 ```text
-docs/implementation_plan.md
+docs/implementation/implementation_plan.md
 ```
 
 Use task IDs inside the document, then convert those IDs into GitHub issues when implementation starts.
@@ -198,8 +198,7 @@ pipelines/utils/
 ├── paths.py
 ├── hashing.py
 ├── manifest.py
-├── dates.py
-└── logging.py
+└── dates.py
 ```
 
 ### Non-Goals
@@ -1279,16 +1278,16 @@ Finalize docs used by technical reviewers.
 ### Deliverables
 
 ```text
-docs/project_spec.md
-docs/data_source_inventory.md
-docs/kpi_definitions.md
-docs/data_dictionary.md
-docs/data_model.md
-docs/architecture.md
-docs/testing_plan.md
-docs/orchestration_runtime.md
-docs/dashboard_spec.md
-docs/implementation_plan.md
+docs/detailed/project_spec.md
+docs/detailed/data_source_inventory.md
+docs/detailed/kpi_definitions.md
+docs/detailed/data_dictionary.md
+docs/detailed/data_model.md
+docs/detailed/architecture.md
+docs/detailed/testing_plan.md
+docs/detailed/orchestration_runtime.md
+docs/detailed/dashboard_spec.md
+docs/implementation/implementation_plan.md
 ```
 
 ### Non-Goals

@@ -1131,29 +1131,26 @@ Use pytest for:
 ```text
 tests/
 ├── unit/
-│   ├── test_config.py
-│   ├── test_manifest.py
-│   ├── test_paths.py
-│   ├── test_checksums.py
+│   ├── test_config_loading.py
+│   ├── test_config_policy_contracts.py
+│   ├── test_ingestion_utils.py
+│   ├── test_raw_artifact_manifest_checks.py
 │   ├── test_raw_validation_flow.py
 │   ├── test_raw_validation_sources.py
 │   ├── test_raw_validation_manifest_failures.py
 │   ├── test_raw_validation_output.py
 │   ├── test_sba_extract.py
-│   ├── test_census_extract.py
-│   ├── test_bls_extract.py
+│   ├── test_census_bds_extract.py
+│   ├── test_bls_laus_extract.py
 │   └── test_s3_loader.py
 │
 ├── integration/
-│   ├── test_local_ingestion_flow.py
-│   ├── test_duckdb_load.py
-│   └── test_validation_outputs.py
+│   └── test_duckdb_loader.py
 │
 └── fixtures/
-    ├── sba_sample.csv
+    ├── sba_foia_sample.csv
     ├── census_bds_sample.json
-    ├── bls_laus_sample.json
-    └── expected_manifest.json
+    └── bls_laus_sample.json
 ```
 
 ## pytest Unit Test Coverage
@@ -1161,8 +1158,8 @@ tests/
 | Module | Test Focus |
 |---|---|
 | `extract/sba_extract.py` | resource discovery, file download, source-period parsing |
-| `extract/census_extract.py` | API URL construction, response normalization, variable validation |
-| `extract/bls_extract.py` | request chunking, series mapping, monthly period parsing |
+| `extract/census_bds_extract.py` | API URL construction, response normalization, variable validation |
+| `extract/bls_laus_extract.py` | request chunking, series mapping, monthly period parsing |
 | `load/s3_loader.py` | S3 key construction, upload function behavior with mock client |
 | `validation/raw_manifest_artifact_validation.py` and `validation/raw_manifest_rule_checks.py` | raw artifact existence, checksum, manifest artifact metadata, and storage-reference checks |
 | `validation/validation_failures.py` | blocking validation failure policy before downstream loads |

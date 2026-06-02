@@ -10,6 +10,7 @@ from typing import Any
 
 from pipelines.powerbi.export_schema import (
     BI_EXPORT_TABLES,
+    EXTRA_SBA_KPI_BI_TABLES,
     PROHIBITED_EXPORT_FIELDS,
     REQUIRED_EXPORT_COLUMNS,
 )
@@ -24,10 +25,7 @@ REQUIRED_IMPLEMENTATION_TABLES = {
     "bi_program_mix",
     "bi_regional_business_health",
     "bi_pipeline_health",
-    "bi_lending_performance",
-    "bi_lending_status_mix",
-    "bi_lending_terms_pricing",
-    "bi_lending_jobs_impact",
+    *EXTRA_SBA_KPI_BI_TABLES,
 }
 REQUIRED_FILTERS = {"year", "state", "region", "program", "industry", "lender"}
 ALLOWED_MEASURE_CATEGORIES = {"display_logic", "formatting", "dynamic_title"}

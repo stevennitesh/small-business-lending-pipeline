@@ -133,10 +133,14 @@ small-business-lending-pipeline/
 │   │   ├── validation_result.py
 │   │   └── validation_result_io.py
 │   └── utils/
+│       ├── config.py
+│       ├── config_contracts.py
+│       ├── source_config_models.py
+│       ├── source_resources.py
+│       ├── paths.py
 │       ├── hashing.py
 │       ├── manifest.py
-│       ├── dates.py
-│       └── logging.py
+│       └── dates.py
 │
 ├── dbt/
 │   ├── models/
@@ -262,7 +266,7 @@ Emphasize these signals:
 
 | Signal | Evidence |
 |---|---|
-| Business problem framing | `README.md`, `docs/project_spec.md` |
+| Business problem framing | `README.md`, `docs/detailed/project_spec.md` |
 | Public data ingestion | Python extractors and source inventory |
 | AWS usage | S3 raw landing zone |
 | SQL modeling | dbt staging, marts, BI models |
