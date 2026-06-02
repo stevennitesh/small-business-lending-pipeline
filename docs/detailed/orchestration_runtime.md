@@ -814,24 +814,22 @@ Docker should not hide project logic or replace documentation.
 ```dockerfile
 FROM python:3.11-slim
 
-WORKDIR /app
-
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
+    && apt-get install -y --no-install-recommends make \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY Makefile requirements.txt .
+RUN make install
 
 COPY . .
 
-CMD ["bash"]
+CMD ["make", "test"]
 ```
 
 ---
@@ -844,13 +842,15 @@ services:
     build: .
     container_name: small_business_lending_pipeline
     env_file:
-      - .env
-    volumes:
-      - .:/app
-      - ./data:/app/data
+      - .env.example
     working_dir: /app
-    command: bash
+    command: make test
 ```
+
+The default Compose service runs the image snapshot instead of bind-mounting the
+repo. That keeps the image-created `.venv` available inside `/app` and makes a
+fresh-clone `docker compose up` path reproducible. Use a local override file for
+interactive bind-mounted development if needed.
 
 Optional local Prefect UI can be added later, but it is not required for the MVP.
 

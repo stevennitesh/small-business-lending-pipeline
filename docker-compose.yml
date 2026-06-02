@@ -1,8 +1,8 @@
 services:
   pipeline:
     build: .
+    container_name: small_business_lending_pipeline
     env_file:
       - .env.example
-    volumes:
-      - .:/app
+    working_dir: /app
     command: make test

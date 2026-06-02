@@ -1,4 +1,4 @@
-.PHONY: install test runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
+.PHONY: install test lint format-check format runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -22,6 +22,15 @@ install:
 
 test:
 	$(VENV_PYTHON) -m pytest
+
+lint:
+	$(VENV_PYTHON) -m ruff check .
+
+format-check:
+	$(VENV_PYTHON) -m ruff format --check .
+
+format:
+	$(VENV_PYTHON) -m ruff format .
 
 runtime-smoke: $(PREFECT_HOME)
 	$(VENV_PYTHON) -c "import boto3, duckdb, pandas, prefect, requests, snowflake.connector, yaml; import dbt.cli.main"

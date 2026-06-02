@@ -130,6 +130,7 @@ small-business-lending-pipeline/
 ├── README.md
 ├── Dockerfile
 ├── docker-compose.yml
+├── .dockerignore
 ├── Makefile
 ├── .env.example
 ├── requirements.txt
@@ -214,6 +215,21 @@ The local command taxonomy separates cheap checks from expensive work:
 - `make dbt-build-local-fast`: iteration build with critical dbt tests.
 - `make dbt-build-local-full`: full local dbt build and validation.
 - `make powerbi-refresh-local`: fast local BI refresh route; runs fast dbt mode, exports CSVs, and checks the Power BI model contract.
+
+## Container Runtime
+
+Docker is a reproducibility check for the Python/dbt runtime, not a separate
+pipeline implementation. The default container builds dependencies from
+`requirements.txt` through `make install` and runs the same Makefile command path
+used locally.
+
+```bash
+docker compose up --build
+```
+
+The default Compose service does not bind-mount the repository, so the image's
+local `.venv` remains available inside `/app`. Use a Compose override file for
+interactive bind-mounted development if needed.
 
 Local generated data can be previewed for cleanup with:
 
