@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pipelines.storage.raw_artifacts import ArtifactReader
-from pipelines.storage.raw_artifacts import ArtifactLocation
+from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader
 from pipelines.validation.raw_validation_output import (
     ValidationOutputWriteRequest,
     check_validation_output_created,
