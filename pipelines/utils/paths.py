@@ -53,23 +53,6 @@ def build_local_raw_path(
     )
 
 
-def build_manifest_s3_key(
-    *,
-    source_system: str,
-    ingestion_date: str,
-    pipeline_run_id: str,
-    filename: str = "manifest.json",
-) -> str:
-    parts = [
-        "manifests",
-        f"source_system={source_system}",
-        f"ingestion_date={ingestion_date}",
-        f"pipeline_run_id={pipeline_run_id}",
-        filename,
-    ]
-    return "/".join(_clean_segment(part) for part in parts)
-
-
 def build_partitioned_artifact_key(
     *,
     prefix: str,

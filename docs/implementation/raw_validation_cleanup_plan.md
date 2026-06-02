@@ -53,7 +53,8 @@ focused modules while preserving the same local/cloud behavior.
 
 ## Deferred
 
-- Row-count and freshness helpers now live in `pipelines/validation/pipeline_health.py`; they remain outside the active raw-runner gate.
+- Row-count and freshness helpers now live in `pipelines/flows/pipeline_health.py`;
+  they remain outside the active raw-runner gate.
 - Do not split local and cloud validation into separate implementations.
 - Do not remove local validation output from cloud runs; it remains a local runner compatibility artifact.
 

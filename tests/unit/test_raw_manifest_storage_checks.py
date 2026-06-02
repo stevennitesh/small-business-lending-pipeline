@@ -15,8 +15,8 @@ from pipelines.validation.raw_manifest_rule_checks import (
     check_cloud_manifest_storage,
     check_manifest_raw_uri_required,
 )
+from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 from tests.unit.raw_manifest_test_helpers import (
-    FakeS3ObjectClient,
     manifest_for,
     s3_manifest_for,
     write_manifest,

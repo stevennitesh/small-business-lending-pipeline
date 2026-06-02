@@ -7,7 +7,6 @@ from pipelines.storage.raw_artifacts import RawArtifactReader
 from pipelines.utils.hashing import calculate_sha256, hash_bytes, hash_schema
 from pipelines.validation.raw_validation_models import RawManifest
 from pipelines.validation.raw_validation_resources import CENSUS_BDS_RESOURCE_NAME
-from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 DEFAULT_RAW_JSON_PAYLOAD = '[["YEAR","state"],["2023","01"]]\n'

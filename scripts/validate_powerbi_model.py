@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+try:
+    from scripts.repo_bootstrap import add_repo_root_to_path
+except ModuleNotFoundError:
+    from repo_bootstrap import add_repo_root_to_path
+
+add_repo_root_to_path()
 
 from pipelines.powerbi.model_contract import (
     MODEL_PATH,
@@ -21,7 +22,7 @@ def main() -> None:
     args = parser.parse_args()
 
     summary = validate_powerbi_model(args.model_path)
-    print(json.dumps(summary.__dict__, indent=2, sort_keys=True))
+    print(json.dumps(summary.to_dict(), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import yaml
+from tests.unit.dbt_schema_test_helpers import models_by_name
 
 
 CONTEXT_MARTS = {
@@ -17,6 +17,7 @@ CONTEXT_MARTS = {
         "dbt/models/marts/context/mart_regional_business_health_annual_state.sql"
     ),
 }
+CONTEXT_SCHEMA = Path("dbt/models/marts/context/schema.yml")
 
 
 def test_required_context_marts_exist():
@@ -26,8 +27,7 @@ def test_required_context_marts_exist():
 
 
 def test_context_schema_declares_grains_kpis_and_context_tests():
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/context/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([CONTEXT_SCHEMA])
 
     assert set(CONTEXT_MARTS) <= set(models)
 

@@ -817,17 +817,13 @@ small-business-lending-pipeline/
 │   └── raw_validation_expectations.yml
 │
 ├── docs/
-│   ├── project_spec.md
-│   ├── architecture.md
-│   ├── data_source_inventory.md
-│   ├── kpi_definitions.md
-│   ├── data_model.md
-│   ├── testing_plan.md
-│   └── dashboard_spec.md
+│   ├── detailed/
+│   └── implementation/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   │
 │   ├── extract/
 │   │   ├── sba_extract.py
@@ -840,7 +836,6 @@ small-business-lending-pipeline/
 │   │   └── snowflake_loader.py
 │   │
 │   ├── validation/
-│   │   ├── pipeline_health.py
 │   │   ├── raw_manifest_artifact_validation.py
 │   │   ├── raw_manifest_collection.py
 │   │   ├── raw_manifest_rule_checks.py
@@ -860,10 +855,14 @@ small-business-lending-pipeline/
 │   │   └── validation_result_io.py
 │   │
 │   └── utils/
+│       ├── config.py
+│       ├── config_contracts.py
+│       ├── source_config_models.py
+│       ├── source_resources.py
+│       ├── paths.py
 │       ├── hashing.py
 │       ├── manifest.py
-│       ├── dates.py
-│       └── logging.py
+│       └── dates.py
 │
 ├── dbt/
 │   ├── models/
@@ -874,12 +873,9 @@ small-business-lending-pipeline/
 │   └── profiles.yml.example
 │
 ├── tests/
-│   ├── test_sba_extract.py
-│   ├── test_census_bds_extract.py
-│   ├── test_bls_laus_extract.py
-│   ├── test_manifest.py
-│   ├── test_raw_artifact_manifest_checks.py
-│   └── test_loaders.py
+│   ├── unit/
+│   ├── integration/
+│   └── fixtures/
 │
 ├── data/
 │   ├── raw/
@@ -894,14 +890,19 @@ small-business-lending-pipeline/
 │
 └── scripts/
     ├── run_local_pipeline.sh
+    ├── run_cloud_pipeline.sh
     ├── run_dbt_local.sh
-    └── export_powerbi_tables.py
+    ├── export_powerbi_tables.py
+    ├── validate_powerbi_model.py
+    ├── benchmark_local_command.py
+    ├── cleanup_local_data.py
+    └── repo_bootstrap.py
 ```
 
 `raw_validation_runner.py` coordinates the active raw gate. Validation result
 schema, factories, JSON I/O, output persistence, source dispatch/expectations,
 and blocking-failure enforcement live in ownership modules.
-`pipelines/validation/pipeline_health.py` contains future pipeline-health row-count
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
 and freshness helper checks for a later pipeline-health layer.
 
 The `data/` directory should usually be excluded from Git except for placeholder `.gitkeep` files and small sample fixtures.

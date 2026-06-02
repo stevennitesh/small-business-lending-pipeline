@@ -5,7 +5,7 @@ import json
 import duckdb
 import pytest
 
-from pipelines.load import raw_load_common
+from pipelines.load import duckdb_loader
 from pipelines.load.duckdb_loader import (
     RAW_TABLES,
     RawLoadError,
@@ -139,7 +139,7 @@ def test_load_raw_extracts_preserves_multiple_sba_manifests_and_raw_values(tmp_p
     ]
 
 
-def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
+def test_load_raw_extracts_uses_duckdb_native_csv_for_sba_csvs(
     tmp_path,
     monkeypatch,
 ):
@@ -148,11 +148,18 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
         [raw_load_validation_result()],
         tmp_path / "validation" / "validation_results.json",
     )
+    native_csv_tables = []
+    original_native_csv_loader = duckdb_loader._create_or_replace_native_csv_table
 
-    def fail_read_csv(*args, **kwargs):
-        raise AssertionError("SBA CSV raw load should use DuckDB native scans")
+    def spy_native_csv_loader(connection, table_name, manifests):
+        native_csv_tables.append(table_name)
+        return original_native_csv_loader(connection, table_name, manifests)
 
-    monkeypatch.setattr(raw_load_common.pd, "read_csv", fail_read_csv)
+    monkeypatch.setattr(
+        duckdb_loader,
+        "_create_or_replace_native_csv_table",
+        spy_native_csv_loader,
+    )
 
     summary = load_raw_extracts(
         duckdb_path=tmp_path / "warehouse.duckdb",
@@ -165,6 +172,7 @@ def test_load_raw_extracts_does_not_use_pandas_read_csv_for_sba_csvs(
 
     assert summary.table_row_counts["raw.raw_sba_7a_foia"] == 2
     assert summary.table_row_counts["raw.raw_sba_504_foia"] == 1
+    assert native_csv_tables == ["raw.raw_sba_7a_foia", "raw.raw_sba_504_foia"]
 
 
 def test_load_raw_extracts_ignores_hive_partition_folders_for_sba_csvs(tmp_path):

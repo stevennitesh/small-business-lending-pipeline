@@ -10,11 +10,6 @@ import requests
 
 from pipelines.extract.bls_laus_api import (
     DEFAULT_CHUNK_SIZE,
-    PUBLIC_YEAR_WINDOW_SIZE,
-    REGISTERED_YEAR_WINDOW_SIZE,
-    build_bls_payload,
-    chunk_series,
-    chunk_year_range,
     fetch_bls_laus_responses,
     normalize_bls_response,
     resolve_bls_year_window_size,

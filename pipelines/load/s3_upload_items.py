@@ -13,10 +13,6 @@ class S3UploadItem:
     local_path: Path
     s3_key: str
 
-    @property
-    def s3_category(self) -> str:
-        return self.s3_key.split("/", 1)[0]
-
 
 def build_raw_upload_item(manifest: dict[str, Any]) -> S3UploadItem | None:
     if _is_s3_backed(manifest):

@@ -5,7 +5,7 @@
 Use one master implementation plan document for the build:
 
 ```text
-docs/implementation_plan.md
+docs/implementation/implementation_plan.md
 ```
 
 Use task IDs inside the document, then convert those IDs into GitHub issues when implementation starts.
@@ -66,7 +66,7 @@ small-business-lending-pipeline/
 
 - Repository installs locally.
 - `python --version` returns expected version.
-- `pip install -r requirements.txt` succeeds.
+- `make install` succeeds.
 - `make test` can run even if only placeholder tests exist.
 
 ### Acceptance Criteria
@@ -198,8 +198,7 @@ pipelines/utils/
 ├── paths.py
 ├── hashing.py
 ├── manifest.py
-├── dates.py
-└── logging.py
+└── dates.py
 ```
 
 ### Non-Goals
@@ -407,7 +406,7 @@ pipelines/validation/
 `raw_validation_runner.py` coordinates the active raw gate. Validation check
 catalog metadata, manifest/artifact checks, result schema/factories, JSON I/O,
 output persistence, source dispatch, source expectations, and blocking-failure
-enforcement live in ownership modules. `pipelines/validation/pipeline_health.py`
+enforcement live in ownership modules. `pipelines/flows/pipeline_health.py`
 contains future row-count and freshness helper checks for a later
 pipeline-health layer.
 
@@ -530,9 +529,8 @@ date_spine.sql
 ### Test Criteria
 
 ```bash
-cd dbt && dbt debug --target dev_duckdb
-cd dbt && dbt parse --target dev_duckdb
-cd dbt && dbt seed --target dev_duckdb
+make dbt-local
+make dbt-seed-local
 ```
 
 ### Acceptance Criteria
@@ -822,7 +820,7 @@ latest-snapshot rule enforced
 
 ### Acceptance Criteria
 
-- `dbt build --target dev_duckdb` passes locally.
+- `make dbt-build-local-full` passes locally when the full DuckDB build is intentional.
 - Reconciliation tests pass.
 - dbt documentation includes model descriptions, grain, and column descriptions.
 
@@ -1066,7 +1064,7 @@ Snowflake STAGING, INTERMEDIATE, MARTS, BI, AUDIT tables/views
 ### Test Criteria
 
 ```bash
-cd dbt && dbt build --target prod_snowflake
+make run-cloud
 ```
 
 Required:
@@ -1278,16 +1276,16 @@ Finalize docs used by technical reviewers.
 ### Deliverables
 
 ```text
-docs/project_spec.md
-docs/data_source_inventory.md
-docs/kpi_definitions.md
-docs/data_dictionary.md
-docs/data_model.md
-docs/architecture.md
-docs/testing_plan.md
-docs/orchestration_runtime.md
-docs/dashboard_spec.md
-docs/implementation_plan.md
+docs/detailed/project_spec.md
+docs/detailed/data_source_inventory.md
+docs/detailed/kpi_definitions.md
+docs/detailed/data_dictionary.md
+docs/detailed/data_model.md
+docs/detailed/architecture.md
+docs/detailed/testing_plan.md
+docs/detailed/orchestration_runtime.md
+docs/detailed/dashboard_spec.md
+docs/implementation/implementation_plan.md
 ```
 
 ### Non-Goals
@@ -1387,7 +1385,7 @@ The project is technically complete when:
 9. pytest passes for extraction, validation, manifest, hashing, path, and loader utilities.
 10. Prefect orchestrates the pipeline with quality gates.
 11. Power BI connects to BI or mart tables, not raw source files.
-12. Dashboard screenshots are committed under `powerbi/screenshots/`.
+12. Dashboard screenshots are captured under `powerbi/screenshots/`.
 13. README explains how to run the local pipeline.
 14. README includes architecture, dashboard, and testing evidence.
 15. Predictive machine learning is not included in the MVP.

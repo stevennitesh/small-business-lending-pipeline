@@ -9,7 +9,6 @@ from pipelines.load.snowflake_loader import (
     SnowflakeRawLoadError,
     load_raw_extracts_to_snowflake_from_s3,
 )
-from pipelines.load.raw_load_local_sources import load_local_source_frame
 from pipelines.load.snowflake_stage_load import create_s3_stage_load_objects
 from pipelines.load.snowflake_stage_sources import snowflake_csv_columns
 from pipelines.storage.raw_artifacts import ArtifactLocation
@@ -262,15 +261,6 @@ def test_snowflake_stage_setup_rejects_invalid_identifiers():
             bucket="unit-test-bucket",
             stage_name="RAW_S3_STAGE",
             storage_integration=None,
-        )
-
-
-def test_local_source_frame_rejects_empty_manifests():
-    with pytest.raises(SnowflakeRawLoadError, match="No manifests provided"):
-        load_local_source_frame(
-            "raw_census_bds_state_year",
-            [],
-            error_cls=SnowflakeRawLoadError,
         )
 
 

@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import pandas as pd
 
+from tests.unit.artifact_store_test_helpers import FakeBody
+
 
 class FakeSnowflakeConnection:
     def __init__(self, table_counts: dict[str, int] | None = None) -> None:
         self.sql_statements: list[str] = []
         self.table_counts = table_counts or {}
+        self.closed = False
 
     def cursor(self):
         return FakeSnowflakeCursor(self)
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class FakeSnowflakeCursor:
@@ -67,11 +73,3 @@ class FakeS3Client:
         if object_key in self.objects:
             return {"Body": FakeBody(self.objects[object_key])}
         return {"Body": FakeBody(self.headers[kwargs["Key"]].encode("utf-8"))}
-
-
-class FakeBody:
-    def __init__(self, body: bytes) -> None:
-        self.body = body
-
-    def read(self) -> bytes:
-        return self.body

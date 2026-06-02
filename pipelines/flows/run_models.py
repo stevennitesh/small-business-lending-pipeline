@@ -9,10 +9,8 @@ from typing import Any
 from pipelines.validation.raw_validation_models import RawValidationOutput
 
 
-RUN_MODE_ALIASES = {
-    "local": "local",
-    "cloud": "cloud",
-}
+VALID_RUN_MODES = ("cloud", "local")
+VALID_EXTRACT_MODES = ("fixture", "live")
 
 LOCAL_FLOW_STAGES = (
     "initialize_run",
@@ -43,8 +41,6 @@ CLOUD_FLOW_STAGES = (
     "validate_bi_tables",
     "write_run_summary",
 )
-
-FLOW_STAGES = LOCAL_FLOW_STAGES
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,13 @@
 from __future__ import annotations
 
 
+EXTRA_SBA_KPI_BI_TABLES = (
+    "bi_lending_performance",
+    "bi_lending_status_mix",
+    "bi_lending_terms_pricing",
+    "bi_lending_jobs_impact",
+)
+
 BI_EXPORT_TABLES = (
     "bi_executive_overview",
     "bi_state_lending_trends",
@@ -10,10 +17,7 @@ BI_EXPORT_TABLES = (
     "bi_regional_business_health",
     "bi_pipeline_health",
     "bi_lender_mix",
-    "bi_lending_performance",
-    "bi_lending_status_mix",
-    "bi_lending_terms_pricing",
-    "bi_lending_jobs_impact",
+    *EXTRA_SBA_KPI_BI_TABLES,
     "bi_state_filter",
     "bi_year_filter",
     "bi_loan_program_filter",

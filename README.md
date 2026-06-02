@@ -118,7 +118,10 @@ Desktop step.
 
 ## Screenshots
 
-Dashboard, dbt, Prefect, S3, and Snowflake evidence screenshots will be added as the implementation reaches the relevant milestones.
+Dashboard, dbt, Prefect, S3, and Snowflake evidence screenshots are local
+artifacts captured as the implementation reaches the relevant milestones. The
+`powerbi/screenshots/` directory is kept in Git with `.gitkeep`; generated
+screenshots are ignored by default.
 
 ## Repository Structure
 
@@ -133,10 +136,13 @@ small-business-lending-pipeline/
 ├── config/
 ├── docs/
 ├── pipelines/
+│   ├── cli/
 │   ├── extract/
-│   ├── load/
-│   ├── validation/
 │   ├── flows/
+│   ├── load/
+│   ├── powerbi/
+│   ├── storage/
+│   ├── validation/
 │   └── utils/
 ├── dbt/
 │   ├── models/
@@ -147,6 +153,8 @@ small-business-lending-pipeline/
 ├── data/
 ├── powerbi/
 │   ├── lending_dashboard.pbix
+│   ├── lending_dashboard_model.json
+│   ├── power_query/
 │   └── screenshots/
 └── scripts/
 ```
@@ -304,16 +312,16 @@ The goal is analytics engineering: reliable ingestion, tested SQL models, docume
 
 | Document | Purpose |
 |---|---|
-| `docs/project_spec.md` | Project brief, business problem, analytical questions, scope |
-| `docs/data_source_inventory.md` | Public source inventory, source grains, access methods, limitations |
-| `docs/kpi_definitions.md` | KPI formulas, grains, caveats, dashboard formatting |
-| `docs/data_dictionary.md` | Canonical fields and modeled entity dictionary |
-| `docs/data_model.md` | Raw, staging, intermediate, mart, BI, and audit model design |
-| `docs/architecture.md` | End-to-end technical architecture |
-| `docs/testing_plan.md` | Python validation, pytest, dbt tests, quality gates |
-| `docs/orchestration_runtime.md` | Prefect flow, Docker runtime, commands, failure behavior |
-| `docs/dashboard_spec.md` | Power BI pages, visuals, interactions, acceptance criteria |
-| `docs/implementation_checklist.md` | Build order and completion checklist |
+| `docs/detailed/project_spec.md` | Project brief, business problem, analytical questions, scope |
+| `docs/detailed/data_source_inventory.md` | Public source inventory, source grains, access methods, limitations |
+| `docs/detailed/kpi_definitions.md` | KPI formulas, grains, caveats, dashboard formatting |
+| `docs/detailed/data_dictionary.md` | Canonical fields and modeled entity dictionary |
+| `docs/detailed/data_model.md` | Raw, staging, intermediate, mart, BI, and audit model design |
+| `docs/detailed/architecture.md` | End-to-end technical architecture |
+| `docs/detailed/testing_plan.md` | Python validation, pytest, dbt tests, quality gates |
+| `docs/detailed/orchestration_runtime.md` | Prefect flow, Docker runtime, commands, failure behavior |
+| `docs/detailed/dashboard_spec.md` | Power BI pages, visuals, interactions, acceptance criteria |
+| `docs/detailed/implementation_checklist.md` | Original build-order checklist |
 
 ## Recruiter Review Signals
 

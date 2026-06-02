@@ -225,10 +225,11 @@ Suggested default thresholds:
 | 20% to 50% | Warning |
 | More than 50% | Fail unless manually acknowledged |
 
-Thresholds should be configurable in:
+Future row-count drift thresholds should be added to the active validation
+configuration before those checks are wired:
 
 ```text
-config/source_expectations.yml
+config/raw_validation_expectations.yml
 ```
 
 ---
@@ -476,7 +477,7 @@ models:
 Example singular test for negative loan amounts:
 
 ```sql
--- tests/assert_sba_loan_amount_non_negative.sql
+-- Example: assert_sba_loan_amount_non_negative
 select
     loan_record_key,
     gross_approval_amount
@@ -517,7 +518,7 @@ Recommended tests:
 Example singular grain test:
 
 ```sql
--- tests/assert_bds_state_year_grain.sql
+-- Example: assert_bds_state_year_grain
 select
     state_fips,
     calendar_year,
@@ -560,7 +561,7 @@ Recommended tests:
 Example singular range test:
 
 ```sql
--- tests/assert_laus_unemployment_rate_range.sql
+-- Example: assert_laus_unemployment_rate_range
 select
     laus_record_key,
     state_fips,
@@ -600,7 +601,7 @@ The model should include controlled unknown/default rows where appropriate.
 Example singular test:
 
 ```sql
--- tests/assert_dim_naics_unknown_row_exists.sql
+-- Example: assert_dim_naics_unknown_row_exists
 select 1
 where not exists (
     select 1
@@ -706,7 +707,7 @@ Recommended tests:
 Example grain test:
 
 ```sql
--- tests/assert_mart_lending_monthly_state_grain.sql
+-- Example: assert_mart_lending_monthly_state_grain
 select
     state_key,
     month_start_date,
@@ -719,7 +720,7 @@ having count(*) > 1
 Example reconciliation test:
 
 ```sql
--- tests/assert_mart_lending_monthly_state_reconciles_to_fact.sql
+-- Example: assert_mart_lending_monthly_state_reconciles_to_fact
 with fact_totals as (
     select
         state_key,
@@ -793,7 +794,7 @@ Recommended tests:
 Example lender-share test:
 
 ```sql
--- tests/assert_lender_share_between_zero_and_one.sql
+-- Example: assert_lender_share_between_zero_and_one
 select
     state_key,
     calendar_year,
@@ -807,7 +808,7 @@ where lender_approved_amount_share < 0
 Example share-sum test:
 
 ```sql
--- tests/assert_lender_shares_sum_to_one.sql
+-- Example: assert_lender_shares_sum_to_one
 select
     state_key,
     calendar_year,
@@ -1044,7 +1045,7 @@ The KPI dictionary defines null and edge-case handling. dbt tests should enforce
 Example denominator test:
 
 ```sql
--- tests/assert_no_infinite_or_invalid_normalized_metrics.sql
+-- Example: assert_no_infinite_or_invalid_normalized_metrics
 select
     state_key,
     calendar_year,
@@ -1085,7 +1086,7 @@ Tests must ensure that old snapshots are not accidentally double-counted.
 Example singular test:
 
 ```sql
--- tests/assert_fact_sba_uses_latest_successful_snapshots.sql
+-- Example: assert_fact_sba_uses_latest_successful_snapshots
 with latest_sources as (
     select source_file_key
     from {{ ref('int_pipeline_latest_successful_sources') }}
@@ -1130,29 +1131,26 @@ Use pytest for:
 ```text
 tests/
 ├── unit/
-│   ├── test_config.py
-│   ├── test_manifest.py
-│   ├── test_paths.py
-│   ├── test_checksums.py
+│   ├── test_config_loading.py
+│   ├── test_config_policy_contracts.py
+│   ├── test_ingestion_utils.py
+│   ├── test_raw_artifact_manifest_checks.py
 │   ├── test_raw_validation_flow.py
 │   ├── test_raw_validation_sources.py
 │   ├── test_raw_validation_manifest_failures.py
 │   ├── test_raw_validation_output.py
 │   ├── test_sba_extract.py
-│   ├── test_census_extract.py
-│   ├── test_bls_extract.py
+│   ├── test_census_bds_extract.py
+│   ├── test_bls_laus_extract.py
 │   └── test_s3_loader.py
 │
 ├── integration/
-│   ├── test_local_ingestion_flow.py
-│   ├── test_duckdb_load.py
-│   └── test_validation_outputs.py
+│   └── test_duckdb_loader.py
 │
 └── fixtures/
-    ├── sba_sample.csv
+    ├── sba_foia_sample.csv
     ├── census_bds_sample.json
-    ├── bls_laus_sample.json
-    └── expected_manifest.json
+    └── bls_laus_sample.json
 ```
 
 ## pytest Unit Test Coverage
@@ -1160,14 +1158,14 @@ tests/
 | Module | Test Focus |
 |---|---|
 | `extract/sba_extract.py` | resource discovery, file download, source-period parsing |
-| `extract/census_extract.py` | API URL construction, response normalization, variable validation |
-| `extract/bls_extract.py` | request chunking, series mapping, monthly period parsing |
+| `extract/census_bds_extract.py` | API URL construction, response normalization, variable validation |
+| `extract/bls_laus_extract.py` | request chunking, series mapping, monthly period parsing |
 | `load/s3_loader.py` | S3 key construction, upload function behavior with mock client |
 | `validation/raw_manifest_artifact_validation.py` and `validation/raw_manifest_rule_checks.py` | raw artifact existence, checksum, manifest artifact metadata, and storage-reference checks |
 | `validation/validation_failures.py` | blocking validation failure policy before downstream loads |
 | `validation/raw_validation_resources.py` | shared raw validation resource and output names |
 | source-specific payload modules under `validation/` | SBA resource coverage, Census BDS payload shape, and BLS LAUS normalized rows |
-| `validation/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
+| `flows/pipeline_health.py` | future pipeline-health helper checks, not active raw-runner checks |
 | `utils/manifest.py` | manifest schema and required fields |
 | `utils/hashing.py` | deterministic checksums and row hashes |
 | `utils/paths.py` | local/S3 path generation |
@@ -1252,7 +1250,7 @@ The MVP should include a small local integration path using sample files.
 Recommended command:
 
 ```bash
-pytest tests/integration
+.venv/bin/python -m pytest tests/integration
 ```
 
 Integration tests should verify:
@@ -1280,10 +1278,8 @@ Live API and cloud tests should be opt-in.
 Recommended markers:
 
 ```python
-@pytest.mark.integration
-@pytest.mark.requires_aws
-@pytest.mark.requires_snowflake
 @pytest.mark.live_api
+@pytest.mark.cloud
 ```
 
 ---
@@ -1455,19 +1451,15 @@ Recommended fields:
 The repository should support these commands:
 
 ```bash
-pytest
-
-dbt deps
-
-dbt build --target duckdb_dev
+make test
+make dbt-local
+make dbt-build-local-fast
 ```
 
-If using a Makefile:
+For the heavier local build, use the explicit full target:
 
 ```bash
-make test
-make dbt-build-local
-make validate-local
+make dbt-build-local-full
 ```
 
 ## Optional GitHub Actions
@@ -1501,68 +1493,38 @@ Recommended files:
 
 ```text
 config/
-├── source_expectations.yml
+├── sources.yml
 ├── freshness_rules.yml
-├── required_sba_resources.yml
+├── sba_resources.yml
 ├── census_bds_variables.yml
 ├── bls_laus_state_series.yml
 └── raw_validation_expectations.yml
 ```
 
-## Example `source_expectations.yml`
+## Example Active Validation Config
 
 ```yaml
-sba:
-  required_resources:
-    - program: "7a"
-      source_period: "fy1991_fy1999"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2000_fy2009"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2010_fy2019"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "7a"
-      source_period: "fy2020_present"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "504"
-      source_period: "fy1991_fy2009"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-    - program: "504"
-      source_period: "fy2010_present"
-      min_rows: 1
-      row_count_warning_drift_pct: 20
-      row_count_fail_drift_pct: 50
-
-census_bds:
-  expected_geography: "state"
-  required_variables:
-    - "YEAR"
-    - "NAME"
-    - "ESTAB"
-    - "ESTABS_ENTRY"
-    - "ESTABS_ENTRY_RATE"
-    - "ESTABS_EXIT"
-    - "ESTABS_EXIT_RATE"
-    - "FIRM"
-
-bls_laus:
-  expected_measure: "unemployment_rate"
-  expected_state_series_count: 51
+raw_validation_expectations:
+  sba_foia:
+    required_programs:
+      - "7a"
+      - "504"
+  census_bds:
+    expected_state_count: 51
+    required_variables:
+      - "YEAR"
+      - "state"
+      - "ESTAB"
+      - "ESTABS_ENTRY"
+      - "ESTABS_EXIT"
+  bls_laus:
+    required_period_pattern: "^M(0[1-9]|1[0-2])$"
+    unemployment_rate_min: 0
+    unemployment_rate_max: 100
 ```
 
-`min_rows: 1` is only a bootstrap minimum. After the first successful profile, the pipeline should compare against previous successful row counts.
+SBA resource discovery and source metadata live separately in
+`config/sba_resources.yml` and `config/sources.yml`.
 
 ---
 
@@ -1613,42 +1575,44 @@ models:
 ## Local Python Tests
 
 ```bash
-pytest
+make test
 ```
 
 ## Local dbt Build
 
 ```bash
-dbt build --target duckdb_dev
+make dbt-local
 ```
 
 ## Final Warehouse dbt Build
 
 ```bash
-dbt build --target snowflake_prod
+make run-cloud
 ```
 
 ## Suggested Full Local Validation Command
 
 ```bash
 make run-local-fixture \
-  && pytest \
-  && dbt build --target duckdb_dev
+  && make test \
+  && make dbt-build-local-fast
 ```
 
-## Suggested Makefile Targets
+## Current Makefile Targets
 
 ```makefile
 test:
-	pytest
+	$(VENV_PYTHON) -m pytest
 
-validate-raw:
-	$(MAKE) run-local-fixture
+dbt-local: dbt-compile-local
 
-dbt-build-local:
-	dbt build --target duckdb_dev
+dbt-build-local-fast:
+	scripts/run_dbt_local.sh seed
+	scripts/run_dbt_local.sh run
+	scripts/run_dbt_local.sh test --select tag:critical
 
-quality-local: validate-raw test dbt-build-local
+dbt-build-local-full:
+	scripts/run_dbt_local.sh build
 ```
 
 ---

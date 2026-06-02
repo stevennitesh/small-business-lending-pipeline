@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from pipelines.powerbi.export_schema import (
     BI_EXPORT_TABLES,
+    EXTRA_SBA_KPI_BI_TABLES,
     PROHIBITED_EXPORT_FIELDS,
     REQUIRED_EXPORT_COLUMNS,
 )
@@ -23,10 +25,7 @@ REQUIRED_IMPLEMENTATION_TABLES = {
     "bi_program_mix",
     "bi_regional_business_health",
     "bi_pipeline_health",
-    "bi_lending_performance",
-    "bi_lending_status_mix",
-    "bi_lending_terms_pricing",
-    "bi_lending_jobs_impact",
+    *EXTRA_SBA_KPI_BI_TABLES,
 }
 REQUIRED_FILTERS = {"year", "state", "region", "program", "industry", "lender"}
 ALLOWED_MEASURE_CATEGORIES = {"display_logic", "formatting", "dynamic_title"}
@@ -40,6 +39,9 @@ class PowerBIModelValidation:
     filter_coverage: list[str]
     artifact_status: str
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
 
 def validate_powerbi_model(model_path: Path | str = MODEL_PATH) -> PowerBIModelValidation:
     resolved_model_path = Path(model_path)
@@ -48,7 +50,9 @@ def validate_powerbi_model(model_path: Path | str = MODEL_PATH) -> PowerBIModelV
     tables = {table["name"]: table for table in model.get("tables", [])}
     missing_tables = sorted(set(BI_EXPORT_TABLES) - set(tables))
     if missing_tables:
-        raise ValueError("Power BI model is missing export tables: " + ", ".join(missing_tables))
+        raise ValueError(
+            "Power BI model is missing export tables: " + ", ".join(missing_tables)
+        )
 
     missing_required = sorted(REQUIRED_IMPLEMENTATION_TABLES - set(tables))
     if missing_required:
@@ -80,7 +84,9 @@ def _validate_table_source(table_name: str, table: dict) -> None:
     if "/raw/" in normalized_csv or normalized_csv.startswith("data/raw/"):
         raise ValueError(f"Power BI table {table_name} points at raw data: {local_csv}")
     if not normalized_csv.startswith("data/exports/powerbi/"):
-        raise ValueError(f"Power BI table {table_name} must use data/exports/powerbi: {local_csv}")
+        raise ValueError(
+            f"Power BI table {table_name} must use data/exports/powerbi: {local_csv}"
+        )
 
     snowflake_table = table.get("snowflake_table", "")
     if ".RAW." in snowflake_table.upper():
@@ -112,7 +118,9 @@ def _validate_required_columns(table_name: str, table: dict) -> None:
 def _validate_filter_coverage(model: dict) -> None:
     missing_filters = sorted(REQUIRED_FILTERS - set(model.get("filter_coverage", [])))
     if missing_filters:
-        raise ValueError("Power BI model is missing filters: " + ", ".join(missing_filters))
+        raise ValueError(
+            "Power BI model is missing filters: " + ", ".join(missing_filters)
+        )
 
 
 def _validate_relationships(model: dict, tables: dict[str, dict]) -> None:
@@ -128,7 +136,9 @@ def _validate_relationships(model: dict, tables: dict[str, dict]) -> None:
         from_table = relationship["from"].split(".", maxsplit=1)[0]
         to_table = relationship["to"].split(".", maxsplit=1)[0]
         if from_table not in dimensions:
-            raise ValueError(f"Relationship does not start from a dimension: {relationship}")
+            raise ValueError(
+                f"Relationship does not start from a dimension: {relationship}"
+            )
         if to_table not in table_names:
             raise ValueError(f"Relationship target table is not declared: {relationship}")
 

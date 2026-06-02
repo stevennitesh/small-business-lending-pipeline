@@ -7,7 +7,6 @@ from typing import Any
 import requests
 
 from pipelines.utils.source_config_models import BLSSeriesConfig, SBAResourceSpec
-from tests.unit.artifact_store_test_helpers import FakeS3ObjectClient
 
 
 def read_json_file(path: Path | str) -> Any:

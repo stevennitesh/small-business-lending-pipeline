@@ -2,6 +2,8 @@ from pathlib import Path
 
 import yaml
 
+from tests.unit.dbt_schema_test_helpers import column, dbt_test_names, models_by_name
+
 
 DIMENSION_MODELS = {
     "dim_date": Path("dbt/models/marts/dimensions/dim_date.sql"),
@@ -29,6 +31,7 @@ FACT_SOURCE_FILE_KEY_EXPRESSIONS = {
 }
 
 SEED_SCHEMA = Path("dbt/seeds/schema.yml")
+MARTS_SCHEMA = Path("dbt/models/marts/schema.yml")
 LOAN_STATUS_SEED = Path("dbt/seeds/ref_loan_status_group.csv")
 
 
@@ -40,8 +43,7 @@ def test_required_mart_models_exist():
 
 
 def test_mart_schema_declares_keys_relationships_and_unknown_rows():
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([MARTS_SCHEMA])
 
     assert set(DIMENSION_MODELS) <= set(models)
     assert set(FACT_MODELS) <= set(models)
@@ -52,7 +54,7 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
             for column in models[model_name]["columns"]
             if column["name"].endswith("_key")
         )
-        assert {"not_null", "unique"} <= _test_names(key_column["data_tests"])
+        assert {"not_null", "unique"} <= dbt_test_names(key_column["data_tests"])
 
     for model_name in FACT_MODELS:
         key_column = next(
@@ -60,19 +62,23 @@ def test_mart_schema_declares_keys_relationships_and_unknown_rows():
             for column in models[model_name]["columns"]
             if column["name"].endswith("_key")
         )
-        assert {"not_null", "unique"} <= _test_names(key_column["data_tests"])
+        assert {"not_null", "unique"} <= dbt_test_names(key_column["data_tests"])
 
     fact_sba = models["fact_sba_loans"]
     assert fact_sba["meta"]["expose_to_powerbi"] is False
-    assert "relationships" in _test_names(
-        _column(fact_sba, "source_file_key")["data_tests"]
+    assert "relationships" in dbt_test_names(
+        column(fact_sba, "source_file_key")["data_tests"]
     )
-    assert "relationships" in _test_names(_column(fact_sba, "lender_key")["data_tests"])
-    assert "relationships" in _test_names(_column(fact_sba, "naics_key")["data_tests"])
-    assert "relationships" in _test_names(
-        _column(fact_sba, "loan_program_key")["data_tests"]
+    assert "relationships" in dbt_test_names(
+        column(fact_sba, "lender_key")["data_tests"]
     )
-    assert "approval date is available" in _column(
+    assert "relationships" in dbt_test_names(
+        column(fact_sba, "naics_key")["data_tests"]
+    )
+    assert "relationships" in dbt_test_names(
+        column(fact_sba, "loan_program_key")["data_tests"]
+    )
+    assert "approval date is available" in column(
         fact_sba, "approval_year"
     )["description"]
 
@@ -139,15 +145,14 @@ def test_fact_models_generate_source_file_key_from_raw_uri():
 
 
 def test_fact_source_file_keys_keep_relationship_tests():
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([MARTS_SCHEMA])
 
     for model_name in FACT_MODELS:
-        source_file_key = _column(models[model_name], "source_file_key")
+        source_file_key = column(models[model_name], "source_file_key")
         data_tests = source_file_key["data_tests"]
 
-        assert "not_null" in _test_names(data_tests), model_name
-        assert "relationships" in _test_names(data_tests), model_name
+        assert "not_null" in dbt_test_names(data_tests), model_name
+        assert "relationships" in dbt_test_names(data_tests), model_name
         relationship_test = next(
             test
             for test in data_tests
@@ -182,8 +187,7 @@ def test_fact_sba_loans_generates_naics_key_without_dimension_lookup():
 
 def test_fact_sba_loans_exposes_extra_kpi_fields_and_status_group():
     model_sql = FACT_MODELS["fact_sba_loans"].read_text(encoding="utf-8")
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([MARTS_SCHEMA])
     fact_sba = models["fact_sba_loans"]
 
     assert "ref('ref_loan_status_group')" in model_sql
@@ -226,8 +230,8 @@ def test_loan_status_group_seed_is_documented_and_conservative():
     }
 
     assert "ref_loan_status_group" in seeds
-    assert {"not_null", "unique"} <= _test_names(
-        _column(seeds["ref_loan_status_group"], "loan_status_key")["tests"]
+    assert {"not_null", "unique"} <= dbt_test_names(
+        column(seeds["ref_loan_status_group"], "loan_status_key")["tests"]
     )
     assert {
         "PIF",
@@ -242,17 +246,3 @@ def test_loan_status_group_seed_is_documented_and_conservative():
         "UNKNOWN",
     } <= status_keys
     assert credit_loss_statuses == {"CHGOFF", "CHARGED-OFF"}
-
-
-def _column(model: dict, name: str) -> dict:
-    return next(column for column in model["columns"] if column["name"] == name)
-
-
-def _test_names(data_tests: list) -> set[str]:
-    names = set()
-    for test in data_tests:
-        if isinstance(test, str):
-            names.add(test)
-        else:
-            names.update(test)
-    return names

@@ -61,15 +61,7 @@ def test_s3_upload_items_follow_partitioning_contract(tmp_path):
 
 
 def test_upload_items_to_s3_retries_transient_failure(tmp_path):
-    source_path = tmp_path / "raw.csv"
-    source_path.write_text("a,b\n1,2\n", encoding="utf-8")
-    item = S3UploadItem(
-        local_path=source_path,
-        s3_key=(
-            "raw/sba/7a_foia/source_period=fy2020_present/"
-            "ingestion_date=2026-05-07/pipeline_run_id=run-123/raw.csv"
-        ),
-    )
+    item = _raw_upload_item(tmp_path)
     s3_client = FlakyS3Client(failures_before_success=2)
 
     summary = upload_items_to_s3(
@@ -90,15 +82,7 @@ def test_upload_items_to_s3_retries_transient_failure(tmp_path):
 
 
 def test_upload_items_to_s3_required_mode_fails_but_optional_mode_warns(tmp_path):
-    source_path = tmp_path / "raw.csv"
-    source_path.write_text("a,b\n1,2\n", encoding="utf-8")
-    item = S3UploadItem(
-        local_path=source_path,
-        s3_key=(
-            "raw/sba/7a_foia/source_period=fy2020_present/"
-            "ingestion_date=2026-05-07/pipeline_run_id=run-123/raw.csv"
-        ),
-    )
+    item = _raw_upload_item(tmp_path)
 
     with pytest.raises(S3UploadRequiredError, match="required S3 upload failed"):
         upload_items_to_s3(
@@ -129,20 +113,7 @@ def test_upload_run_artifacts_applies_local_and_cloud_mode_policy(tmp_path):
     raw_path.write_text("a,b\n1,2\n", encoding="utf-8")
     validation_path = tmp_path / "validation_results.json"
     validation_path.write_text("[]", encoding="utf-8")
-    manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "pipeline_run_id": "run-123",
-                "source_system": "sba",
-                "dataset_name": "7a_foia",
-                "resource_name": "source_period=fy2020_present",
-                "ingestion_date": "2026-05-07",
-                "local_raw_path": str(raw_path),
-            }
-        ),
-        encoding="utf-8",
-    )
+    manifest_path = _local_manifest_path(tmp_path, local_raw_path=raw_path)
 
     local_summary = upload_run_artifacts_to_s3(
         manifest_paths=[manifest_path],
@@ -171,29 +142,7 @@ def test_upload_run_artifacts_applies_local_and_cloud_mode_policy(tmp_path):
 def test_upload_run_artifacts_skips_raw_upload_for_s3_backed_manifest(tmp_path):
     validation_path = tmp_path / "validation_results.json"
     validation_path.write_text("[]", encoding="utf-8")
-    manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "pipeline_run_id": "cloud-run",
-                "source_system": "census",
-                "dataset_name": "bds",
-                "resource_name": "bds_state_year",
-                "ingestion_date": "2026-05-07",
-                "storage_backend": "s3",
-                "raw_uri": (
-                    "s3://unit-test-bucket/raw/census/bds/bds_state_year/"
-                    "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/raw.json"
-                ),
-                "local_raw_path": None,
-                "s3_raw_uri": (
-                    "s3://unit-test-bucket/raw/census/bds/bds_state_year/"
-                    "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/raw.json"
-                ),
-            }
-        ),
-        encoding="utf-8",
-    )
+    manifest_path = _s3_backed_manifest_path(tmp_path)
     s3_client = FlakyS3Client(failures_before_success=0)
 
     summary = upload_run_artifacts_to_s3(
@@ -218,6 +167,53 @@ def test_upload_run_artifacts_skips_raw_upload_for_s3_backed_manifest(tmp_path):
             "validation_results.json"
         ),
     ]
+
+
+def _raw_upload_item(tmp_path: Path) -> S3UploadItem:
+    source_path = tmp_path / "raw.csv"
+    source_path.write_text("a,b\n1,2\n", encoding="utf-8")
+    return S3UploadItem(
+        local_path=source_path,
+        s3_key=(
+            "raw/sba/7a_foia/source_period=fy2020_present/"
+            "ingestion_date=2026-05-07/pipeline_run_id=run-123/raw.csv"
+        ),
+    )
+
+
+def _local_manifest_path(tmp_path: Path, *, local_raw_path: Path) -> Path:
+    manifest_path = tmp_path / "manifest.json"
+    manifest = {
+        "pipeline_run_id": "run-123",
+        "source_system": "sba",
+        "dataset_name": "7a_foia",
+        "resource_name": "source_period=fy2020_present",
+        "ingestion_date": "2026-05-07",
+        "local_raw_path": str(local_raw_path),
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest_path
+
+
+def _s3_backed_manifest_path(tmp_path: Path) -> Path:
+    manifest_path = tmp_path / "manifest.json"
+    raw_uri = (
+        "s3://unit-test-bucket/raw/census/bds/bds_state_year/"
+        "ingestion_date=2026-05-07/pipeline_run_id=cloud-run/raw.json"
+    )
+    manifest = {
+        "pipeline_run_id": "cloud-run",
+        "source_system": "census",
+        "dataset_name": "bds",
+        "resource_name": "bds_state_year",
+        "ingestion_date": "2026-05-07",
+        "storage_backend": "s3",
+        "raw_uri": raw_uri,
+        "local_raw_path": None,
+        "s3_raw_uri": raw_uri,
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest_path
 
 
 class FlakyS3Client:

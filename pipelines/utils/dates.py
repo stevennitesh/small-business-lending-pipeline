@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 
 UTC = timezone.utc
@@ -34,7 +34,3 @@ def ingestion_date_from_timestamp(timestamp: datetime) -> str:
 def ingestion_date_from_iso_timestamp(value: str) -> str:
     timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
     return ingestion_date_from_timestamp(timestamp)
-
-
-def today_utc() -> date:
-    return utc_now().date()

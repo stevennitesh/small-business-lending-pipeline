@@ -108,14 +108,16 @@ Parallel groups:
   - S3 manifests where `raw_uri == s3_raw_uri`
 - Existing logic to reuse or extend:
   - `pipelines/utils/manifest.py`
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_inputs.py`
+  - `pipelines/load/raw_load_metadata.py`
   - `dbt/models/staging/audit/stg_ingestion_manifest.sql`
 - Public contract or state/data change:
   - New raw table rows should include `raw_uri` and `storage_backend`.
   - `raw_file_path` may remain temporarily as a legacy alias, but dbt joins should stop depending on it.
 - Depends on: Task 1.
 - Likely files/modules:
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_inputs.py`
+  - `pipelines/load/raw_load_metadata.py`
   - `pipelines/load/duckdb_loader.py`
   - `pipelines/load/snowflake_loader.py`
   - `dbt/models/staging/sba/stg_sba_7a_loans.sql`
@@ -154,7 +156,8 @@ Parallel groups:
   - Snowflake schemas `RAW`, `STAGING`, `INTERMEDIATE`, `MARTS`, `BI`, `AUDIT`
 - Existing logic to reuse or extend:
   - `pipelines/load/snowflake_loader.py`
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_inputs.py`
+  - `pipelines/load/raw_load_metadata.py`
   - existing fake Snowflake cursor tests
 - Public contract or state/data change:
   - Cloud raw load should create required raw tables or landing tables before loading.
@@ -163,7 +166,8 @@ Parallel groups:
 - Depends on: Task 2.
 - Likely files/modules:
   - `pipelines/load/snowflake_loader.py`
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_inputs.py`
+  - `pipelines/load/raw_load_metadata.py`
   - `tests/unit/test_snowflake_loader.py`
   - `tests/unit/test_prefect_local_flow.py`
 - Change boundary:

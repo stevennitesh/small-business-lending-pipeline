@@ -26,11 +26,11 @@ warehouse size justifies:
   - `raw.raw_bls_laus_state_month`: `22,746`.
   - `raw.raw_census_bds_state_year`: `1,734`.
 
-The bottleneck is not the cloud route and not final warehouse disk size. It is
-the local Python handoff for large CSVs:
+The bottleneck is not the cloud route and not final warehouse disk size. At the
+time this plan was written, it was the local Python handoff for large CSVs:
 
-- `pipelines/load/raw_load_common.py` reads SBA CSVs with `pd.read_csv(...)`.
-- `load_local_source_frame(...)` enriches each frame with metadata.
+- a shared local-source helper read SBA CSVs with `pd.read_csv(...)`;
+- `load_local_source_frame(...)` enriched each frame with metadata.
 - `pd.concat(frames, ignore_index=True)` copies all source partitions into one
   large frame.
 - `pipelines/load/duckdb_loader.py` registers that full frame and creates the
@@ -99,8 +99,8 @@ Parallel groups:
   - `powerbi/lending_dashboard.pbix` (user-owned, do not touch).
 - Current local raw-load entry point:
   - `pipelines/load/duckdb_loader.py::load_raw_extracts`.
-- Current shared helper:
-  - `pipelines/load/raw_load_common.py::load_local_source_frame`.
+- Current small-source local helper:
+  - `pipelines/load/raw_load_local_sources.py::load_local_source_frame`.
 - Current cloud raw-load entry point:
   - `pipelines/load/snowflake_loader.py::load_raw_extracts_to_snowflake_from_s3`.
 - Current focused tests:
@@ -174,7 +174,8 @@ This gives each route a deliberate role:
   validation gates.
 - Existing logic to reuse or extend:
   - `pipelines/load/duckdb_loader.py::load_raw_extracts`.
-  - `pipelines/load/raw_load_common.py::SOURCE_TABLE_KINDS`.
+  - `pipelines/load/duckdb_loader.py::LOCAL_DUCKDB_NATIVE_CSV_TABLES`.
+  - `pipelines/load/raw_load_local_sources.py::LOCAL_FRAME_SOURCE_TABLE_KINDS`.
   - existing row-count reconciliation in `duckdb_loader.py`.
 - Public contract or state/data change:
   - Raw table content should be equivalent, but physical loading is more
@@ -182,7 +183,8 @@ This gives each route a deliberate role:
 - Depends on: Task 1.
 - Likely files/modules:
   - `pipelines/load/duckdb_loader.py`.
-  - `pipelines/load/raw_load_common.py`.
+  - `pipelines/load/raw_load_local_sources.py`.
+  - `pipelines/load/raw_load_metadata.py`.
   - `tests/integration/test_duckdb_loader.py`.
 - First command/check:
   - `.venv/bin/python -m pytest tests/integration/test_duckdb_loader.py`.
@@ -213,12 +215,14 @@ This gives each route a deliberate role:
 - Existing logic to reuse or extend:
   - local `duckdb_loader.py` routing.
   - cloud `snowflake_loader.py` S3 manifest checks.
-  - shared `raw_load_common.py` manifest/validation helpers.
+  - shared `raw_load_inputs.py` manifest/validation helpers.
+  - shared `raw_load_metadata.py` metadata helpers.
 - Public contract or state/data change: none.
 - Depends on: Task 2.
 - Likely files/modules:
   - `pipelines/load/duckdb_loader.py`.
-  - `pipelines/load/raw_load_common.py`.
+  - `pipelines/load/raw_load_inputs.py`.
+  - `pipelines/load/raw_load_metadata.py`.
 - First command/check:
   - `rg -n "load_local_source_frame|read_csv|COPY INTO|s3_stage" pipelines/load`.
 - Change boundary:

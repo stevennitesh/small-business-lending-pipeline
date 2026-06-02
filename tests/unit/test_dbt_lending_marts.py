@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import yaml
+from tests.unit.dbt_schema_test_helpers import dbt_test_names, models_by_name
 
 
 LENDING_MARTS = {
@@ -35,6 +35,7 @@ LENDING_MARTS = {
         "dbt/models/marts/lending/mart_lending_jobs_impact_state_period.sql"
     ),
 }
+LENDING_SCHEMA = Path("dbt/models/marts/lending/schema.yml")
 
 
 def test_required_lending_marts_exist():
@@ -44,8 +45,7 @@ def test_required_lending_marts_exist():
 
 
 def test_lending_schema_declares_grains_and_kpi_tests():
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([LENDING_SCHEMA])
 
     assert set(LENDING_MARTS) <= set(models)
 
@@ -57,9 +57,9 @@ def test_lending_schema_declares_grains_and_kpi_tests():
         assert "average_loan_size" in columns
         assert columns["average_loan_size"]["description"]
         if "loan_count" in columns:
-            assert "non_negative" in _test_names(columns["loan_count"]["data_tests"])
+            assert "non_negative" in dbt_test_names(columns["loan_count"]["data_tests"])
         if "total_approved_loan_amount" in columns:
-            assert "non_negative" in _test_names(
+            assert "non_negative" in dbt_test_names(
                 columns["total_approved_loan_amount"]["data_tests"]
             )
 
@@ -79,22 +79,24 @@ def test_lending_schema_declares_grains_and_kpi_tests():
     }
     for model_name, share_column in share_columns.items():
         columns = {column["name"]: column for column in models[model_name]["columns"]}
-        assert "accepted_range" in _test_names(columns[share_column]["data_tests"])
+        assert "accepted_range" in dbt_test_names(columns[share_column]["data_tests"])
 
     concentration_columns = {
         column["name"]: column
         for column in models["mart_lending_concentration_state_period"]["columns"]
     }
     for share_column in ("top_1_lender_share", "top_5_lender_share"):
-        assert "accepted_range" in _test_names(
+        assert "accepted_range" in dbt_test_names(
             concentration_columns[share_column]["data_tests"]
         )
         assert "approved dollars" in concentration_columns[share_column]["description"]
     for amount_column in ("top_1_approved_loan_amount", "top_5_approved_loan_amount"):
-        assert "non_negative" in _test_names(
+        assert "non_negative" in dbt_test_names(
             concentration_columns[amount_column]["data_tests"]
         )
-    assert "non_negative" in _test_names(concentration_columns["lender_count"]["data_tests"])
+    assert "non_negative" in dbt_test_names(
+        concentration_columns["lender_count"]["data_tests"]
+    )
     lender_columns = {
         column["name"]: column
         for column in models["mart_lending_lender_state_period"]["columns"]
@@ -204,8 +206,7 @@ def test_lending_performance_mart_uses_status_group_without_canceled_losses():
     performance_sql = LENDING_MARTS[
         "mart_lending_performance_state_period"
     ].read_text(encoding="utf-8")
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([LENDING_SCHEMA])
     performance_columns = {
         column["name"]: column
         for column in models["mart_lending_performance_state_period"]["columns"]
@@ -217,7 +218,7 @@ def test_lending_performance_mart_uses_status_group_without_canceled_losses():
     assert "safe_divide" in performance_sql
     assert "gross_chargeoff_amount" in performance_columns
     assert "charged_off_loan_count" in performance_columns
-    assert "accepted_range" in _test_names(
+    assert "accepted_range" in dbt_test_names(
         performance_columns["chargeoff_amount_rate"]["data_tests"]
     )
     assert "decimal ratio" in performance_columns["chargeoff_amount_rate"]["description"]
@@ -230,8 +231,7 @@ def test_lending_status_mix_mart_reconciles_status_group_shares():
     status_mix_sql = LENDING_MARTS[
         "mart_lending_status_mix_state_period"
     ].read_text(encoding="utf-8")
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([LENDING_SCHEMA])
     status_mix_columns = {
         column["name"]: column
         for column in models["mart_lending_status_mix_state_period"]["columns"]
@@ -250,7 +250,7 @@ def test_lending_status_mix_mart_reconciles_status_group_shares():
         "status_group_approved_amount_share",
         "status_group_loan_count_share",
     ):
-        assert "accepted_range" in _test_names(
+        assert "accepted_range" in dbt_test_names(
             status_mix_columns[share_column]["data_tests"]
         )
     assert "approved_amount_share_sum" in reconciliation_sql
@@ -264,8 +264,7 @@ def test_lending_terms_pricing_mart_documents_availability_and_program_semantics
     terms_sql = LENDING_MARTS[
         "mart_lending_terms_pricing_state_period"
     ].read_text(encoding="utf-8")
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([LENDING_SCHEMA])
     terms_columns = {
         column["name"]: column
         for column in models["mart_lending_terms_pricing_state_period"]["columns"]
@@ -295,7 +294,9 @@ def test_lending_terms_pricing_mart_documents_availability_and_program_semantics
         "variable_interest_loan_share",
         "seven_a_sba_guarantee_rate",
     ):
-        assert "accepted_range" in _test_names(terms_columns[rate_column]["data_tests"])
+        assert "accepted_range" in dbt_test_names(
+            terms_columns[rate_column]["data_tests"]
+        )
     assert "seven_a_approved_loan_amount" in reconciliation_sql
     assert "third_party_dollars" in reconciliation_sql
 
@@ -304,8 +305,7 @@ def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
     jobs_sql = LENDING_MARTS[
         "mart_lending_jobs_impact_state_period"
     ].read_text(encoding="utf-8")
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/lending/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([LENDING_SCHEMA])
     jobs_columns = {
         column["name"]: column
         for column in models["mart_lending_jobs_impact_state_period"]["columns"]
@@ -319,7 +319,7 @@ def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
     assert "approved_loan_dollars_per_job_supported" in jobs_sql
     assert "not causal" in jobs_columns["total_jobs_supported"]["description"]
     assert "not causal" in jobs_columns["jobs_supported_per_loan"]["description"]
-    assert "accepted_range" in _test_names(
+    assert "accepted_range" in dbt_test_names(
         jobs_columns["jobs_supported_coverage_rate"]["data_tests"]
     )
     for metric_column in (
@@ -328,16 +328,8 @@ def test_lending_jobs_impact_mart_is_descriptive_and_reconciles():
         "jobs_supported_per_1m_approved",
         "approved_loan_dollars_per_job_supported",
     ):
-        assert "non_negative" in _test_names(jobs_columns[metric_column]["data_tests"])
+        assert "non_negative" in dbt_test_names(
+            jobs_columns[metric_column]["data_tests"]
+        )
     assert "jobs_supported_coverage_count" in reconciliation_sql
     assert "total_jobs_supported" in reconciliation_sql
-
-
-def _test_names(data_tests: list) -> set[str]:
-    names = set()
-    for test in data_tests:
-        if isinstance(test, str):
-            names.add(test)
-        else:
-            names.update(test)
-    return names

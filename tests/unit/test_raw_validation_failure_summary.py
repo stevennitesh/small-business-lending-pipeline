@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import pipelines.flows.lending_pipeline_flow as local_flow
-from pipelines.flows.run_models import failed_stage_for
+from pipelines.flows.run_models import LOCAL_FLOW_STAGES, failed_stage_for
 from pipelines.validation.validation_failures import ValidationFailedError
 from tests.unit.validation_flow_test_helpers import fixture_validation_inputs
 from tests.unit.validation_test_helpers import read_json, rewrite_json
@@ -33,7 +33,7 @@ def test_failed_validation_can_write_summary_before_downstream_work(tmp_path):
         context,
         status="failed",
         completed_stages=completed_stages + ["write_run_summary"],
-        failed_stage=failed_stage_for(completed_stages, local_flow.LOCAL_FLOW_STAGES),
+        failed_stage=failed_stage_for(completed_stages, LOCAL_FLOW_STAGES),
         error_message=str(exc_info.value),
         validation_result_path=context.run_validation_dir / "validation_results.json",
     )

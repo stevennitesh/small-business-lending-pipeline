@@ -103,7 +103,8 @@ small-business-lending-pipeline/
 │
 ├── pipelines/
 │   ├── flows/
-│   │   └── lending_pipeline_flow.py
+│   │   ├── lending_pipeline_flow.py
+│   │   └── pipeline_health.py
 │   ├── extract/
 │   │   ├── sba_extract.py
 │   │   ├── census_bds_extract.py
@@ -113,7 +114,6 @@ small-business-lending-pipeline/
 │   │   ├── s3_loader.py
 │   │   └── snowflake_loader.py
 │   ├── validation/
-│   │   ├── pipeline_health.py
 │   │   ├── raw_manifest_artifact_validation.py
 │   │   ├── raw_manifest_collection.py
 │   │   ├── raw_manifest_rule_checks.py
@@ -132,10 +132,14 @@ small-business-lending-pipeline/
 │   │   ├── validation_result.py
 │   │   └── validation_result_io.py
 │   └── utils/
+│       ├── config.py
+│       ├── config_contracts.py
+│       ├── source_config_models.py
+│       ├── source_resources.py
+│       ├── paths.py
 │       ├── hashing.py
 │       ├── manifest.py
-│       ├── dates.py
-│       └── logging.py
+│       └── dates.py
 │
 ├── dbt/
 │   ├── models/
@@ -166,13 +170,16 @@ small-business-lending-pipeline/
     ├── run_cloud_pipeline.sh
     ├── run_dbt_local.sh
     ├── export_powerbi_tables.py
-    └── reset_local_duckdb.sh
+    ├── validate_powerbi_model.py
+    ├── benchmark_local_command.py
+    ├── cleanup_local_data.py
+    └── repo_bootstrap.py
 ```
 
 `raw_validation_runner.py` coordinates the active raw gate. Validation result
 schema, factories, JSON I/O, output persistence, source dispatch/expectations,
 and blocking-failure enforcement live in ownership modules.
-`pipelines/validation/pipeline_health.py` contains future pipeline-health row-count
+`pipelines/flows/pipeline_health.py` contains future pipeline-health row-count
 and freshness helper checks for a later pipeline-health layer.
 
 ---
@@ -259,7 +266,7 @@ Emphasize these signals:
 
 | Signal | Evidence |
 |---|---|
-| Business problem framing | `README.md`, `docs/project_spec.md` |
+| Business problem framing | `README.md`, `docs/detailed/project_spec.md` |
 | Public data ingestion | Python extractors and source inventory |
 | AWS usage | S3 raw landing zone |
 | SQL modeling | dbt staging, marts, BI models |

@@ -185,7 +185,7 @@ This should be issue-driven implementation. Each task should become one GitHub i
   - `RawArtifactReader`
 - Public contract or state/data change: Snowflake load accepts manifest/validation artifact references, not only filesystem paths.
 - Likely files/modules:
-  - `pipelines/load/raw_load_common.py`
+  - `pipelines/load/raw_load_inputs.py`
   - `pipelines/load/snowflake_loader.py`
   - `pipelines/flows/lending_pipeline_flow.py`
   - `tests/unit/test_snowflake_loader.py`

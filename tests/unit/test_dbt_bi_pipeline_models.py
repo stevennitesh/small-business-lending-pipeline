@@ -3,6 +3,13 @@ from pathlib import Path
 import yaml
 
 from pipelines.powerbi.export_schema import BI_EXPORT_TABLES
+from tests.unit.dbt_schema_test_helpers import (
+    dbt_test_name,
+    dbt_test_names,
+    dbt_test_tags,
+    find_dbt_test,
+    models_by_name,
+)
 
 
 BI_MODELS = {
@@ -46,6 +53,8 @@ PROHIBITED_BI_FIELDS = {
     "raw_file_path",
     "source_loan_id",
 }
+BI_SCHEMA = Path("dbt/models/bi/schema.yml")
+PIPELINE_SCHEMA = Path("dbt/models/marts/pipeline/schema.yml")
 
 
 def test_required_bi_and_pipeline_models_exist():
@@ -57,7 +66,7 @@ def test_required_bi_and_pipeline_models_exist():
 
 
 def test_bi_schema_declares_grain_rows_and_safe_columns():
-    schema_text = Path("dbt/models/bi/schema.yml").read_text()
+    schema_text = BI_SCHEMA.read_text()
     assert "Deprecated compatibility field" not in schema_text
     schema_yml = yaml.safe_load(schema_text)
     models = {model["name"]: model for model in schema_yml["models"]}
@@ -160,7 +169,7 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
 
     for model_name, model in models.items():
         assert model["meta"]["grain"]
-        assert "not_empty" in _test_names(model["data_tests"])
+        assert "not_empty" in dbt_test_names(model["data_tests"])
 
         column_names = {column["name"] for column in model["columns"]}
         assert not (PROHIBITED_BI_FIELDS & column_names)
@@ -168,26 +177,24 @@ def test_bi_schema_declares_grain_rows_and_safe_columns():
 
 
 def test_bi_schema_marks_fast_quality_tests_critical():
-    schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([BI_SCHEMA])
 
     for model_name, model in models.items():
-        not_empty_test = _find_test(model["data_tests"], "not_empty")
-        assert "critical" in _test_tags(not_empty_test), model_name
+        not_empty_test = find_dbt_test(model["data_tests"], "not_empty")
+        assert "critical" in dbt_test_tags(not_empty_test), model_name
 
         grain_tests = [
             test
             for test in model["data_tests"]
-            if _test_name(test) == "unique_combination_of_columns"
+            if dbt_test_name(test) == "unique_combination_of_columns"
         ]
         assert len(grain_tests) <= 1, model_name
         for grain_test in grain_tests:
-            assert "critical" in _test_tags(grain_test), model_name
+            assert "critical" in dbt_test_tags(grain_test), model_name
 
 
 def test_pipeline_schema_declares_health_columns():
-    schema_yml = yaml.safe_load(Path("dbt/models/marts/pipeline/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([PIPELINE_SCHEMA])
 
     assert set(PIPELINE_MARTS) <= set(models)
 
@@ -220,7 +227,7 @@ def test_pipeline_schema_declares_health_columns():
         model = models[model_name]
         column_names = {column["name"] for column in model["columns"]}
         assert model["meta"]["grain"]
-        assert "not_empty" in _test_names(model["data_tests"])
+        assert "not_empty" in dbt_test_names(model["data_tests"])
         assert expected_columns <= column_names
 
 
@@ -245,8 +252,7 @@ def test_pipeline_source_freshness_uses_latest_manifest_row_values():
 
 
 def test_bi_lender_outputs_document_known_lender_semantics():
-    schema_yml = yaml.safe_load(Path("dbt/models/bi/schema.yml").read_text())
-    models = {model["name"]: model for model in schema_yml["models"]}
+    models = models_by_name([BI_SCHEMA])
     lender_mix_sql = BI_MODELS["bi_lender_mix"].read_text(encoding="utf-8")
 
     concentration = models["bi_lender_concentration"]
@@ -298,30 +304,3 @@ def test_bi_filter_tables_are_built_from_dbt_models():
     assert "ref('dim_naics')" in naics_sql
     assert "ref('dim_lender')" in lender_sql
     assert "where not is_unknown" in lender_sql
-
-
-def _test_names(data_tests: list) -> set[str]:
-    names = set()
-    for test in data_tests:
-        names.add(_test_name(test))
-    return names
-
-
-def _find_test(data_tests: list, test_name: str):
-    for test in data_tests:
-        if _test_name(test) == test_name:
-            return test
-    raise AssertionError(f"Missing dbt test: {test_name}")
-
-
-def _test_name(test) -> str:
-    if isinstance(test, str):
-        return test
-    return next(iter(test))
-
-
-def _test_tags(test) -> set[str]:
-    if isinstance(test, str):
-        return set()
-    config = test[_test_name(test)].get("config", {})
-    return set(config.get("tags", []))

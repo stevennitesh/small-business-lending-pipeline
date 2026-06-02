@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pipelines.storage.raw_artifacts import ArtifactReader
-from pipelines.storage.raw_artifacts import ArtifactLocation
+from pipelines.storage.raw_artifacts import ArtifactLocation, ArtifactReader
 from pipelines.validation.raw_validation_output import (
     ValidationOutputWriteRequest,
     check_validation_output_created,
@@ -136,12 +135,12 @@ def test_cloud_validation_output_route_writer_uses_provided_store(
             tmp_path,
             validation_results=[result],
             validation_path=tmp_path / VALIDATION_RESULTS_FILENAME,
-                is_cloud_route=True,
-                bucket="unit-test-bucket",
-                artifact_store=FakeStore("unit-test-bucket", s3_client),
-                artifact_reader=ArtifactReader(s3_client=s3_client),
-            )
+            is_cloud_route=True,
+            bucket="unit-test-bucket",
+            artifact_store=FakeStore("unit-test-bucket", s3_client),
+            artifact_reader=ArtifactReader(s3_client=s3_client),
         )
+    )
 
     assert output_write.artifact_location is not None
     assert output_write.artifact_location.artifact_uri == (
