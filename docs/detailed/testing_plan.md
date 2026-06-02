@@ -1451,6 +1451,7 @@ Recommended fields:
 The repository should support these commands:
 
 ```bash
+make ci-check
 make test
 make dbt-local
 make dbt-build-local-fast
@@ -1462,17 +1463,17 @@ For the heavier local build, use the explicit full target:
 make dbt-build-local-full
 ```
 
-## Optional GitHub Actions
+## GitHub Actions
 
-CI is a stretch goal but valuable for recruiter signal.
+CI should stay lightweight, deterministic, and secret-free.
 
 Recommended CI checks:
 
-1. install Python dependencies;
-2. run `pytest`;
-3. run lightweight linting if added;
-4. run dbt parse;
-5. run dbt build against sample DuckDB data.
+1. install Python 3.12 dependencies with `make install`;
+2. run `make ci-check`.
+
+`make ci-check` runs runtime imports, pytest, dbt compile, the Power BI model
+contract check, Ruff lint, and Ruff format checks.
 
 Recommended not to include in default CI:
 
@@ -1593,14 +1594,22 @@ make run-cloud
 ## Suggested Full Local Validation Command
 
 ```bash
-make run-local-fixture \
-  && make test \
+make ci-check \
+  && make run-local-fixture \
   && make dbt-build-local-fast
 ```
 
 ## Current Makefile Targets
 
 ```makefile
+ci-check:
+	$(MAKE) runtime-smoke
+	$(MAKE) test
+	$(MAKE) dbt-local
+	$(MAKE) powerbi-ci-check
+	$(MAKE) lint
+	$(MAKE) format-check
+
 test:
 	$(VENV_PYTHON) -m pytest
 

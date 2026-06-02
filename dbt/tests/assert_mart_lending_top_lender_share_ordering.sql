@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 with ranked_lenders as (
     select
         state_key,

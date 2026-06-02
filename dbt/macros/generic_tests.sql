@@ -1,3 +1,5 @@
+{# Custom generic tests used by schema.yml contracts; each query returns violating rows only. #}
+
 {% test non_negative(model, column_name) %}
     select *
     from {{ model }}

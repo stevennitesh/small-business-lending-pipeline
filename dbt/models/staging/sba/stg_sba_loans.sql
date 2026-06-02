@@ -1,3 +1,5 @@
+-- Staging model: standardize raw fields after restricting records to latest validated manifests.
+
 select
     loan_record_key,
     loan_program,

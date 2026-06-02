@@ -1,3 +1,5 @@
+{# Date compatibility macros keep DuckDB and Snowflake date parsing/key logic aligned. #}
+
 {% macro parse_mdy_date(expression) -%}
     {%- if target.type == 'snowflake' -%}
         try_to_date({{ expression }}, 'MM/DD/YYYY')

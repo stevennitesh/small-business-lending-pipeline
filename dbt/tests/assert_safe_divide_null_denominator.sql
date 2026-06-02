@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 select 'safe_divide should return null for zero denominator' as failure
 where {{ safe_divide('1', '0') }} is not null
 

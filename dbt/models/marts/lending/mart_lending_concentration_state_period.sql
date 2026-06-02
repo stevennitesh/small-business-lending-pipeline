@@ -1,3 +1,5 @@
+-- Lending mart: aggregate SBA loan facts to the dashboard grain while keeping KPI math in dbt.
+
 with lender_period as (
     select
         state_key,

@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 select
     'UNKNOWN' as naics_key,
     'UNKNOWN' as naics_sector_code,

@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 with source_dates as (
     select approval_date as date_day
     from {{ ref('stg_sba_loans') }}

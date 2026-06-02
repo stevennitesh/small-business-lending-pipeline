@@ -1,3 +1,5 @@
+-- Staging model: standardize raw fields after restricting records to latest validated manifests.
+
 select
     pipeline_run_id,
     validation_check_id,

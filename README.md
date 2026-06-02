@@ -165,7 +165,7 @@ small-business-lending-pipeline/
 ```bash
 cp .env.example .env
 make install
-make test
+make ci-check
 make run-local-fixture
 ```
 
@@ -197,9 +197,12 @@ python -m pipelines.flows.lending_pipeline_flow \
 
 ```bash
 make install
-make test
-make dbt-local
+make ci-check
 ```
+
+`make ci-check` is the standard lightweight verification gate used by local
+development, Docker, and GitHub Actions. It runs runtime imports, pytest, dbt
+compile, the Power BI model contract check, Ruff lint, and Ruff format checks.
 
 `make dbt-local` is the WSL-safe dbt verification path; it compiles the local dbt graph without running the full live-data DuckDB build. When you intentionally want the heavier full local dbt build, use:
 
@@ -209,6 +212,7 @@ make dbt-build-local-full
 
 The local command taxonomy separates cheap checks from expensive work:
 
+- `make ci-check`: lightweight standard gate for local, Docker, and CI checks.
 - `make run-local-fixture`: fixture-backed local smoke route.
 - `make run-local-live`: live-source local route.
 - `make benchmark-local COMMAND="make dbt-local"`: benchmark wrapper for local command timing and disk/RAM evidence.
@@ -219,9 +223,9 @@ The local command taxonomy separates cheap checks from expensive work:
 ## Container Runtime
 
 Docker is a reproducibility check for the Python/dbt runtime, not a separate
-pipeline implementation. The default container builds dependencies from
-`requirements.txt` through `make install` and runs the same Makefile command path
-used locally.
+pipeline implementation. The default container uses Python 3.12, builds pinned
+direct dependencies from `requirements.txt` through `make install`, and runs
+`make ci-check`, the same lightweight verification gate used by GitHub Actions.
 
 ```bash
 docker compose up --build

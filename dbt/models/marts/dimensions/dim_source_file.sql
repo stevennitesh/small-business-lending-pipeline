@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 select
     {{ generate_surrogate_key(["raw_uri"]) }} as source_file_key,
     pipeline_run_id,

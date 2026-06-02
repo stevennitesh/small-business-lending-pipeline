@@ -1,3 +1,5 @@
+{# Lender-name macros centralize whitespace and case normalization across staging and dimension models. #}
+
 {% macro normalize_whitespace(expression) -%}
     {%- if target.type == 'snowflake' -%}
         regexp_replace({{ expression }}, '\\s+', ' ')

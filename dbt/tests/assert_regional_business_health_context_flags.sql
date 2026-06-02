@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 select *
 from {{ ref('mart_regional_business_health_annual_state') }}
 where context_join_status != case

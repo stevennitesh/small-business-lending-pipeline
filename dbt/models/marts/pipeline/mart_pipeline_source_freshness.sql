@@ -1,3 +1,5 @@
+-- Pipeline mart: summarize validation, freshness, and run status for operational monitoring.
+
 with ranked_manifest as (
     select
         source_system,

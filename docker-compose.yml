@@ -5,4 +5,4 @@ services:
     env_file:
       - .env.example
     working_dir: /app
-    command: make test
+    command: make ci-check

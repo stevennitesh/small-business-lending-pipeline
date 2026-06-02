@@ -1,4 +1,4 @@
-.PHONY: install test lint format-check format runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
+.PHONY: install ci-check test lint format-check format runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local powerbi-ci-check cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -19,6 +19,14 @@ install:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV_PIP) install --upgrade pip
 	$(VENV_PIP) install -r requirements.txt
+
+ci-check:
+	$(MAKE) runtime-smoke
+	$(MAKE) test
+	$(MAKE) dbt-local
+	$(MAKE) powerbi-ci-check
+	$(MAKE) lint
+	$(MAKE) format-check
 
 test:
 	$(VENV_PYTHON) -m pytest
@@ -71,6 +79,9 @@ dbt-seed-local: $(DBT_PROFILES_TMP)/profiles.yml
 powerbi-refresh-local: $(DBT_PROFILES_TMP)/profiles.yml
 	$(MAKE) dbt-build-local-fast
 	$(VENV_PYTHON) scripts/export_powerbi_tables.py
+	$(MAKE) powerbi-model-check
+
+powerbi-ci-check:
 	$(MAKE) powerbi-model-check
 
 cleanup-local-data-dry-run:

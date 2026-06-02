@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 select 'dim_lender missing UNKNOWN row' as failure
 where not exists (
     select 1

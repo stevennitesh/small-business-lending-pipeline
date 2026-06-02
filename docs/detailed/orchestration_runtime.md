@@ -812,7 +812,7 @@ Docker should not hide project logic or replace documentation.
 ## Recommended `Dockerfile`
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -829,7 +829,7 @@ RUN make install
 
 COPY . .
 
-CMD ["make", "test"]
+CMD ["make", "ci-check"]
 ```
 
 ---
@@ -844,7 +844,7 @@ services:
     env_file:
       - .env.example
     working_dir: /app
-    command: make test
+    command: make ci-check
 ```
 
 The default Compose service runs the image snapshot instead of bind-mounting the
@@ -858,36 +858,30 @@ Optional local Prefect UI can be added later, but it is not required for the MVP
 
 ## Python Dependencies
 
-Recommended `requirements.txt` categories:
+Current `requirements.txt` categories use pinned direct dependencies from the
+local source `.venv`:
 
 ```text
-# Core
-requests
-pandas
-pyyaml
-python-dotenv
+# Runtime dependencies
+boto3==...
+dbt-core==...
+dbt-duckdb==...
+dbt-snowflake==...
+duckdb==...
+pandas==...
+prefect==...
+python-dotenv==...
+pyyaml==...
+requests==...
+snowflake-connector-python[pandas]==...
 
-# Storage / warehouse
-boto3
-duckdb
-snowflake-connector-python
-
-# dbt
-dbt-core
-dbt-duckdb
-dbt-snowflake
-
-# Orchestration
-prefect
-
-# Testing
-pytest
-
-# Optional utilities
-rich
+# Development and CI tools
+pytest==...
+ruff==...
 ```
 
-Pin versions once implementation begins and the environment is stable.
+Keep `pyproject.toml` for tool configuration, and keep `requirements.txt` for
+installable dependency pins.
 
 ---
 
@@ -898,11 +892,19 @@ Use `make` or shell scripts to make the project easy to run.
 ## Current `Makefile` Interface
 
 ```makefile
-.PHONY: install test run-local run-local-fixture run-local-live run-cloud dbt-local dbt-build-local-fast dbt-build-local-full powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data
+.PHONY: install ci-check test run-local run-local-fixture run-local-live run-cloud dbt-local dbt-build-local-fast dbt-build-local-full powerbi-refresh-local cleanup-local-data-dry-run cleanup-local-data
 
 install:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV_PIP) install -r requirements.txt
+
+ci-check:
+	$(MAKE) runtime-smoke
+	$(MAKE) test
+	$(MAKE) dbt-local
+	$(MAKE) powerbi-ci-check
+	$(MAKE) lint
+	$(MAKE) format-check
 
 test:
 	$(VENV_PYTHON) -m pytest
@@ -1431,23 +1433,21 @@ These exclusions keep the project focused on analytics engineering delivery.
 
 ## Minimal CI Option
 
-CI is a stretch enhancement, but a lightweight version is useful if time permits.
+CI should remain a lightweight, deterministic check over the same Makefile gate
+used locally and in Docker.
 
 Recommended GitHub Actions checks:
 
 ```text
-1. Install Python dependencies.
-2. Run pytest.
-3. Run dbt deps if packages are used.
-4. Run dbt parse.
-5. Optionally run dbt build against small DuckDB fixtures.
+1. Install Python 3.12 dependencies through make install.
+2. Run make ci-check.
 ```
 
 Recommended CI scope:
 
 ```text
-pytest + dbt parse first
-full dbt build with fixtures later
+runtime smoke + pytest + dbt compile + Power BI model check + lint + format-check
+full dbt build with fixtures later, if needed
 ```
 
 Do not block the MVP on CI if the local pipeline is not complete.

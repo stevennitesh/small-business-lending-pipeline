@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 select
     lpad(cast(state_fips as varchar), 2, '0') as state_key,
     lpad(cast(state_fips as varchar), 2, '0') as state_fips,

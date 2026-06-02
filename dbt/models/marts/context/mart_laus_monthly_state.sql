@@ -1,3 +1,5 @@
+-- Context mart: prepare regional economic indicators at the state/time grain used beside lending KPIs.
+
 with monthly as (
     select
         state_key,

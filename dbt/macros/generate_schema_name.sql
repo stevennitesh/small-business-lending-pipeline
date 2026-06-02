@@ -1,3 +1,5 @@
+{# Schema routing macro keeps local schemas simple and applies Snowflake prefixes when configured. #}
+
 {% macro generate_schema_name(custom_schema_name, node) -%}
     {%- set default_schema = target.schema -%}
     {%- set schema_prefix = env_var('DBT_SCHEMA_PREFIX', '') | trim -%}

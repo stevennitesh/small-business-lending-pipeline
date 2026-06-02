@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 select
     'bi_regional_business_health' as model_name,
     state_key,

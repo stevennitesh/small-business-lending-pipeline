@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -80,7 +81,7 @@ def test_required_runtime_dependencies_are_declared():
         "pytest",
     }
     declared_dependencies = {
-        line.strip().split("[", 1)[0]
+        re.split(r"[<>=!~;]", line.strip(), maxsplit=1)[0].split("[", 1)[0]
         for line in Path("requirements.txt").read_text().splitlines()
         if line.strip() and not line.startswith("#")
     }

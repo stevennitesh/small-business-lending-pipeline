@@ -1,4 +1,8 @@
+-- Power BI export model: expose dashboard-safe fields from modeled marts, not raw source tables.
+
 with years as (
+    -- Build the filter from every BI table that exposes a year so report
+    -- slicers do not hide valid rows from a table with a different coverage set.
     select year
     from {{ ref('bi_executive_overview') }}
 

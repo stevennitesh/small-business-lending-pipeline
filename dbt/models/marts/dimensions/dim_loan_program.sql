@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 select
     '7a' as loan_program_key,
     '7a' as loan_program,

@@ -1,3 +1,5 @@
+-- Fact model: preserve latest validated source lineage while exposing the analytical grain for marts.
+
 with loans as (
     select
         loan_record_key,
@@ -41,6 +43,8 @@ with loans as (
         raw_uri,
         raw_file_path,
         sha256_checksum,
+        -- Group SBA NAICS values to the sector keys used by the reference
+        -- dimension; composite sectors stay compatible with Census labels.
         case
             when naics_code is null then 'UNKNOWN'
             when substr(naics_code, 1, 2) in ('31', '32', '33') then '31-33'
@@ -100,6 +104,8 @@ select
     subprogram,
     loan_status,
     loans.loan_status_key,
+    -- Status grouping stays reference-driven so KPI categories can change
+    -- without rewriting the fact grain or historical source columns.
     coalesce(status.loan_status_group, 'unmapped') as loan_status_group,
     coalesce(status.loan_status_group_label, 'Unmapped or unknown') as loan_status_group_label,
     coalesce(status.is_credit_loss_status, false) as is_credit_loss_status,

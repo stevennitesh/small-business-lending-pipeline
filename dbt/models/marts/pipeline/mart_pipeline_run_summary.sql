@@ -1,3 +1,5 @@
+-- Pipeline mart: summarize validation, freshness, and run status for operational monitoring.
+
 with pipeline_runs as (
     select
         pipeline_run_ids,

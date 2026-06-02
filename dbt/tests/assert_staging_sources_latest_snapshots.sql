@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 with staging_sources as (
     select
         'stg_sba_loans' as model_name,

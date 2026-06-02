@@ -1,3 +1,5 @@
+-- Power BI export model: expose dashboard-safe fields from modeled marts, not raw source tables.
+
 select
     lender_key,
     lender_name,

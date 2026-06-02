@@ -1,3 +1,5 @@
+-- Staging model: standardize raw fields after restricting records to latest validated manifests.
+
 {% set raw_sba_504_foia = source('raw', 'raw_sba_504_foia') %}
 
 with latest_successful_manifests as (

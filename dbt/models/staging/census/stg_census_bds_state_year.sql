@@ -1,3 +1,5 @@
+-- Staging model: standardize raw fields after restricting records to latest validated manifests.
+
 {% set raw_census_bds_state_year = source('raw', 'raw_census_bds_state_year') %}
 
 with latest_successful_manifests as (

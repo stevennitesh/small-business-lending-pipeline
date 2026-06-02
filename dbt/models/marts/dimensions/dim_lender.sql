@@ -1,3 +1,5 @@
+-- Dimension model: provide stable keys and labels for marts, BI filters, and reconciliation tests.
+
 select
     'UNKNOWN' as lender_key,
     'Unknown lender' as lender_name,

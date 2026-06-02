@@ -1,4 +1,8 @@
+-- Context mart: prepare regional economic indicators at the state/time grain used beside lending KPIs.
+
 with state_years as (
+    -- Build the union grain first so context gaps are visible instead of
+    -- silently dropping state/year rows with partial source coverage.
     select state_key, approval_year as year
     from {{ ref('mart_lending_annual_state') }}
 
@@ -63,6 +67,8 @@ select
     joined.has_lending_data,
     joined.has_laus_data,
     joined.has_business_dynamics_data,
+    -- BI can filter on this status to show only complete context or diagnose
+    -- which upstream source is missing for a state/year.
     case
         when not joined.has_lending_data then 'missing_lending'
         when not joined.has_laus_data and not joined.has_business_dynamics_data then 'missing_context'

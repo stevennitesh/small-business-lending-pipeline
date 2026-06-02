@@ -1,3 +1,5 @@
+-- Power BI export model: expose dashboard-safe fields from modeled marts, not raw source tables.
+
 select
     run_summary.pipeline_run_ids,
     run_summary.loaded_at_utc,

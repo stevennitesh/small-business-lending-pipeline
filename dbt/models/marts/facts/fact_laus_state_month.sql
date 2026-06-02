@@ -1,3 +1,5 @@
+-- Fact model: preserve latest validated source lineage while exposing the analytical grain for marts.
+
 select
     {{ generate_surrogate_key([
         "'laus_state_month'",

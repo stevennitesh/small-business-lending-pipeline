@@ -229,7 +229,7 @@ def test_sba_staging_union_uses_explicit_column_contract():
         selected_columns = []
         for line in branch_sql.splitlines():
             stripped = line.strip()
-            if not stripped or stripped == "select":
+            if not stripped or stripped.startswith("--") or stripped == "select":
                 continue
             if stripped.startswith("from "):
                 break

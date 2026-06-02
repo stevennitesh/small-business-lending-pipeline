@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 with fact_totals as (
     select
         project_state_key as state_key,

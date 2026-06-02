@@ -1,3 +1,5 @@
+{# Date spine macro generates a contiguous day-level calendar for the active target adapter. #}
+
 {% macro date_spine(start_date, end_date) -%}
     {%- if target.type == 'snowflake' -%}
         with recursive spine(date_day) as (

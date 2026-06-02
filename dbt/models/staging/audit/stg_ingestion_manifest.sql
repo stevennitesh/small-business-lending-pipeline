@@ -1,3 +1,5 @@
+-- Staging model: standardize raw fields after restricting records to latest validated manifests.
+
 {% set raw_ingestion_manifest = source('raw', 'raw_ingestion_manifest') %}
 
 with manifests as (
@@ -22,6 +24,8 @@ with manifests as (
         column_count,
         file_size_bytes,
         validation_messages,
+        -- Latest snapshots are gated by validation status so downstream facts
+        -- never report from a newer but failed raw extract.
         validation_status = 'passed'
         and dense_rank() over (
             partition by source_system, dataset_name, resource_name

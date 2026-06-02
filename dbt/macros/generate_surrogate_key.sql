@@ -1,3 +1,5 @@
+{# Surrogate-key macro hashes ordered business fields using a stable null-safe separator. #}
+
 {% macro generate_surrogate_key(fields) -%}
     {%- set expressions = [] -%}
     {%- for field in fields -%}

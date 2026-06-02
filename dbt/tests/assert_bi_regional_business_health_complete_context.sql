@@ -1,3 +1,5 @@
+-- Custom dbt data test: this query should return zero rows when the modeled contract holds.
+
 select *
 from {{ ref('bi_regional_business_health') }}
 where context_join_status != 'complete_context'
