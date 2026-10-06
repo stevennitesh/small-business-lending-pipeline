@@ -1,0 +1,772 @@
+version: 2
+
+models:
+  - name: bi_executive_overview
+    description: Dashboard-ready executive overview by state-year.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: annual_average_unemployment_rate
+        description: Mean monthly seasonally adjusted state unemployment rates as a decimal ratio; not official weighted annual estimates.
+      - name: establishment_count
+        description: Executive-page business-population context field; use bi_regional_business_health for deeper context analysis.
+      - name: loans_per_1000_establishments
+        description: Executive-page lending intensity context field per 1,000 establishments.
+      - name: approved_loan_dollars_per_establishment
+        description: Executive-page approved lending dollars per establishment context field.
+      - name: context_join_status
+        description: Executive-page context source availability status.
+
+      - name: is_full_calendar_year
+        description: Full calendar year according to dated reporting policy, not record min/max.
+
+      - name: calendar_period_status
+        description: Full, partial, or outside dated coverage evidence.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_state_lending_trends
+    description: Dashboard-ready annual state lending trends.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved dollar growth percentage.
+
+      - name: is_full_calendar_year
+        description: Full calendar year according to dated reporting policy, not record min/max.
+
+      - name: calendar_period_status
+        description: Full, partial, or outside dated coverage evidence.
+
+      - name: is_comparable_yoy
+        description: Consecutive full calendar years; false for gaps or partial years.
+
+      - name: comparable_prior_year_amount
+        description: Prior approved dollars only for comparable consecutive full years.
+
+      - name: first_observed_approval_date
+        description: First observed approval; not proof of source completeness.
+
+      - name: last_observed_approval_date
+        description: Last observed approval; not proof of source completeness.
+
+      - name: source_calendar_start
+        description: Calendar coverage start from publisher snapshot evidence.
+
+      - name: source_calendar_end
+        description: Calendar coverage end from publisher snapshot evidence.
+
+      - name: coverage_evidence_as_of
+        description: Date of the source coverage evidence.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_lender_concentration
+    description: Dashboard-ready state-year known-lender concentration table.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: top_1_lender_share
+        description: Top known lender share of known-lender approved dollars.
+      - name: top_5_lender_share
+        description: Top-five known lender share of known-lender approved dollars.
+      - name: lender_count
+        description: Known lender count in the state-year.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_industry_mix
+    description: Dashboard-ready annual state industry lending mix.
+    meta:
+      grain: one row per state, approval year, and NAICS sector
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "naics_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: industry_approved_amount_share
+        description: Industry share of approved dollars in the state-year.
+
+      - name: is_known_industry
+        description: True for a known valid reference sector; excludes UNKNOWN and unclassified 99 without changing source keys.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_program_mix
+    description: Dashboard-ready annual state SBA program lending mix.
+    meta:
+      grain: one row per state, approval year, and loan program
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: program_approved_amount_share
+        description: Program share of approved dollars in the state-year.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_regional_business_health
+    description: Dashboard-ready regional business health table by state-year.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loans_per_1000_establishments
+        description: SBA loan count per 1,000 establishments.
+      - name: approved_loan_dollars_per_establishment
+        description: Approved SBA loan dollars per establishment.
+      - name: annual_average_unemployment_rate
+        description: Mean monthly seasonally adjusted state unemployment rates as a decimal ratio; not official weighted annual estimates.
+      - name: unemployment_rate_yoy_change_pct
+        description: Legacy decimal-point change (PP divided by 100), deprecated; use unemployment_rate_yoy_change_pp.
+      - name: establishment_count
+        description: Number of establishments.
+      - name: establishment_entry_rate
+        description: Establishment entry rate as a decimal ratio.
+      - name: establishment_exit_rate
+        description: Establishment exit rate as a decimal ratio.
+      - name: context_join_status
+        description: Context source availability status.
+
+      - name: observed_month_count
+        description: Distinct months with a non-null monthly SA rate.
+
+      - name: observed_expected_month_count
+        description: Distinct non-null months matching available expected month identities.
+
+      - name: unexpected_month_count
+        description: Non-null months beyond dated coverage or in documented omitted months.
+
+      - name: expected_month_count
+        description: Expected available months after documented publisher omissions.
+
+      - name: publisher_omitted_month_count
+        description: Months not published by BLS inside the elapsed expected range.
+
+      - name: missing_month_count
+        description: Expected available months missing from this state/year.
+
+      - name: is_year_to_date
+        description: Current partial calendar year in the dated source evidence.
+
+      - name: is_comparable_annual
+        description: Twelve matched expected months in a completed year without unexpected observations or publisher omissions.
+
+      - name: annual_coverage_status
+        description: Full year, year to date, publisher omission, data gap or policy conflict.
+
+      - name: is_full_calendar_year
+        description: Full SBA calendar year per dated policy.
+
+      - name: is_comparable_context
+        description: Comparable full sources at matched state/year.
+
+      - name: unemployment_rate_yoy_change_pp
+        description: Change in percentage points, e.g. 4% to 5% is +1 pp; null for non-comparable years.
+
+      - name: has_matched_establishment_population
+        description: Lending and a positive non-null BDS establishment stock share this state/year; both intensity components use this population.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+
+      - name: bds_reference_date
+        description: March 12 reference date for the BDS year; stocks and March-to-March flows are context for calendar-year lending.
+  - name: bi_pipeline_health
+    description: Dashboard-ready pipeline health summary.
+    meta:
+      grain: one row per pipeline run summary
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+    columns:
+      - name: latest_run_status
+        description: Overall latest run status.
+      - name: validation_status
+        description: Overall validation status.
+      - name: freshness_status
+        description: Overall source freshness status.
+
+      - name: raw_load_status
+        description: Loaded evidence; separate from raw validity and final completion.
+
+      - name: final_pipeline_status_evidence
+        description: Final run_summary.json is not loaded in the same dbt pass.
+
+      - name: freshness_checked_at_utc
+        description: UTC date/time at which source ages were evaluated.
+
+  - name: bi_lender_mix
+    description: Dashboard-ready annual state known-lender lending mix for lender filtering and concentration detail.
+    meta:
+      grain: one row per state, approval year, and lender
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "lender_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: lender_key
+        description: Lender dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_lender')
+                field: lender_key
+      - name: lender_name
+        description: Lender display name.
+      - name: lender_approved_amount_share
+        description: Known lender share of known-lender approved dollars in the state-year.
+      - name: lender_rank
+        description: Known lender rank by approved dollars in the state-year.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_lending_performance
+    description: Dashboard-ready annual state loan performance and charge-off metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA.
+      - name: charged_off_loan_count
+        description: Count of loans whose grouped status is explicitly charged-off.
+      - name: chargeoff_amount_rate
+        description: Gross charge-off dollars divided by approved dollars as a decimal ratio.
+      - name: charged_off_loan_count_rate
+        description: Charged-off loan count divided by approved loan count as a decimal ratio.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_lending_status_mix
+    description: Dashboard-ready annual state loan-status mix metrics.
+    meta:
+      grain: one row per state, approval year, and loan status group
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_status_group"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_status_group
+        description: Stable status group used for loan performance KPI calculations.
+      - name: loan_status_group_label
+        description: Display label for the loan status group.
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count for the status group.
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for the status group.
+      - name: charged_off_loan_count
+        description: Count of status-group loans whose grouped status is explicitly charged-off.
+      - name: status_group_approved_amount_share
+        description: Status-group share of approved dollars in the state-year as a decimal ratio.
+      - name: status_group_loan_count_share
+        description: Status-group share of approved loan count in the state-year as a decimal ratio.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_lending_terms_pricing
+    description: Dashboard-ready annual state loan term, pricing coverage, guarantee, and 504 financing metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: term_coverage_count
+        description: Number of loans with a reported term in months.
+      - name: term_coverage_rate
+        description: Share of loans with a reported term in months as a decimal ratio.
+      - name: average_term_months
+        description: Average reported loan term in months.
+      - name: initial_interest_rate_coverage_count
+        description: Number of loans with a reported initial interest rate.
+      - name: initial_interest_rate_coverage_rate
+        description: Share of loans with a reported initial interest rate as a decimal ratio.
+      - name: average_initial_interest_rate
+        description: Average reported initial interest rate as a decimal ratio.
+      - name: interest_type_coverage_count
+        description: Number of loans with a reported fixed or variable interest type.
+      - name: fixed_interest_loan_count
+        description: Number of loans reported with fixed interest type.
+      - name: variable_interest_loan_count
+        description: Number of loans reported with variable interest type.
+      - name: fixed_interest_loan_share
+        description: Fixed-interest share among loans with a reported interest type as a decimal ratio.
+      - name: variable_interest_loan_share
+        description: Variable-interest share among loans with a reported interest type as a decimal ratio.
+      - name: seven_a_approved_loan_amount
+        description: SBA 7(a) approved dollars.
+      - name: sba_guaranteed_approval_amount
+        description: SBA-guaranteed approved dollars reported for SBA 7(a) loans.
+      - name: seven_a_sba_guarantee_rate
+        description: Guaranteed dollars divided by whole-loan amounts on the same paired known 7(a) records.
+      - name: third_party_dollars
+        description: Third-party financing dollars reported for SBA 504 loans.
+      - name: third_party_to_approved_amount_rate
+        description: Deprecated mixed-program ratio; new visuals use known_504_third_party_to_sba_amount_rate and paired coverage.
+
+      - name: total_term_months
+        description: Additive known term numerator.
+
+      - name: total_initial_interest_rate
+        description: Additive known initial-rate numerator as decimals.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+
+      - name: program_504_loan_count
+        description: All eligible 504 approval records; denominator for paired financing coverage.
+        data_tests:
+          - non_negative
+
+      - name: paired_504_coverage_count
+        description: Eligible 504 records with both valid third-party dollars and gross SBA/CDC amounts, including zero.
+        data_tests:
+          - non_negative
+
+      - name: paired_504_third_party_dollars
+        description: Third-party dollars summed only on paired known 504 records.
+
+      - name: paired_504_approval_amount
+        description: SBA/CDC approval amount summed on the same paired known 504 records.
+
+      - name: paired_504_coverage_rate
+        description: Paired known 504 record count divided by all eligible 504 records.
+
+      - name: known_504_third_party_to_sba_amount_rate
+        description: Paired third-party dollars divided by paired SBA/CDC amounts; may exceed one and is not a total-project financing share.
+
+      - name: program_7a_loan_count
+        description: All eligible 7(a) records; denominator for paired guarantee coverage.
+        data_tests:
+          - non_negative
+
+      - name: paired_7a_coverage_count
+        description: 7(a) records with valid gross and guaranteed amounts, including zero.
+        data_tests:
+          - non_negative
+
+      - name: paired_7a_guaranteed_amount
+        description: SBA guarantee amount summed on paired known 7(a) records.
+
+      - name: paired_7a_approval_amount
+        description: Whole-loan approval amount summed on the same paired known 7(a) records.
+
+      - name: paired_7a_coverage_rate
+        description: Paired known guarantee count divided by all eligible 7(a) records.
+  - name: bi_lending_jobs_impact
+    description: Dashboard-ready annual state descriptive jobs-supported efficiency metrics.
+    meta:
+      grain: one row per state and approval year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+      - name: loan_count
+        description: SBA approved loan count.
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: jobs_supported_coverage_count
+        description: Number of loans with a reported jobs-supported value.
+      - name: jobs_supported_coverage_rate
+        description: Share of loans with a reported jobs-supported value as a decimal ratio.
+      - name: total_jobs_supported
+        description: Source-reported total jobs supported; descriptive and not causal.
+      - name: jobs_supported_per_loan
+        description: Source-reported jobs supported divided by loan count; descriptive, not causal.
+      - name: jobs_supported_per_1m_approved
+        description: Source-reported jobs supported per $1M approved; descriptive, not causal.
+      - name: approved_loan_dollars_per_job_supported
+        description: Approved dollars divided by source-reported jobs supported; descriptive, not causal.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: bi_state_filter
+    description: Dashboard-ready state and region filter helper.
+    meta:
+      grain: one row per state or DC
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["state_key"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - unique
+          - not_null
+      - name: state_name
+        description: State display name.
+      - name: census_region
+        description: Census region used for Power BI regional filters.
+      - name: census_division
+        description: Census division used for Power BI regional filters.
+
+  - name: bi_year_filter
+    description: Dashboard-ready year filter helper built from BI table year fields.
+    meta:
+      grain: one row per report year
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["year"]
+    columns:
+      - name: year
+        description: Calendar/report year used for Power BI year filters.
+        data_tests:
+          - unique
+          - not_null
+      - name: year_label
+        description: Year display label.
+
+  - name: bi_loan_program_filter
+    description: Dashboard-ready SBA loan program filter helper.
+    meta:
+      grain: one row per SBA loan program
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["loan_program_key"]
+    columns:
+      - name: loan_program_key
+        description: SBA loan program key.
+        data_tests:
+          - unique
+          - not_null
+      - name: loan_program_name
+        description: SBA loan program display name.
+
+
+      - name: approval_amount_basis
+        description: Program source basis for GrossApproval; whole 7(a) loan or SBA/CDC portion of 504 financing.
+
+      - name: reporting_lender_role
+        description: Role of the normalized name used for reporting; current 7(a) bank or reported 504 third-party lender.
+  - name: bi_naics_filter
+    description: Dashboard-ready NAICS sector filter helper.
+    meta:
+      grain: one row per NAICS sector
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["naics_key"]
+    columns:
+      - name: naics_key
+        description: NAICS sector key.
+        data_tests:
+          - unique
+          - not_null
+      - name: naics_sector_name
+        description: NAICS sector display name.
+      - name: is_unknown
+        description: True when the sector is the internal unknown bucket.
+
+  - name: bi_lender_filter
+    description: Dashboard-ready known-lender filter helper.
+    meta:
+      grain: one row per known lender
+    data_tests:
+      - not_empty:
+          config:
+            tags: ["critical"]
+      - unique_combination_of_columns:
+          config:
+            tags: ["critical"]
+          arguments:
+            combination_of_columns: ["lender_key"]
+    columns:
+      - name: lender_key
+        description: Known lender dimension key.
+        data_tests:
+          - unique
+          - not_null
+      - name: lender_name
+        description: Known lender display name.
+      - name: is_unknown
+        description: Always false for dashboard lender filters; internal unknown lenders remain in dim_lender.
+
+  - name: bi_source_freshness
+    description: Source reference periods, dated publisher evidence, download review and validity, independent of lending filters.
+    meta:
+      grain: one row per source resource
+    data_tests:
+      - not_empty:
+          config:
+            tags: [critical]
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [source_system, source_dataset, source_resource_name]
+          config:
+            tags: [critical]
+    columns:
+      - name: source_system
+        description: Configured publisher/source identity.
+      - name: freshness_status
+        description: Stale only for a missed verified published period; expired verification/download checks remain unknown, independently of validity.
+      - name: freshness_checked_at_utc
+        description: UTC time of this age evaluation.
+      - name: latest_extracted_at_utc
+        description: Latest resource extraction timestamp.
+      - name: latest_observation_date
+        description: Latest valid source-wide observation, not per-resource coverage.
+
+      - name: observation_date_basis
+        description: Source clock used for observation age; BDS uses March 12, independently of extract time.
+      - name: publication_reference_date
+        description: Latest verified publisher reference at quarter grain for SBA, year grain for Census, and month grain for BLS.
+      - name: publication_date
+        description: Actual publisher release date, nullable when unconfirmed; never substitute coverage end or catalog modified date.
+      - name: publication_verified_date
+        description: Dated check of the official publisher evidence, independently of extraction and release.
+      - name: publication_source_url
+        description: Official publisher evidence URL.
+      - name: publication_cadence
+        description: Expected release frequency; never a proof of newer available data.
+      - name: next_scheduled_release_date
+        description: Announced next publication, nullable if unconfirmed; passing it prompts verification, not presumed publication.
+      - name: max_release_check_age_days
+        description: Local maximum age of publisher verification.
+      - name: release_check_age_days
+        description: Age of publisher verification at the frozen check time.
+      - name: publication_status
+        description: Saved source period compared with recently verified publication evidence.
+      - name: download_status
+        description: Saved resource download age relative to its local review window; review due does not prove a newer publication.
+      - name: freshness_reason
+        description: Explicit explanation of release comparison, overdue review or unknown evidence.

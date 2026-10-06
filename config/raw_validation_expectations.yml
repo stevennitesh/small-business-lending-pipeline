@@ -1,0 +1,19 @@
+raw_validation_expectations:
+  sba_foia:
+    required_programs:
+      - 7a
+      - 504
+
+  census_bds:
+    expected_state_count: 51
+    required_variables:
+      - YEAR
+      - state
+      - ESTAB
+      - ESTABS_ENTRY
+      - ESTABS_EXIT
+
+  bls_laus:
+    required_period_pattern: "^M(0[1-9]|1[0-2])$"
+    unemployment_rate_min: 0
+    unemployment_rate_max: 100

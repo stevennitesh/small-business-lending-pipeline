@@ -1,0 +1,20 @@
+freshness_rules:
+  # Observation age is descriptive. Stale means a known newer published period
+  # is missing; expired release/download checks require verification instead.
+  sba_foia:
+    expected_cadence: quarterly
+    max_extract_age_days: 120
+    max_observation_age_days: null
+    max_release_check_age_days: 90
+
+  census_bds:
+    expected_cadence: annual
+    max_extract_age_days: 400
+    max_observation_age_days: null
+    max_release_check_age_days: 90
+
+  bls_laus:
+    expected_cadence: monthly
+    max_extract_age_days: 60
+    max_observation_age_days: null
+    max_release_check_age_days: 30

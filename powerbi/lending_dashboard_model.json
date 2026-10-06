@@ -1,0 +1,1403 @@
+{
+  "name": "lending_dashboard",
+  "target_artifact": "powerbi/lending_dashboard.pbix",
+  "artifact_status": "source_model_ready_pbix_requires_power_bi_desktop",
+  "source_modes": {
+    "local_csv": {
+      "base_path": "data/exports/powerbi",
+      "notes": "Use the CSV exports written by pipelines.powerbi.export_contract."
+    },
+    "snowflake": {
+      "database": "${SNOWFLAKE_DATABASE}",
+      "schema": "${SNOWFLAKE_BI_SCHEMA}",
+      "notes": "Use the dbt-built BI tables in the configured Snowflake database and schema."
+    }
+  },
+  "tables": [
+    {
+      "name": "bi_executive_overview",
+      "grain": "state-year",
+      "local_csv": "data/exports/powerbi/bi_executive_overview.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_EXECUTIVE_OVERVIEW",
+      "required_columns": [
+        "annual_average_unemployment_rate",
+        "approved_loan_dollars_per_establishment",
+        "average_loan_size",
+        "calendar_period_status",
+        "context_join_status",
+        "establishment_count",
+        "is_full_calendar_year",
+        "loan_count",
+        "loans_per_1000_establishments",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "year",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Lending overview"
+    },
+    {
+      "name": "bi_state_lending_trends",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_state_lending_trends.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_STATE_LENDING_TRENDS",
+      "required_columns": [
+        "approval_year",
+        "approved_loan_amount_yoy_growth_pct",
+        "average_loan_size",
+        "calendar_period_status",
+        "comparable_prior_year_amount",
+        "coverage_evidence_as_of",
+        "first_observed_approval_date",
+        "is_comparable_yoy",
+        "is_full_calendar_year",
+        "last_observed_approval_date",
+        "loan_count",
+        "source_calendar_end",
+        "source_calendar_start",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Annual state lending"
+    },
+    {
+      "name": "bi_lender_concentration",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_lender_concentration.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDER_CONCENTRATION",
+      "required_columns": [
+        "approval_year",
+        "lender_count",
+        "loan_count",
+        "state_key",
+        "state_name",
+        "top_5_approved_loan_amount",
+        "top_5_lender_share",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "State/year lender-name concentration"
+    },
+    {
+      "name": "bi_industry_mix",
+      "grain": "state-approval_year-naics",
+      "local_csv": "data/exports/powerbi/bi_industry_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_INDUSTRY_MIX",
+      "required_columns": [
+        "approval_year",
+        "industry_approved_amount_share",
+        "loan_count",
+        "naics_key",
+        "naics_sector_name",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "is_known_industry",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Industry distribution"
+    },
+    {
+      "name": "bi_program_mix",
+      "grain": "state-approval_year-program",
+      "local_csv": "data/exports/powerbi/bi_program_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_PROGRAM_MIX",
+      "required_columns": [
+        "approval_year",
+        "loan_count",
+        "loan_program_key",
+        "loan_program_name",
+        "program_approved_amount_share",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Program distribution"
+    },
+    {
+      "name": "bi_regional_business_health",
+      "grain": "state-year",
+      "local_csv": "data/exports/powerbi/bi_regional_business_health.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_REGIONAL_BUSINESS_HEALTH",
+      "required_columns": [
+        "annual_average_unemployment_rate",
+        "annual_coverage_status",
+        "approved_loan_dollars_per_establishment",
+        "context_join_status",
+        "establishment_count",
+        "establishment_entry_rate",
+        "establishment_exit_rate",
+        "expected_month_count",
+        "is_comparable_annual",
+        "is_comparable_context",
+        "is_full_calendar_year",
+        "is_year_to_date",
+        "loan_count",
+        "loans_per_1000_establishments",
+        "missing_month_count",
+        "observed_month_count",
+        "publisher_omitted_month_count",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "unemployment_rate_yoy_change_pct",
+        "unemployment_rate_yoy_change_pp",
+        "year",
+        "has_matched_establishment_population",
+        "observed_expected_month_count",
+        "unexpected_month_count",
+        "approval_amount_coverage_count",
+        "bds_reference_date"
+      ],
+      "display_name": "Lending and local business context"
+    },
+    {
+      "name": "bi_pipeline_health",
+      "grain": "pipeline-run-summary",
+      "local_csv": "data/exports/powerbi/bi_pipeline_health.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_PIPELINE_HEALTH",
+      "required_columns": [
+        "final_pipeline_status_evidence",
+        "freshness_checked_at_utc",
+        "freshness_status",
+        "latest_run_status",
+        "loaded_at_utc",
+        "pipeline_run_ids",
+        "raw_load_status",
+        "validation_status"
+      ],
+      "display_name": "Data checks and pipeline status"
+    },
+    {
+      "name": "bi_lender_mix",
+      "grain": "state-approval_year-lender",
+      "local_csv": "data/exports/powerbi/bi_lender_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDER_MIX",
+      "required_columns": [
+        "approval_year",
+        "lender_approved_amount_share",
+        "lender_key",
+        "lender_name",
+        "lender_rank",
+        "loan_count",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Reporting lender-name distribution"
+    },
+    {
+      "name": "bi_lending_performance",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_lending_performance.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDING_PERFORMANCE",
+      "required_columns": [
+        "approval_year",
+        "average_loan_size",
+        "charged_off_loan_count",
+        "charged_off_loan_count_rate",
+        "chargeoff_amount_rate",
+        "gross_chargeoff_amount",
+        "loan_count",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Reported loan performance"
+    },
+    {
+      "name": "bi_lending_status_mix",
+      "grain": "state-approval_year-loan_status_group",
+      "local_csv": "data/exports/powerbi/bi_lending_status_mix.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDING_STATUS_MIX",
+      "required_columns": [
+        "approval_year",
+        "average_loan_size",
+        "charged_off_loan_count",
+        "gross_chargeoff_amount",
+        "loan_count",
+        "loan_status_group",
+        "loan_status_group_label",
+        "loan_status_sort_order",
+        "state_key",
+        "state_name",
+        "status_group_approved_amount_share",
+        "status_group_loan_count_share",
+        "total_approved_loan_amount",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Reported loan status"
+    },
+    {
+      "name": "bi_lending_terms_pricing",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_lending_terms_pricing.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDING_TERMS_PRICING",
+      "required_columns": [
+        "approval_year",
+        "average_initial_interest_rate",
+        "average_loan_size",
+        "average_term_months",
+        "fixed_interest_loan_count",
+        "fixed_interest_loan_share",
+        "initial_interest_rate_coverage_count",
+        "initial_interest_rate_coverage_rate",
+        "interest_type_coverage_count",
+        "loan_count",
+        "sba_guaranteed_approval_amount",
+        "seven_a_approved_loan_amount",
+        "seven_a_sba_guarantee_rate",
+        "state_key",
+        "state_name",
+        "term_coverage_count",
+        "term_coverage_rate",
+        "third_party_dollars",
+        "third_party_to_approved_amount_rate",
+        "total_approved_loan_amount",
+        "total_initial_interest_rate",
+        "total_term_months",
+        "variable_interest_loan_count",
+        "variable_interest_loan_share",
+        "approval_amount_coverage_count",
+        "known_504_third_party_to_sba_amount_rate",
+        "paired_504_approval_amount",
+        "paired_504_coverage_count",
+        "paired_504_coverage_rate",
+        "paired_504_third_party_dollars",
+        "program_504_loan_count",
+        "program_7a_loan_count",
+        "paired_7a_coverage_count",
+        "paired_7a_guaranteed_amount",
+        "paired_7a_approval_amount",
+        "paired_7a_coverage_rate"
+      ],
+      "display_name": "Reported loan terms and rates"
+    },
+    {
+      "name": "bi_lending_jobs_impact",
+      "grain": "state-approval_year",
+      "local_csv": "data/exports/powerbi/bi_lending_jobs_impact.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDING_JOBS_IMPACT",
+      "required_columns": [
+        "approval_year",
+        "approved_loan_dollars_per_job_supported",
+        "average_loan_size",
+        "jobs_supported_coverage_count",
+        "jobs_supported_coverage_rate",
+        "jobs_supported_per_1m_approved",
+        "jobs_supported_per_loan",
+        "loan_count",
+        "state_key",
+        "state_name",
+        "total_approved_loan_amount",
+        "total_jobs_supported",
+        "approval_amount_coverage_count"
+      ],
+      "display_name": "Reported jobs estimates"
+    },
+    {
+      "name": "bi_state_filter",
+      "grain": "state",
+      "local_csv": "data/exports/powerbi/bi_state_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_STATE_FILTER",
+      "required_columns": [
+        "census_division",
+        "census_region",
+        "state_abbr",
+        "state_fips",
+        "state_key",
+        "state_name"
+      ],
+      "display_name": "State and region choices"
+    },
+    {
+      "name": "bi_year_filter",
+      "grain": "year",
+      "local_csv": "data/exports/powerbi/bi_year_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_YEAR_FILTER",
+      "required_columns": [
+        "year",
+        "year_label"
+      ],
+      "display_name": "Calendar year choices"
+    },
+    {
+      "name": "bi_loan_program_filter",
+      "grain": "loan-program",
+      "local_csv": "data/exports/powerbi/bi_loan_program_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LOAN_PROGRAM_FILTER",
+      "required_columns": [
+        "loan_program",
+        "loan_program_key",
+        "loan_program_name",
+        "approval_amount_basis",
+        "reporting_lender_role"
+      ],
+      "display_name": "Program choices and amount bases"
+    },
+    {
+      "name": "bi_naics_filter",
+      "grain": "naics-sector",
+      "local_csv": "data/exports/powerbi/bi_naics_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_NAICS_FILTER",
+      "required_columns": [
+        "is_unknown",
+        "is_valid_current_code",
+        "naics_description",
+        "naics_key",
+        "naics_sector_code",
+        "naics_sector_name"
+      ],
+      "display_name": "Industry choices"
+    },
+    {
+      "name": "bi_lender_filter",
+      "grain": "lender",
+      "local_csv": "data/exports/powerbi/bi_lender_filter.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_LENDER_FILTER",
+      "required_columns": [
+        "is_unknown",
+        "lender_key",
+        "lender_name"
+      ],
+      "display_name": "Reporting lender-name choices"
+    },
+    {
+      "name": "bi_source_freshness",
+      "grain": "source-resource",
+      "local_csv": "data/exports/powerbi/bi_source_freshness.csv",
+      "snowflake_table": "${SNOWFLAKE_DATABASE}.${SNOWFLAKE_BI_SCHEMA}.BI_SOURCE_FRESHNESS",
+      "required_columns": [
+        "extract_age_days",
+        "freshness_checked_at_utc",
+        "freshness_status",
+        "is_latest_successful_snapshot",
+        "latest_extracted_at_utc",
+        "latest_ingestion_date",
+        "latest_observation_date",
+        "latest_row_count",
+        "max_extract_age_days",
+        "max_observation_age_days",
+        "observation_age_days",
+        "observed_snapshot_count",
+        "snapshot_validity_status",
+        "source_dataset",
+        "source_resource_name",
+        "source_system",
+        "observation_date_basis",
+        "publication_reference_date",
+        "publication_date",
+        "publication_verified_date",
+        "publication_source_url",
+        "publication_cadence",
+        "next_scheduled_release_date",
+        "max_release_check_age_days",
+        "release_check_age_days",
+        "publication_status",
+        "download_status",
+        "freshness_reason"
+      ],
+      "display_name": "Source reference periods and publications"
+    }
+  ],
+  "dimensions": [
+    {
+      "name": "bi_state_filter",
+      "source_table": "bi_state_filter",
+      "key": "state_key",
+      "display": "state_name",
+      "filter_fields": [
+        "state_name",
+        "state_abbr",
+        "census_region",
+        "census_division"
+      ]
+    },
+    {
+      "name": "bi_year_filter",
+      "source_table": "bi_year_filter",
+      "key": "year",
+      "display": "year_label",
+      "filter_fields": [
+        "year"
+      ]
+    },
+    {
+      "name": "bi_loan_program_filter",
+      "source_table": "bi_loan_program_filter",
+      "key": "loan_program_key",
+      "display": "loan_program_name",
+      "filter_fields": [
+        "loan_program_name"
+      ]
+    },
+    {
+      "name": "bi_naics_filter",
+      "source_table": "bi_naics_filter",
+      "key": "naics_key",
+      "display": "naics_sector_name",
+      "filter_fields": [
+        "naics_sector_name"
+      ]
+    },
+    {
+      "name": "bi_lender_filter",
+      "source_table": "bi_lender_filter",
+      "key": "lender_key",
+      "display": "lender_name",
+      "filter_fields": [
+        "lender_name"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_executive_overview.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_state_lending_trends.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lender_concentration.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_industry_mix.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_program_mix.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_regional_business_health.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lender_mix.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lending_performance.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lending_status_mix.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lending_terms_pricing.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_state_filter.state_key",
+      "to": "bi_lending_jobs_impact.state_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_executive_overview.year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_state_lending_trends.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lender_concentration.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_industry_mix.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_program_mix.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_regional_business_health.year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lender_mix.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lending_performance.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lending_status_mix.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lending_terms_pricing.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_year_filter.year",
+      "to": "bi_lending_jobs_impact.approval_year",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_loan_program_filter.loan_program_key",
+      "to": "bi_program_mix.loan_program_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_naics_filter.naics_key",
+      "to": "bi_industry_mix.naics_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    },
+    {
+      "from": "bi_lender_filter.lender_key",
+      "to": "bi_lender_mix.lender_key",
+      "cardinality": "one_to_many",
+      "cross_filter": "single"
+    }
+  ],
+  "measures": [
+    {
+      "name": "Selected Year Label",
+      "category": "display_logic",
+      "expression": "VAR SelectedCount = COUNTROWS(VALUES(bi_year_filter[year]))\nVAR AllCount = COUNTROWS(ALL(bi_year_filter))\nRETURN SWITCH(\n    TRUE(),\n    SelectedCount = 0, \"No years\",\n    SelectedCount = 1, FORMAT(SELECTEDVALUE(bi_year_filter[year]), \"0\"),\n    SelectedCount = AllCount, \"All years\",\n    \"Multiple years\"\n)",
+      "format_string": "General",
+      "display_name": "Calendar year",
+      "description": "Calendar-year selection: no years, one year, all years in the dimension, or multiple selected years. All-year comparison clears the entire year dimension; a subset is never labeled All years."
+    },
+    {
+      "name": "Selected State Label",
+      "category": "display_logic",
+      "expression": "VAR SelectedCount = COUNTROWS(VALUES(bi_state_filter[state_name]))\nVAR AllCount = COUNTROWS(ALL(bi_state_filter))\nRETURN SWITCH(\n    TRUE(),\n    SelectedCount = 0, \"No states\",\n    SelectedCount = 1, SELECTEDVALUE(bi_state_filter[state_name]),\n    SelectedCount = AllCount, \"All states\",\n    \"Multiple states\"\n)",
+      "format_string": "General",
+      "display_name": "Project state",
+      "description": "Project-state selection: no states, one state, all states in the dimension, or multiple selected states. All-state comparison clears the entire state dimension, including region; a regional subset is never labeled All states."
+    },
+    {
+      "name": "Approval Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_executive_overview",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_executive_overview[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Reported approval amounts"
+    },
+    {
+      "name": "Approval Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_executive_overview",
+      "column": "loan_count",
+      "expression": "SUM(bi_executive_overview[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_executive_overview",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_executive_overview[total_approved_loan_amount]), SUM(bi_executive_overview[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Average reported amount"
+    },
+    {
+      "name": "Program Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_program_mix",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_program_mix[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Program: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography, calendar years and the corresponding category filter apply."
+    },
+    {
+      "name": "Program Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_program_mix",
+      "column": "loan_count",
+      "expression": "SUM(bi_program_mix[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Program: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography, calendar years and the corresponding category filter apply."
+    },
+    {
+      "name": "Program Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_program_mix",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_program_mix[total_approved_loan_amount]), SUM(bi_program_mix[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography, calendar years and the corresponding category filter apply.",
+      "display_name": "Program: average reported amount"
+    },
+    {
+      "name": "Industry Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_industry_mix",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_industry_mix[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Industry: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography, calendar years and the corresponding category filter apply."
+    },
+    {
+      "name": "Industry Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_industry_mix",
+      "column": "loan_count",
+      "expression": "SUM(bi_industry_mix[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Industry: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography, calendar years and the corresponding category filter apply."
+    },
+    {
+      "name": "Industry Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_industry_mix",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_industry_mix[total_approved_loan_amount]), SUM(bi_industry_mix[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography, calendar years and the corresponding category filter apply.",
+      "display_name": "Industry: average reported amount"
+    },
+    {
+      "name": "Known Lender Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lender_mix",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_lender_mix[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Known lender name: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography, calendar years and reporting-name filters apply; known normalized names only, not resolved historical institutions."
+    },
+    {
+      "name": "Known Lender Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lender_mix",
+      "column": "loan_count",
+      "expression": "SUM(bi_lender_mix[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Known lender name: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography, calendar years and reporting-name filters apply; known normalized names only, not resolved historical institutions."
+    },
+    {
+      "name": "Known Lender Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lender_mix",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lender_mix[total_approved_loan_amount]), SUM(bi_lender_mix[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography, calendar years and reporting-name filters apply; known normalized names only, not resolved historical institutions.",
+      "display_name": "Known lender name: average reported amount"
+    },
+    {
+      "name": "Matched Context Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_regional_business_health",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_regional_business_health[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Reported amounts with business context",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Matched Context Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_regional_business_health",
+      "column": "loan_count",
+      "expression": "SUM(bi_regional_business_health[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Approval records with business context",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Matched Context Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_regional_business_health",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_regional_business_health[total_approved_loan_amount]), SUM(bi_regional_business_health[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Average reported amount with business context"
+    },
+    {
+      "name": "Performance Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_performance",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_lending_performance[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Reported performance: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Performance Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_performance",
+      "column": "loan_count",
+      "expression": "SUM(bi_lending_performance[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Reported performance: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Performance Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_performance",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_performance[total_approved_loan_amount]), SUM(bi_lending_performance[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Reported performance: average reported amount"
+    },
+    {
+      "name": "Status Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_status_mix",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_lending_status_mix[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Loan status: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Status Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_status_mix",
+      "column": "loan_count",
+      "expression": "SUM(bi_lending_status_mix[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Loan status: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Status Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_status_mix",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_status_mix[total_approved_loan_amount]), SUM(bi_lending_status_mix[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Loan status: average reported amount"
+    },
+    {
+      "name": "Terms Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_terms_pricing",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_lending_terms_pricing[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Loan terms: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Terms Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_terms_pricing",
+      "column": "loan_count",
+      "expression": "SUM(bi_lending_terms_pricing[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Loan terms: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Terms Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[total_approved_loan_amount]), SUM(bi_lending_terms_pricing[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Loan terms: average reported amount"
+    },
+    {
+      "name": "Jobs Dollars",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_jobs_impact",
+      "column": "total_approved_loan_amount",
+      "expression": "SUM(bi_lending_jobs_impact[total_approved_loan_amount])",
+      "format_string": "$#,0.00",
+      "display_name": "Reported jobs: reported approval amounts",
+      "description": "Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Jobs Records",
+      "category": "semantic_aggregation",
+      "aggregation": "sum",
+      "table": "bi_lending_jobs_impact",
+      "column": "loan_count",
+      "expression": "SUM(bi_lending_jobs_impact[loan_count])",
+      "format_string": "#,0",
+      "display_name": "Reported jobs: approval records",
+      "description": "Eligible approval records with mapped project geography and calendar dates, including canceled/not-funded statuses. A record is not a unique borrower, business or disbursement. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components."
+    },
+    {
+      "name": "Jobs Average Approval Size",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "approval_amount_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[total_approved_loan_amount]), SUM(bi_lending_jobs_impact[approval_amount_coverage_count]))",
+      "format_string": "$#,0.00",
+      "description": "Sum of reported approval amounts divided by approval records with valid amounts, including known zero amounts. Unknown amounts stay in record volume but are excluded from this average. Never average group averages. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography and calendar years apply; unrelated program, industry and lender-name slicers do not filter these state/year components.",
+      "display_name": "Reported jobs: average reported amount"
+    },
+    {
+      "name": "Program Dollar Share",
+      "category": "semantic_aggregation",
+      "aggregation": "category_share",
+      "table": "bi_program_mix",
+      "column": "total_approved_loan_amount",
+      "dimension": "bi_loan_program_filter",
+      "expression": "DIVIDE(SUM(bi_program_mix[total_approved_loan_amount]), CALCULATE(SUM(bi_program_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_loan_program_filter)))",
+      "format_string": "0.00%",
+      "description": "Selected program amounts divided by all-program amounts in the same geography and calendar years. Nominal reported approval amounts: whole 7(a) loans plus the SBA/Certified Development Company portion of 504 loans. Includes canceled/not-funded approval records; not disbursements or total project financing. Returns blank for a zero or unknown denominator. Selected geography, calendar years and the corresponding category filter apply.",
+      "display_name": "Program share of reported amounts"
+    },
+    {
+      "name": "Known Industry Dollar Share",
+      "category": "semantic_aggregation",
+      "aggregation": "category_share",
+      "table": "bi_industry_mix",
+      "column": "total_approved_loan_amount",
+      "dimension": "bi_naics_filter",
+      "expression": "DIVIDE(CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), bi_industry_mix[is_known_industry] = TRUE()), CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), bi_industry_mix[is_known_industry] = TRUE()))",
+      "format_string": "0.00%",
+      "known_flag": "is_known_industry",
+      "display_name": "Industry share of known-sector amounts",
+      "description": "Selected known-sector reported amounts divided by all known-sector amounts in the same geography and calendar years. The denominator removes the industry dimension filter; unknown/unclassified sectors are excluded from both sides. Show Industry Dollar Coverage alongside it. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Industry Dollar Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "coverage",
+      "table": "bi_industry_mix",
+      "column": "total_approved_loan_amount",
+      "dimension": "bi_naics_filter",
+      "expression": "DIVIDE(CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), bi_industry_mix[is_known_industry] = TRUE()), CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), REMOVEFILTERS(bi_industry_mix[is_known_industry])))",
+      "format_string": "0.00%",
+      "known_flag": "is_known_industry",
+      "display_name": "Amounts with a known industry (%)",
+      "description": "Known-sector reported amounts divided by all reported amounts in selected geography and calendar years. Clears the industry dimension and known-only page flag for the all-industry denominator; unknown/unclassified amounts stay in that denominator. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Lender Dollar Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "cross_ratio",
+      "table": "bi_lender_concentration",
+      "numerator": "total_approved_loan_amount",
+      "denominator_table": "bi_executive_overview",
+      "denominator": "total_approved_loan_amount",
+      "expression": "DIVIDE(SUM(bi_lender_concentration[total_approved_loan_amount]), SUM(bi_executive_overview[total_approved_loan_amount]))",
+      "format_string": "0.00%",
+      "display_name": "Amounts with a known lender name (%)",
+      "description": "Known reporting-name amounts divided by all reported approval amounts in selected geography and calendar years. Independent of the individual lender-name selection. Classification coverage does not establish resolved banking identity. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Selected Top Five Known Lender Share",
+      "category": "semantic_aggregation",
+      "aggregation": "selected_top5",
+      "table": "bi_lender_mix",
+      "column": "total_approved_loan_amount",
+      "key": "lender_key",
+      "dimension": "bi_lender_filter",
+      "expression": "VAR Lenders =\n    CALCULATETABLE(\n        ADDCOLUMNS(\n            SUMMARIZE(bi_lender_mix, bi_lender_mix[lender_key]),\n            \"__Amount\", CALCULATE(SUM(bi_lender_mix[total_approved_loan_amount]))\n        ),\n        REMOVEFILTERS(bi_lender_filter)\n    )\nVAR TopFive = TOPN(5, Lenders, [__Amount], DESC, bi_lender_mix[lender_key], ASC)\nRETURN DIVIDE(SUMX(TopFive, [__Amount]), SUMX(Lenders, [__Amount]))",
+      "format_string": "0.00%",
+      "description": "Aggregate known-name reported amounts across selected states and years, then rank the five largest names. Denominator is all known-name amounts; the lender-name selection is removed. Names reflect currently assigned 7(a) banks and reported 504 third-party lenders, not resolved historical institutions. Returns blank for a zero or unknown denominator.",
+      "display_name": "Five largest names: share of known-name amounts"
+    },
+    {
+      "name": "Pooled State Year Top Five Share",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lender_concentration",
+      "numerator": "top_5_approved_loan_amount",
+      "denominator": "total_approved_loan_amount",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lender_concentration[top_5_approved_loan_amount]), SUM(bi_lender_concentration[total_approved_loan_amount]))",
+      "format_string": "0.00%",
+      "display_name": "Combined state/year top-five share (different memberships)",
+      "description": "Sum of stored state/year top-five reported amounts divided by all known-name amounts in selected geography and years. Membership varies by state/year; this is not the share of five names ranked over the entire selection. The lender-name selection does not filter these state/year components. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Approvals per 1000 Establishment Years",
+      "category": "semantic_aggregation",
+      "aggregation": "matched_ratio",
+      "table": "bi_regional_business_health",
+      "numerator": "loan_count",
+      "denominator": "establishment_count",
+      "scale": 1000,
+      "expression": "DIVIDE(CALCULATE(SUM(bi_regional_business_health[loan_count]) * 1000, bi_regional_business_health[has_matched_establishment_population] = TRUE()), CALCULATE(SUM(bi_regional_business_health[establishment_count]), bi_regional_business_health[has_matched_establishment_population] = TRUE()))",
+      "format_string": "0.00",
+      "population_flag": "has_matched_establishment_population",
+      "display_name": "Approval records per 1,000 employer locations per year",
+      "description": "Same-year approval records per 1,000 Census employer business locations across firm sizes. For several years, summed annual stocks form establishment-years, not unique business counts. Both components use the same matched state/year population. Context only; not credit access or market penetration. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Approval Dollars per Establishment Year",
+      "category": "semantic_aggregation",
+      "aggregation": "matched_ratio",
+      "table": "bi_regional_business_health",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "establishment_count",
+      "scale": 1,
+      "expression": "DIVIDE(CALCULATE(SUM(bi_regional_business_health[total_approved_loan_amount]), bi_regional_business_health[has_matched_establishment_population] = TRUE()), CALCULATE(SUM(bi_regional_business_health[establishment_count]), bi_regional_business_health[has_matched_establishment_population] = TRUE()))",
+      "format_string": "$#,0.00",
+      "population_flag": "has_matched_establishment_population",
+      "display_name": "Reported amounts per employer location per year",
+      "description": "Reported nominal approval amounts divided by Census employer-location stocks on the same matched state/year rows. Selected geography and years apply. One year gives dollars per employer location; several years sum annual stocks as establishment-years. Employer locations cover all firm sizes and exclude nonemployers; this is context, not credit access. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Comparable Full Year Dollar Growth",
+      "category": "semantic_aggregation",
+      "aggregation": "full_year_growth",
+      "table": "bi_state_lending_trends",
+      "column": "total_approved_loan_amount",
+      "prior": "comparable_prior_year_amount",
+      "flag": "is_comparable_yoy",
+      "expression": "VAR SelectedYear = SELECTEDVALUE(bi_year_filter[year])\nVAR CurrentStates = VALUES(bi_state_lending_trends[state_key])\nVAR PriorStates =\n    CALCULATETABLE(\n        VALUES(bi_state_lending_trends[state_key]),\n        REMOVEFILTERS(bi_year_filter),\n        bi_year_filter[year] = SelectedYear - 1\n    )\nRETURN IF(\n    HASONEVALUE(bi_year_filter[year]) &&\n    COUNTROWS(EXCEPT(CurrentStates, PriorStates)) = 0 &&\n    COUNTROWS(EXCEPT(PriorStates, CurrentStates)) = 0 &&\n    COUNTROWS(bi_state_lending_trends) = CALCULATE(COUNTROWS(bi_state_lending_trends), bi_state_lending_trends[is_comparable_yoy] = TRUE()),\n    DIVIDE(SUM(bi_state_lending_trends[total_approved_loan_amount]) - SUM(bi_state_lending_trends[comparable_prior_year_amount]), SUM(bi_state_lending_trends[comparable_prior_year_amount]))\n)",
+      "format_string": "0.00%",
+      "key": "state_key",
+      "display_name": "Reported amount change from previous full year",
+      "description": "Change in nominal reported approval amounts divided by the prior full-year amount, preserving selected geography. Returns blank for multiple/no selected years, partial or noncomparable periods, differing observed state populations in either direction, or a zero/unknown prior denominator. An absent state is not zero activity."
+    },
+    {
+      "name": "Chargeoff Dollar Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_performance",
+      "numerator": "gross_chargeoff_amount",
+      "denominator": "total_approved_loan_amount",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_performance[gross_chargeoff_amount]), SUM(bi_lending_performance[total_approved_loan_amount]))",
+      "format_string": "0.00%",
+      "display_name": "Reported chargeoffs / reported approval amounts",
+      "description": "Reported gross chargeoff amounts divided by nominal reported approval amounts in selected geography and years. These are observed historical statuses and amounts at the saved snapshot, not vintage-adjusted credit loss, default probability or comparable SBA exposure. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Charged Off Record Share",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_performance",
+      "numerator": "charged_off_loan_count",
+      "denominator": "loan_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_performance[charged_off_loan_count]), SUM(bi_lending_performance[loan_count]))",
+      "format_string": "0.00%",
+      "display_name": "Records with a reported chargeoff (%)",
+      "description": "Records with a reported chargeoff divided by all eligible approval records in selected geography and years. Observed historical status at the saved snapshot, not vintage-adjusted loss or a credit-risk estimate. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Term Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "term_coverage_count",
+      "denominator": "loan_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[term_coverage_count]), SUM(bi_lending_terms_pricing[loan_count]))",
+      "format_string": "0.00%",
+      "display_name": "Records with a known term (%)",
+      "description": "Records with a valid known term divided by all eligible approval records in selected geography and years. Invalid negative or missing terms are unknown; known zero terms count as available. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Average Known Term Months",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "total_term_months",
+      "denominator": "term_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[total_term_months]), SUM(bi_lending_terms_pricing[term_coverage_count]))",
+      "format_string": "0.00",
+      "display_name": "Average known loan term (months)",
+      "description": "Sum of valid term months divided by the known-term record count in selected geography and years. Unknown terms do not become zero; never average stored group means. Display Term Coverage alongside it. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Initial Rate Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "initial_interest_rate_coverage_count",
+      "denominator": "loan_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[initial_interest_rate_coverage_count]), SUM(bi_lending_terms_pricing[loan_count]))",
+      "format_string": "0.00%",
+      "display_name": "Records with a known initial rate (%)",
+      "description": "Records with a valid known initial interest rate divided by all eligible approval records in selected geography and years. Missing/invalid negative rates are unknown; known zero rates count as available. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Average Known Initial Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "total_initial_interest_rate",
+      "denominator": "initial_interest_rate_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[total_initial_interest_rate]), SUM(bi_lending_terms_pricing[initial_interest_rate_coverage_count]))",
+      "format_string": "0.00%",
+      "display_name": "Average known initial interest rate",
+      "description": "Sum of valid initial interest rates divided by the known-rate record count in selected geography and years. Unknown rates do not become zero; never average stored group means. Display Initial Rate Coverage alongside it. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Fixed Interest Share",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "fixed_interest_loan_count",
+      "denominator": "interest_type_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[fixed_interest_loan_count]), SUM(bi_lending_terms_pricing[interest_type_coverage_count]))",
+      "format_string": "0.00%",
+      "display_name": "Fixed-rate share of recognized rate types",
+      "description": "Recognized fixed-rate records divided by all recognized fixed/variable rate-type records in selected geography and years. Unknown rate types are excluded from the denominator. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Variable Interest Share",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "variable_interest_loan_count",
+      "denominator": "interest_type_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[variable_interest_loan_count]), SUM(bi_lending_terms_pricing[interest_type_coverage_count]))",
+      "format_string": "0.00%",
+      "display_name": "Variable-rate share of recognized rate types",
+      "description": "Recognized variable-rate records divided by all recognized fixed/variable rate-type records in selected geography and years. Unknown rate types are excluded from the denominator. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "7a Guarantee Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "paired_7a_guaranteed_amount",
+      "denominator": "paired_7a_approval_amount",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[paired_7a_guaranteed_amount]), SUM(bi_lending_terms_pricing[paired_7a_approval_amount]))",
+      "format_string": "0.00%",
+      "description": "SBA guaranteed amount divided by whole-loan amount on the same 7(a) records with both amounts known. Show approval-and-guarantee coverage alongside it. Returns blank for a zero or unknown denominator.",
+      "display_name": "7(a) guarantee / whole-loan amount"
+    },
+    {
+      "name": "Known 504 Third Party to SBA Amount Ratio",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "paired_504_third_party_dollars",
+      "denominator": "paired_504_approval_amount",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[paired_504_third_party_dollars]), SUM(bi_lending_terms_pricing[paired_504_approval_amount]))",
+      "format_string": "0.00%",
+      "description": "Third-party dollars divided by the SBA/CDC portion on the same 504 records with both amounts known. This can exceed 100% because the denominator is only part of financing. Show the records-with-both-amounts-known coverage alongside it. Returns blank for a zero or unknown denominator.",
+      "display_name": "504 third-party amount / SBA-CDC portion"
+    },
+    {
+      "name": "Jobs Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "jobs_supported_coverage_count",
+      "denominator": "loan_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[jobs_supported_coverage_count]), SUM(bi_lending_jobs_impact[loan_count]))",
+      "format_string": "0.00%",
+      "display_name": "Records with reported jobs (%)",
+      "description": "Records with valid reported jobs divided by all eligible approval records in selected geography and years. Known zero counts as available; missing/invalid negative jobs remain unknown. Values are lender estimates of created/retained positions at application, not audited or causal outcomes. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Reported Jobs per Known Record",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "total_jobs_supported",
+      "denominator": "jobs_supported_coverage_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]), SUM(bi_lending_jobs_impact[jobs_supported_coverage_count]))",
+      "format_string": "0.00",
+      "display_name": "Reported jobs per record with jobs known",
+      "description": "Sum of reported jobs divided by records with known jobs in selected geography and years; unknown jobs do not become zero. Display Jobs Coverage alongside it. Jobs are lender estimates of created/retained positions at application, not audited or causal outcomes. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Reported Jobs per Million Approved",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "total_jobs_supported",
+      "denominator": "total_approved_loan_amount",
+      "scale": 1000000,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]) * 1000000, SUM(bi_lending_jobs_impact[total_approved_loan_amount]))",
+      "format_string": "0.00",
+      "display_name": "Reported jobs per $1 million in approval amounts",
+      "description": "Sum of known reported jobs times one million divided by all nominal reported approval amounts in selected geography and years. The dollar denominator includes records with unknown jobs; show Jobs Coverage. Jobs are lender estimates at application, not audited or causal outcomes. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Approved Dollars per Reported Job",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "total_approved_loan_amount",
+      "denominator": "total_jobs_supported",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[total_approved_loan_amount]), SUM(bi_lending_jobs_impact[total_jobs_supported]))",
+      "format_string": "$#,0.00",
+      "display_name": "Reported approval amounts per reported job",
+      "description": "All nominal reported approval amounts divided by the sum of known reported jobs in selected geography and years. Includes approval amounts on records with unknown jobs; show Jobs Coverage. Jobs are lender estimates at application, not audited or causal outcomes. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Status Dollar Share",
+      "category": "semantic_aggregation",
+      "aggregation": "category_share",
+      "table": "bi_lending_status_mix",
+      "column": "total_approved_loan_amount",
+      "dimension": "bi_lending_status_mix",
+      "category_columns": [
+        "loan_status_group",
+        "loan_status_group_label",
+        "loan_status_sort_order"
+      ],
+      "expression": "DIVIDE(SUM(bi_lending_status_mix[total_approved_loan_amount]), CALCULATE(SUM(bi_lending_status_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_lending_status_mix[loan_status_group]), REMOVEFILTERS(bi_lending_status_mix[loan_status_group_label]), REMOVEFILTERS(bi_lending_status_mix[loan_status_sort_order])))",
+      "format_string": "0.00%",
+      "display_name": "Status share of reported approval amounts",
+      "description": "Selected reported loan-status amounts divided by all-status amounts in the same geography and years. The denominator clears status key, label and sort-order filters only. Statuses are observed at the saved snapshot; amounts remain nominal approvals including canceled/not-funded records. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "Reported Jobs per Approval Record",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_jobs_impact",
+      "numerator": "total_jobs_supported",
+      "denominator": "loan_count",
+      "scale": 1,
+      "expression": "DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]), SUM(bi_lending_jobs_impact[loan_count]))",
+      "format_string": "0.00",
+      "display_name": "Reported jobs per approval record",
+      "description": "Sum of known reported jobs divided by all eligible approval records in selected geography and years, including records with unknown jobs. Show Jobs Coverage; this differs from the known-record mean. Jobs are lender estimates at application, not audited or causal outcomes. Returns blank for a zero or unknown denominator."
+    },
+    {
+      "name": "State Mean Monthly SA Unemployment Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "single_state_year",
+      "table": "bi_regional_business_health",
+      "column": "annual_average_unemployment_rate",
+      "format_string": "0.0%",
+      "expression": "IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[annual_average_unemployment_rate]))",
+      "display_name": "State unemployment: mean monthly adjusted rate",
+      "description": "Mean of available monthly seasonally adjusted rates for one state and one year. Not an official weighted annual or national rate. Show month coverage; October 2025 was not published. Returns blank for multiple states or years."
+    },
+    {
+      "name": "State Unemployment Change PP",
+      "category": "semantic_aggregation",
+      "aggregation": "single_state_year",
+      "table": "bi_regional_business_health",
+      "column": "unemployment_rate_yoy_change_pp",
+      "format_string": "0.00 \"pp\"",
+      "expression": "IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[unemployment_rate_yoy_change_pp]))",
+      "display_name": "State unemployment change (percentage points)",
+      "description": "Change between comparable full annual state means, in percentage points: 4% to 5% is +1 point. Partial or publisher-omitted years have no comparable change. Returns blank for multiple states or years."
+    },
+    {
+      "name": "State Published Establishment Entry Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "single_state_year",
+      "table": "bi_regional_business_health",
+      "column": "establishment_entry_rate",
+      "format_string": "0.0%",
+      "expression": "IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[establishment_entry_rate]))",
+      "display_name": "Employer-location entry rate (Census published)",
+      "description": "Census published entry rate for one state and one year; non-additive. Uses entries over the mean of scope-consistent current and derived prior employer-location stocks. Returns blank for multiple/no states or years, absent source values or conflicting rows. Do not sum or average state/year rates."
+    },
+    {
+      "name": "State Published Establishment Exit Rate",
+      "category": "semantic_aggregation",
+      "aggregation": "single_state_year",
+      "table": "bi_regional_business_health",
+      "column": "establishment_exit_rate",
+      "format_string": "0.0%",
+      "expression": "IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[establishment_exit_rate]))",
+      "display_name": "Employer-location exit rate (Census published)",
+      "description": "Census published exit rate for one state and one year; non-additive. Uses exits over the mean of scope-consistent current and derived prior employer-location stocks. Returns blank for multiple/no states or years, absent source values or conflicting rows. Do not sum or average state/year rates."
+    },
+    {
+      "name": "Selected Known Source Name Count",
+      "category": "semantic_aggregation",
+      "aggregation": "selected_distinct_count",
+      "table": "bi_lender_mix",
+      "key": "lender_key",
+      "dimension": "bi_lender_filter",
+      "format_string": "#,0",
+      "expression": "CALCULATE(DISTINCTCOUNT(bi_lender_mix[lender_key]), REMOVEFILTERS(bi_lender_filter))",
+      "display_name": "Number of known reporting lender names",
+      "description": "Distinct normalized reporting-name keys with records in selected geography and calendar years, ignoring the individual lender-name selection. These are currently assigned 7(a) banks and reported 504 third-party lenders, not resolved historical institutions or banking groups."
+    },
+    {
+      "name": "Approval Amount Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_executive_overview",
+      "numerator": "approval_amount_coverage_count",
+      "denominator": "loan_count",
+      "scale": 1,
+      "format_string": "0.00%",
+      "description": "Share of eligible approval records with a valid reported amount; zero amounts are known. Returns blank for a zero or unknown denominator.",
+      "expression": "DIVIDE(SUM(bi_executive_overview[approval_amount_coverage_count]), SUM(bi_executive_overview[loan_count]))",
+      "display_name": "Records with a known approval amount (%)"
+    },
+    {
+      "name": "504 Paired Financing Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "paired_504_coverage_count",
+      "denominator": "program_504_loan_count",
+      "scale": 1,
+      "format_string": "0.00%",
+      "description": "Share of eligible 504 records with both reported third-party and SBA/CDC amounts. Returns blank for a zero or unknown denominator.",
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[paired_504_coverage_count]), SUM(bi_lending_terms_pricing[program_504_loan_count]))",
+      "display_name": "504 records with both financing amounts known (%)"
+    },
+    {
+      "name": "7a Paired Guarantee Coverage",
+      "category": "semantic_aggregation",
+      "aggregation": "ratio",
+      "table": "bi_lending_terms_pricing",
+      "numerator": "paired_7a_coverage_count",
+      "denominator": "program_7a_loan_count",
+      "scale": 1,
+      "format_string": "0.00%",
+      "expression": "DIVIDE(SUM(bi_lending_terms_pricing[paired_7a_coverage_count]), SUM(bi_lending_terms_pricing[program_7a_loan_count]))",
+      "display_name": "7(a) records with approval and guarantee amounts known (%)",
+      "description": "7(a) records with both a valid whole-loan approval amount and SBA guaranteed amount divided by all eligible 7(a) records in selected geography and years. Missing/invalid values in either field are excluded from the numerator; known zeros remain valid. Returns blank for a zero or unknown denominator."
+    }
+  ],
+  "filter_coverage": [
+    "year",
+    "state",
+    "region",
+    "program",
+    "industry",
+    "lender"
+  ],
+  "non_goals_enforced": [
+    "No raw source tables or files are model sources.",
+    "dbt owns definitions/components; DAX only aggregates modeled components in filter context.",
+    "Borrower-level identifiers are not exposed."
+  ],
+  "semantic_version": 3,
+  "pbix_status": "historical_known_metric_issues_requires_refresh_and_measure_replacement",
+  "filter_applicability": {
+    "all_lending_tables": [
+      "state",
+      "region",
+      "year"
+    ],
+    "bi_program_mix": [
+      "program"
+    ],
+    "bi_industry_mix": [
+      "industry"
+    ],
+    "bi_lender_mix": [
+      "lender"
+    ],
+    "other_tables": "Program, industry and lender filters do not cross-filter state/year summaries. Do not sync these slicers to other pages."
+  },
+  "presentation_language_file": "powerbi/report_language.json"
+}

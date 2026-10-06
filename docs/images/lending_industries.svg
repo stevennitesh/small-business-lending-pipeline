@@ -1,0 +1,191 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:ns4="http://www.w3.org/1999/xlink" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="792pt" height="468pt" viewBox="0 0 792 468" version="1.1" role="img" aria-labelledby="chart-title chart-description">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>scripts/render_analysis_report.py</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 468  L 792 468  L 792 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 285.12 332.28  L 736.56 332.28  L 736.56 131.04  L 285.12 131.04  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 285.12 332.28  L 285.12 131.04  " clip-path="url(#p6a135372b8)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.14; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_2">
+      <defs>
+       <path id="m2f4ce565f3" d="M 0 0  L 0 3.5  " style="stroke: #172b3a; stroke-width: 0.8" />
+      </defs>
+      <g>
+       <use ns4:href="#m2f4ce565f3" x="285.12" y="332.28" style="fill: #172b3a; stroke: #172b3a; stroke-width: 0.8" />
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="285.12" y="347.638281" transform="rotate(-0 285.12 347.638281)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 410.0784 332.28  L 410.0784 131.04  " clip-path="url(#p6a135372b8)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.14; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_4">
+      <g>
+       <use ns4:href="#m2f4ce565f3" x="410.0784" y="332.28" style="fill: #172b3a; stroke: #172b3a; stroke-width: 0.8" />
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="410.0784" y="347.638281" transform="rotate(-0 410.0784 347.638281)">6</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 535.036801 332.28  L 535.036801 131.04  " clip-path="url(#p6a135372b8)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.14; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_6">
+      <g>
+       <use ns4:href="#m2f4ce565f3" x="535.036801" y="332.28" style="fill: #172b3a; stroke: #172b3a; stroke-width: 0.8" />
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="535.036801" y="347.638281" transform="rotate(-0 535.036801 347.638281)">12</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 659.995201 332.28  L 659.995201 131.04  " clip-path="url(#p6a135372b8)" style="fill: none; stroke: #b0b0b0; stroke-opacity: 0.14; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_8">
+      <g>
+       <use ns4:href="#m2f4ce565f3" x="659.995201" y="332.28" style="fill: #172b3a; stroke: #172b3a; stroke-width: 0.8" />
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="659.995201" y="347.638281" transform="rotate(-0 659.995201 347.638281)">18</text>
+     </g>
+    </g>
+    <g id="text_5">
+     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="510.84" y="362.284219" transform="rotate(-0 510.84 362.284219)">Share of known-industry reported amounts (%)</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_9" />
+     <g id="text_6">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #172b3a" x="281.62" y="154.457711" transform="rotate(-0 281.62 154.457711)">Accommodation and Food Services</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_10" />
+     <g id="text_7">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #172b3a" x="281.62" y="187.010283" transform="rotate(-0 281.62 187.010283)">Retail Trade</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_11" />
+     <g id="text_8">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(156.235469 214.239886)">Health Care and Social</text>
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(223.007187 226.55748)">Assistance</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_12" />
+     <g id="text_9">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #172b3a" x="281.62" y="252.115427" transform="rotate(-0 281.62 252.115427)">Construction</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_13" />
+     <g id="text_10">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(123.575781 279.34503)">Other Services Except Public</text>
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(201.130938 291.662624)">Administration</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_14" />
+     <g id="text_11">
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(137.659219 311.897602)">Professional Scientific and</text>
+      <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(181.227812 324.215196)">Technical Services</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 285.12 140.187273  L 646.272 140.187273  L 646.272 160.369867  L 285.12 160.369867  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_4">
+    <path d="M 285.12 172.739845  L 544.897624 172.739845  L 544.897624 192.922439  L 285.12 192.922439  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_5">
+    <path d="M 285.12 205.292417  L 522.454982 205.292417  L 522.454982 225.475011  L 285.12 225.475011  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_6">
+    <path d="M 285.12 237.844989  L 498.741954 237.844989  L 498.741954 258.027583  L 285.12 258.027583  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_7">
+    <path d="M 285.12 270.397561  L 467.021222 270.397561  L 467.021222 290.580155  L 285.12 290.580155  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_8">
+    <path d="M 285.12 302.950133  L 455.537012 302.950133  L 455.537012 323.132727  L 285.12 323.132727  z " clip-path="url(#p6a135372b8)" style="fill: #117864" />
+   </g>
+   <g id="patch_9">
+    <path d="M 285.12 332.28  L 736.56 332.28  " style="fill: none; stroke: #cbd5e0; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square" />
+   </g>
+   <g id="text_12">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="655.3008" y="153.313883" transform="rotate(-0 655.3008 153.313883)">17.34%</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="553.926424" y="185.866455" transform="rotate(-0 553.926424 185.866455)">12.47%</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="531.483782" y="218.419027" transform="rotate(-0 531.483782 218.419027)">11.40%</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="507.770754" y="250.971598" transform="rotate(-0 507.770754 250.971598)">10.26%</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="476.050022" y="283.52417" transform="rotate(-0 476.050022 283.52417)">8.73%</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="464.565812" y="316.076742" transform="rotate(-0 464.565812 316.076742)">8.18%</text>
+   </g>
+  </g>
+  <g id="text_18">
+   <text style="font-weight: 700; font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="47.52" y="40.997344" transform="rotate(-0 47.52 40.997344)">Accommodation and Food Services leads known-industry dollars</text>
+  </g>
+  <g id="text_19">
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 73.878281)">Which industries account for the most reported approval amounts? • 2025 • Top six known sectors</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 86.195875)">Geography: 50 states and Washington, DC.</text>
+  </g>
+  <g id="text_20">
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 387.438281)">Source: SBA; North American Industry Classification System (NAICS) sectors.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 399.755875)">Nominal approvals, including canceled/not-funded records; not disbursements.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 412.073469)">7(a): whole-loan amount; 504: SBA/Certified Development Company portion.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 424.391062)">Known-industry coverage: 100.00%; unknown/unclassified: $0.00 billion.</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 436.708656)">Shares use known-sector dollars only; unknown records remain in the overall total.</text>
+  </g>
+  <g id="text_21">
+   <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #718096" x="47.52" y="456.3" transform="rotate(-0 47.52 456.3)">Saved public data extracted 2026-10-05; derived tables verified October 05, 2026 UTC.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p6a135372b8">
+   <rect x="285.12" y="131.04" width="451.44" height="201.24" />
+  </clipPath>
+ </defs>
+<title id="chart-title">Accommodation and Food Services leads known-industry dollars</title><desc id="chart-description">Accommodation and Food Services: 17.34%; Retail Trade: 12.47%; Health Care and Social Assistance: 11.40%; Construction: 10.26%; Other Services Except Public Administration: 8.73%; Professional Scientific and Technical Services: 8.18%</desc></svg>

@@ -1,0 +1,37 @@
+loan_status_key,loan_status_group,loan_status_group_label,is_credit_loss_status,status_sort_order
+UNKNOWN,unknown,Unknown or missing,false,99
+PIF,paid_in_full,Paid in full,false,10
+P I F,paid_in_full,Paid in full,false,10
+PREPAID IN FULL,paid_in_full,Paid in full,false,10
+PAID IN FULL,paid_in_full,Paid in full,false,10
+PAID IN FULL (LIQ),paid_in_full,Paid in full,false,10
+CURR,current,Current,false,20
+CURRENT,current,Current,false,20
+COMMIT,committed,Committed,false,25
+CANCLD,canceled_or_not_funded,Canceled or not funded,false,30
+CANCELED,canceled_or_not_funded,Canceled or not funded,false,30
+NOT FUNDED,canceled_or_not_funded,Canceled or not funded,false,30
+CHGOFF,charged_off,Charged off,true,40
+CHARGED-OFF,charged_off,Charged off,true,40
+DELINQ,past_due_or_deferred,Past due or deferred,false,50
+PSTDUE,past_due_or_deferred,Past due or deferred,false,50
+1 MONTH PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+2 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+3 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+4 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+5 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+6 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+7 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+8 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+9 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+>9 MONTHS PAST DUE,past_due_or_deferred,Past due or deferred,false,50
+IN CATCH-UP,past_due_or_deferred,Past due or deferred,false,50
+DEFERD,past_due_or_deferred,Past due or deferred,false,50
+IN DEFERMENT,past_due_or_deferred,Past due or deferred,false,50
+PURCH(NOT C/O),servicing_action,Servicing action,false,60
+LIQUID,servicing_action,Servicing action,false,60
+SOLDNC,servicing_action,Servicing action,false,60
+SOLDCO,servicing_action,Servicing action,false,60
+ASSET SALE,servicing_action,Servicing action,false,60
+PURCHASE PENDING,servicing_action,Servicing action,false,60
+CLSLN,closed_other,Closed or other,false,70

@@ -1,0 +1,31 @@
+reporting_policy:
+  # Publisher releases checked October 4, 2026 local time (October 5 UTC).
+  # Update deliberately with a verified source release; never infer completeness
+  # from the first/last approval in a sparse extract or a fixture.
+  evidence_as_of: '2026-10-05'
+  sba_calendar_start: '1990-10-01'
+  sba_calendar_end: '2026-06-30'
+  bls_observation_end: '2026-08-31'
+  census_bds_release:
+    latest_year: 2023
+    released_on: '2025-09-25'
+    verified_on: '2026-10-05'
+    source_url: 'https://www.census.gov/programs-surveys/bds/news-updates/updates.html'
+  source_publications:
+    sba:
+      # June 30 is a coverage cutoff, not a known publication date. The catalog's
+      # dataset-level modified timestamp is not evidence of this file release.
+      released_on: null
+      verified_on: '2026-10-05'
+      source_url: 'https://data.sba.gov/dataset/7a-504-foia'
+      next_scheduled_release: null
+    bls:
+      released_on: '2026-09-18'
+      verified_on: '2026-10-05'
+      source_url: 'https://www.bls.gov/news.release/archives/laus_09182026.htm'
+      next_scheduled_release: '2026-10-20'
+  bls_publisher_omissions:
+    - year: 2025
+      month: 10
+      reason: 'BLS did not publish October 2025; 11-month annual averages are not strictly comparable.'
+      source: 'https://www.bls.gov/lau/launews1.htm'

@@ -1,0 +1,229 @@
+{
+  "purpose": "Reader-facing labels for planned Desktop pages and current reporting fields. Keep machine fields, measure names and export schemas unchanged; semantic expressions are maintained in the model contract.",
+  "sources": {
+    "sba": "U.S. Small Business Administration (SBA) approval records",
+    "census": "Census Business Dynamics Statistics (BDS): employer business locations",
+    "bls": "Bureau of Labor Statistics (BLS), Local Area Unemployment Statistics (LAUS)"
+  },
+  "fields": {
+    "total_approved_loan_amount": {
+      "label": "Reported approval amounts ($)",
+      "tooltip": "Nominal whole-loan amounts for 7(a), plus the SBA/Certified Development Company portion of 504. Not disbursements or total financing."
+    },
+    "loan_count": {
+      "label": "Approval records",
+      "tooltip": "Public approval records with mapped project geography and calendar dates. Includes canceled/not-funded records; not unique borrowers."
+    },
+    "approval_amount_coverage_count": {
+      "label": "Records with known approval amounts",
+      "tooltip": "Valid amounts including zero. Unknown amounts remain in approval-record totals but are excluded from the average denominator."
+    },
+    "state_name": {
+      "label": "Project state",
+      "tooltip": "Project location reported on the approval record, rather than borrower headquarters."
+    },
+    "approval_year": {
+      "label": "Calendar approval year",
+      "tooltip": "Year of the approval date, separate from the SBA fiscal year."
+    },
+    "year": {
+      "label": "Calendar year",
+      "tooltip": "Shared year label; source observation windows still differ."
+    },
+    "loan_program_name": {
+      "label": "SBA program",
+      "tooltip": "7(a) and 504 have different reported amount bases."
+    },
+    "naics_sector_name": {
+      "label": "Industry sector",
+      "tooltip": "North American Industry Classification System (NAICS) grouping. Unknown/unclassified sectors remain in total activity and are excluded from known-sector shares."
+    },
+    "lender_name": {
+      "label": "Reporting lender name",
+      "tooltip": "Currently assigned bank for 7(a); reported third-party lender for 504. Normalized names are not resolved historical originators or banking groups."
+    },
+    "establishment_count": {
+      "label": "Employer business locations",
+      "tooltip": "Census employer establishments across firm sizes; excludes nonemployers. Annual reference stocks summed across years are establishment-years."
+    },
+    "bds_reference_date": {
+      "label": "Census business-count reference date",
+      "tooltip": "March 12 of the reference year; context for calendar-year lending, not an identical time window."
+    },
+    "freshness_checked_at_utc": {
+      "label": "Publication and download checks evaluated at (UTC)",
+      "tooltip": "Frozen evaluation time. Opening the report later does not update release evidence or download checks."
+    },
+    "latest_extracted_at_utc": {
+      "label": "Source files downloaded at (UTC)",
+      "tooltip": "When the saved public data was extracted; separate from observation date and modeled-table rebuild."
+    },
+    "latest_observation_date": {
+      "label": "Latest source observation/reference",
+      "tooltip": "Approval date for SBA; March 12 annual reference for Census; month end for BLS."
+    },
+    "extract_age_days": {
+      "label": "Days since source download",
+      "tooltip": "Age at the stated UTC check time, compared with the configured extraction tolerance."
+    },
+    "observation_age_days": {
+      "label": "Days since source observation/reference",
+      "tooltip": "Descriptive age of the source reference. This is not a stale-data rule and does not measure publication or download age."
+    },
+    "snapshot_validity_status": {
+      "label": "Saved input validation",
+      "tooltip": "Passing source checks establish usable saved evidence, independently of age."
+    },
+    "freshness_status": {
+      "label": "Source recency",
+      "tooltip": "Stale means a verified newer published period is missing. Expired publisher or download checks require verification; old reference dates alone are not stale."
+    },
+    "raw_load_status": {
+      "label": "Source loading status",
+      "tooltip": "Whether raw inputs were loaded; this is not final pipeline completion."
+    },
+    "latest_run_status": {
+      "label": "Final completion visible in reporting tables",
+      "tooltip": "Unknown during the same build. Actual completion comes from the separately dated final pipeline summary."
+    },
+    "observed_month_count": {
+      "label": "Months with unemployment data",
+      "tooltip": "Available non-null monthly state rates; compare with expected/publisher-omitted months."
+    },
+    "publisher_omitted_month_count": {
+      "label": "Months not published",
+      "tooltip": "Publisher omissions are disclosed separately from unexpected missing data."
+    },
+    "is_comparable_context": {
+      "label": "Complete economic context",
+      "tooltip": "A complete lending year with same-year positive business counts and comparable monthly labor coverage."
+    },
+    "unemployment_rate_yoy_change_pp": {
+      "label": "Unemployment change (percentage points)",
+      "tooltip": "4% to 5% is +1 percentage point; only comparable annual periods support a change."
+    },
+    "publication_reference_date": {
+      "label": "Latest verified published reference period",
+      "tooltip": "Quarter-end coverage for SBA; March 12 of the BDS reference year; month end for BLS. Compare at each source cadence."
+    },
+    "publication_date": {
+      "label": "Published on",
+      "tooltip": "Actual publication date from publisher evidence. Unknown dates stay blank; coverage cutoffs and catalog modified dates are not publication dates."
+    },
+    "publication_verified_date": {
+      "label": "Publisher checked on",
+      "tooltip": "Date on which the latest published period was verified. This is separate from the release and download dates."
+    },
+    "publication_source_url": {
+      "label": "Publisher evidence",
+      "tooltip": "Official source used to verify the reference period and any known publication date."
+    },
+    "publication_cadence": {
+      "label": "Publication frequency",
+      "tooltip": "Expected release frequency, separate from reference-year lag. Frequency does not prove a new release exists."
+    },
+    "next_scheduled_release_date": {
+      "label": "Next announced release",
+      "tooltip": "Confirmed publisher schedule when available; a schedule passing triggers verification, not an assumed new release."
+    },
+    "publication_status": {
+      "label": "Published-period comparison",
+      "tooltip": "Saved source period compared with dated publisher evidence."
+    },
+    "download_status": {
+      "label": "Download review",
+      "tooltip": "A local review window for the saved download; review due does not prove a newer release exists."
+    },
+    "freshness_reason": {
+      "label": "Recency assessment",
+      "tooltip": "Specific reason for the publication or download status; show this beside the dates."
+    },
+    "max_release_check_age_days": {
+      "label": "Publisher review window (days)",
+      "tooltip": "Local limit on the age of publication verification, not a publisher deadline."
+    },
+    "release_check_age_days": {
+      "label": "Days since publisher verification",
+      "tooltip": "Age of the dated publisher check at the frozen evaluation time."
+    }
+  },
+  "pages": [
+    {
+      "id": "executive_overview",
+      "implementation_page": "Executive Overview",
+      "title": "Lending at a glance",
+      "default_calendar_year": 2025,
+      "question": "How much approval activity is there, and how has it changed?",
+      "narration": "Start with reported amounts, record count, average known amount and full-year change. More dollars do not necessarily mean more records."
+    },
+    {
+      "id": "state_lending_trends",
+      "implementation_page": "State Lending Trends",
+      "title": "How lending varies by state",
+      "default_calendar_year": 2025,
+      "question": "Where are reported amounts and approval records largest?",
+      "narration": "Compare states within the same calendar year. Use full-year trends; blank growth means the selected periods or state populations are not comparable."
+    },
+    {
+      "id": "lender_concentration",
+      "implementation_page": "Lender Concentration",
+      "title": "Reporting lender names",
+      "default_calendar_year": 2025,
+      "question": "How much activity is assigned to the largest known names?",
+      "narration": "Rank names after adding amounts across the selected geography and years. Show known-name coverage and distinguish overall top five from combined state/year rankings."
+    },
+    {
+      "id": "industry_program_mix",
+      "implementation_page": "Industry and Program Mix",
+      "title": "Programs and industries",
+      "default_calendar_year": 2025,
+      "question": "What makes up the reported lending total?",
+      "narration": "Show program shares of all reported amounts and industry shares of known-sector amounts in separate panels. Category selections apply only to their own panel."
+    },
+    {
+      "id": "regional_business_health",
+      "implementation_page": "Regional Business Health",
+      "title": "Lending relative to local businesses",
+      "default_calendar_year": 2023,
+      "question": "How does activity compare with the employer business base?",
+      "narration": "Use the same year for lending and employer locations. Single-year intensity is records per 1,000 locations; several years use establishment-years. Labor context is state-specific."
+    },
+    {
+      "id": "pipeline_health",
+      "implementation_page": "Data Quality and Pipeline Health",
+      "title": "Source coverage and data checks",
+      "default_calendar_year": null,
+      "question": "What periods do these inputs cover, and can they be trusted?",
+      "narration": "Show reference periods, actual publication dates, download dates and publisher verification. Distinguish a missed published period from verification due; show validity and final completion separately."
+    }
+  ],
+  "status_labels": {
+    "latest_published": "Latest verified published period",
+    "valid_selected_snapshot": "Saved input checks passed",
+    "stale": "Newer published period available",
+    "unknown": "Not established by this evidence",
+    "loaded": "Raw inputs loaded",
+    "success": "Completed successfully (use separately dated final summary)",
+    "current": "Within the local review window"
+  },
+  "freshness_reason_labels": {
+    "latest_verified_release": "Latest verified published period",
+    "newer_release_available": "Newer published period available",
+    "publisher_verification_due": "Publisher verification due",
+    "publisher_evidence_unknown": "Publisher evidence not established",
+    "download_review_due": "Saved download review due",
+    "download_date_unknown": "Download date not established"
+  },
+  "publication_status_labels": {
+    "latest_published": "Latest verified published period",
+    "newer_release_available": "Newer published period available",
+    "verification_due": "Publisher verification due",
+    "unknown": "Publisher evidence not established"
+  },
+  "source_publication_timing": {
+    "sba": "Quarterly; typically one month after quarter end.",
+    "census": "Annual; typically September, about two years after the reference year.",
+    "bls": "Monthly; use the dated state release and its announced next release."
+  },
+  "page_status": "Planned six-page Power BI Desktop correction; the outdated PBIX and five screenshots are preserved locally and excluded from Git. Current static charts follow the separate sequence in report_reader_guide.md."
+}

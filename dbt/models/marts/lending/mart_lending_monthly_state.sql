@@ -1,0 +1,52 @@
+-- Lending mart: aggregate SBA loan facts to the dashboard grain while keeping KPI math in dbt.
+
+with monthly as (
+    select
+        project_state_key as state_key,
+        date_trunc('month', approval_date)::date as approval_month,
+        sum(gross_approval_amount) as total_approved_loan_amount,
+        count(gross_approval_amount) as approval_amount_coverage_count,
+        count(*) as loan_count
+    from {{ ref('fact_sba_loans') }}
+    where project_state_key is not null
+      and approval_date is not null
+    group by 1, 2
+),
+
+with_context as (
+    select
+        monthly.state_key,
+        monthly.approval_month,
+        monthly.total_approved_loan_amount,
+        monthly.loan_count,
+        monthly.approval_amount_coverage_count,
+        {{ safe_divide('monthly.total_approved_loan_amount', 'monthly.approval_amount_coverage_count') }} as average_loan_size,
+        prior.total_approved_loan_amount as prior_year_approved_loan_amount,
+        prior.loan_count as prior_year_loan_count
+    from monthly
+    left join monthly as prior
+        on monthly.state_key = prior.state_key
+       and prior.approval_month = cast(monthly.approval_month - interval '1 year' as date)
+)
+
+select
+    with_context.state_key,
+    state.state_name,
+    approval_month,
+    extract(year from approval_month)::integer as approval_year,
+    extract(month from approval_month)::integer as approval_month_number,
+    total_approved_loan_amount,
+    loan_count,
+    approval_amount_coverage_count,
+    average_loan_size,
+    {{ safe_divide(
+        'total_approved_loan_amount - prior_year_approved_loan_amount',
+        'prior_year_approved_loan_amount'
+    ) }} as approved_loan_amount_yoy_growth_pct,
+    {{ safe_divide(
+        'loan_count - prior_year_loan_count',
+        'prior_year_loan_count'
+    ) }} as loan_count_yoy_growth_pct
+from with_context
+left join {{ ref('dim_state') }} as state
+    on with_context.state_key = state.state_key

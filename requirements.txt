@@ -1,0 +1,18 @@
+# Runtime dependencies
+boto3==1.43.4
+dbt-core==1.11.8
+dbt-duckdb==1.10.1
+dbt-snowflake==1.11.4
+duckdb==1.5.2
+pandas==2.3.3
+prefect==3.6.29
+# Prefect 3.6.x is incompatible with FastAPI >=0.137 (PrefectHQ/prefect#22398).
+fastapi==0.136.3
+python-dotenv==1.2.2
+pyyaml==6.0.3
+requests==2.33.1
+snowflake-connector-python[pandas]==4.4.0
+
+# Development and CI tools
+pytest==9.0.3
+ruff==0.15.15

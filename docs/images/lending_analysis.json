@@ -1,0 +1,839 @@
+{
+  "lending_year": 2025,
+  "context_year": 2023,
+  "state_count": 51,
+  "headline": {
+    "amount": "40926844800.00",
+    "records": 74098,
+    "known_amount_records": 74098,
+    "average": "552334.0009177035817430969797",
+    "growth": "0.017071376807589236615889330"
+  },
+  "trend": [
+    {
+      "year": 2016,
+      "amount": "29389348943.00",
+      "records": 68625,
+      "known_amount_records": 68625,
+      "average": "428260.0938870673952641165756"
+    },
+    {
+      "year": 2017,
+      "amount": "31514320600.00",
+      "records": 70152,
+      "known_amount_records": 70152,
+      "average": "449229.1110730984148705667693"
+    },
+    {
+      "year": 2018,
+      "amount": "29297065800.00",
+      "records": 62895,
+      "known_amount_records": 62895,
+      "average": "465809.1390412592415931314095"
+    },
+    {
+      "year": 2019,
+      "amount": "27647115900.00",
+      "records": 56807,
+      "known_amount_records": 56807,
+      "average": "486685.0194518281197739715176"
+    },
+    {
+      "year": 2020,
+      "amount": "27976220640.00",
+      "records": 46167,
+      "known_amount_records": 46167,
+      "average": "605978.7432581714211449736825"
+    },
+    {
+      "year": 2021,
+      "amount": "45220087500.00",
+      "records": 62155,
+      "known_amount_records": 62155,
+      "average": "727537.4064837905236907730673"
+    },
+    {
+      "year": 2022,
+      "amount": "35813432690.00",
+      "records": 59021,
+      "known_amount_records": 59021,
+      "average": "606791.3571440673658528320428"
+    },
+    {
+      "year": 2023,
+      "amount": "33267766700.00",
+      "records": 64154,
+      "known_amount_records": 64154,
+      "average": "518561.0671197431181220188920"
+    },
+    {
+      "year": 2024,
+      "amount": "40239894400.00",
+      "records": 81081,
+      "known_amount_records": 81081,
+      "average": "496292.5272258605591938925272"
+    },
+    {
+      "year": 2025,
+      "amount": "40926844800.00",
+      "records": 74098,
+      "known_amount_records": 74098,
+      "average": "552334.0009177035817430969797"
+    }
+  ],
+  "geography": [
+    {
+      "key": "13",
+      "label": "Georgia",
+      "amount": "1364358700.00",
+      "records": 1895,
+      "establishments": "232284",
+      "intensity": "8.158116788069776652718224243"
+    },
+    {
+      "key": "19",
+      "label": "Iowa",
+      "amount": "145676800.00",
+      "records": 357,
+      "establishments": "75787",
+      "intensity": "4.710570414451027221027352976"
+    },
+    {
+      "key": "23",
+      "label": "Maine",
+      "amount": "113548200.00",
+      "records": 425,
+      "establishments": "38288",
+      "intensity": "11.10008357709987463435018805"
+    },
+    {
+      "key": "26",
+      "label": "Michigan",
+      "amount": "942360800.00",
+      "records": 2715,
+      "establishments": "206581",
+      "intensity": "13.14254457089470958122963874"
+    },
+    {
+      "key": "32",
+      "label": "Nevada",
+      "amount": "412248700.00",
+      "records": 701,
+      "establishments": "68195",
+      "intensity": "10.27934599310799912017010045"
+    },
+    {
+      "key": "38",
+      "label": "North Dakota",
+      "amount": "66654000.00",
+      "records": 148,
+      "establishments": "22921",
+      "intensity": "6.456960865581780899611709786"
+    },
+    {
+      "key": "40",
+      "label": "Oklahoma",
+      "amount": "266551700.00",
+      "records": 479,
+      "establishments": "87916",
+      "intensity": "5.448382546976659538650530051"
+    },
+    {
+      "key": "47",
+      "label": "Tennessee",
+      "amount": "391440700.00",
+      "records": 687,
+      "establishments": "138491",
+      "intensity": "4.960611158847867370442844661"
+    },
+    {
+      "key": "16",
+      "label": "Idaho",
+      "amount": "291165900.00",
+      "records": 556,
+      "establishments": "50318",
+      "intensity": "11.04972375690607734806629834"
+    },
+    {
+      "key": "17",
+      "label": "Illinois",
+      "amount": "1305405300.00",
+      "records": 2322,
+      "establishments": "286518",
+      "intensity": "8.104202877306137834272192323"
+    },
+    {
+      "key": "55",
+      "label": "Wisconsin",
+      "amount": "648112900.00",
+      "records": 1134,
+      "establishments": "132123",
+      "intensity": "8.582911378034104584364569379"
+    },
+    {
+      "key": "34",
+      "label": "New Jersey",
+      "amount": "988118500.00",
+      "records": 2339,
+      "establishments": "213967",
+      "intensity": "10.93159225488042548617310146"
+    },
+    {
+      "key": "41",
+      "label": "Oregon",
+      "amount": "426701900.00",
+      "records": 835,
+      "establishments": "111067",
+      "intensity": "7.517984639902041110320797357"
+    },
+    {
+      "key": "02",
+      "label": "Alaska",
+      "amount": "89851500.00",
+      "records": 134,
+      "establishments": "18870",
+      "intensity": "7.101218865924748277689454160"
+    },
+    {
+      "key": "28",
+      "label": "Mississippi",
+      "amount": "194769000.00",
+      "records": 332,
+      "establishments": "56227",
+      "intensity": "5.904636562505557828089707792"
+    },
+    {
+      "key": "29",
+      "label": "Missouri",
+      "amount": "554182800.00",
+      "records": 1017,
+      "establishments": "138037",
+      "intensity": "7.367589849098430131051819440"
+    },
+    {
+      "key": "54",
+      "label": "West Virginia",
+      "amount": "64086200.00",
+      "records": 178,
+      "establishments": "33360",
+      "intensity": "5.335731414868105515587529976"
+    },
+    {
+      "key": "10",
+      "label": "Delaware",
+      "amount": "77375100.00",
+      "records": 201,
+      "establishments": "25549",
+      "intensity": "7.867235508239070022310070844"
+    },
+    {
+      "key": "25",
+      "label": "Massachusetts",
+      "amount": "587520600.00",
+      "records": 1691,
+      "establishments": "166592",
+      "intensity": "10.15054744525547445255474453"
+    },
+    {
+      "key": "33",
+      "label": "New Hampshire",
+      "amount": "128878000.00",
+      "records": 483,
+      "establishments": "35957",
+      "intensity": "13.43271129404566565620046166"
+    },
+    {
+      "key": "49",
+      "label": "Utah",
+      "amount": "692609200.00",
+      "records": 1156,
+      "establishments": "82240",
+      "intensity": "14.05642023346303501945525292"
+    },
+    {
+      "key": "50",
+      "label": "Vermont",
+      "amount": "37754200.00",
+      "records": 144,
+      "establishments": "18786",
+      "intensity": "7.665282657297987863302459278"
+    },
+    {
+      "key": "08",
+      "label": "Colorado",
+      "amount": "960864800.00",
+      "records": 1605,
+      "establishments": "159307",
+      "intensity": "10.07488685368502325698180243"
+    },
+    {
+      "key": "09",
+      "label": "Connecticut",
+      "amount": "336296600.00",
+      "records": 820,
+      "establishments": "81451",
+      "intensity": "10.06740248738505359050226517"
+    },
+    {
+      "key": "36",
+      "label": "New York",
+      "amount": "1521348300.00",
+      "records": 4350,
+      "establishments": "481232",
+      "intensity": "9.039299132227283306180802607"
+    },
+    {
+      "key": "39",
+      "label": "Ohio",
+      "amount": "1075916500.00",
+      "records": 3731,
+      "establishments": "234409",
+      "intensity": "15.91662436169259712724340789"
+    },
+    {
+      "key": "04",
+      "label": "Arizona",
+      "amount": "838856800.00",
+      "records": 1290,
+      "establishments": "142865",
+      "intensity": "9.029503377314247716375599342"
+    },
+    {
+      "key": "06",
+      "label": "California",
+      "amount": "5062343600.00",
+      "records": 7660,
+      "establishments": "903355",
+      "intensity": "8.479501414172722794471719313"
+    },
+    {
+      "key": "12",
+      "label": "Florida",
+      "amount": "2878605000.00",
+      "records": 5451,
+      "establishments": "565546",
+      "intensity": "9.638473263006015425800907442"
+    },
+    {
+      "key": "01",
+      "label": "Alabama",
+      "amount": "320735200.00",
+      "records": 457,
+      "establishments": "98246",
+      "intensity": "4.651588868758015593510168353"
+    },
+    {
+      "key": "05",
+      "label": "Arkansas",
+      "amount": "189219400.00",
+      "records": 294,
+      "establishments": "64549",
+      "intensity": "4.554679390850361740693116857"
+    },
+    {
+      "key": "11",
+      "label": "District of Columbia",
+      "amount": "62440100.00",
+      "records": 139,
+      "establishments": "22078",
+      "intensity": "6.295860132258356735211522783"
+    },
+    {
+      "key": "45",
+      "label": "South Carolina",
+      "amount": "360865800.00",
+      "records": 684,
+      "establishments": "111317",
+      "intensity": "6.144614030202035627981350557"
+    },
+    {
+      "key": "15",
+      "label": "Hawaii",
+      "amount": "64077300.00",
+      "records": 183,
+      "establishments": "30055",
+      "intensity": "6.088837131924804525037431376"
+    },
+    {
+      "key": "20",
+      "label": "Kansas",
+      "amount": "247306000.00",
+      "records": 450,
+      "establishments": "70039",
+      "intensity": "6.424991790288267964990933623"
+    },
+    {
+      "key": "53",
+      "label": "Washington",
+      "amount": "854134500.00",
+      "records": 1545,
+      "establishments": "179034",
+      "intensity": "8.629645765608767049834109722"
+    },
+    {
+      "key": "24",
+      "label": "Maryland",
+      "amount": "431546400.00",
+      "records": 1047,
+      "establishments": "129266",
+      "intensity": "8.099577615150155493323843857"
+    },
+    {
+      "key": "35",
+      "label": "New Mexico",
+      "amount": "160540000.00",
+      "records": 256,
+      "establishments": "40902",
+      "intensity": "6.258862647303310351572050266"
+    },
+    {
+      "key": "37",
+      "label": "North Carolina",
+      "amount": "961560400.00",
+      "records": 1365,
+      "establishments": "233077",
+      "intensity": "5.856433710747950248201238217"
+    },
+    {
+      "key": "51",
+      "label": "Virginia",
+      "amount": "595217800.00",
+      "records": 1102,
+      "establishments": "191642",
+      "intensity": "5.750305256676511411903444965"
+    },
+    {
+      "key": "21",
+      "label": "Kentucky",
+      "amount": "225048700.00",
+      "records": 477,
+      "establishments": "86735",
+      "intensity": "5.499510001729405660921196749"
+    },
+    {
+      "key": "44",
+      "label": "Rhode Island",
+      "amount": "89970700.00",
+      "records": 249,
+      "establishments": "26622",
+      "intensity": "9.353166553977913004282172639"
+    },
+    {
+      "key": "46",
+      "label": "South Dakota",
+      "amount": "115974000.00",
+      "records": 184,
+      "establishments": "26095",
+      "intensity": "7.051159225905345851695727151"
+    },
+    {
+      "key": "48",
+      "label": "Texas",
+      "amount": "3259151300.00",
+      "records": 4540,
+      "establishments": "606811",
+      "intensity": "7.481736487967423135045343608"
+    },
+    {
+      "key": "56",
+      "label": "Wyoming",
+      "amount": "57514500.00",
+      "records": 84,
+      "establishments": "20421",
+      "intensity": "4.113412663434699573967974144"
+    },
+    {
+      "key": "27",
+      "label": "Minnesota",
+      "amount": "799178800.00",
+      "records": 1717,
+      "establishments": "136484",
+      "intensity": "12.58022918437325986928870783"
+    },
+    {
+      "key": "30",
+      "label": "Montana",
+      "amount": "103405800.00",
+      "records": 197,
+      "establishments": "36621",
+      "intensity": "5.379427104666721280139810491"
+    },
+    {
+      "key": "31",
+      "label": "Nebraska",
+      "amount": "126605600.00",
+      "records": 317,
+      "establishments": "51269",
+      "intensity": "6.183073592229222337084788079"
+    },
+    {
+      "key": "18",
+      "label": "Indiana",
+      "amount": "598454500.00",
+      "records": 1316,
+      "establishments": "142793",
+      "intensity": "9.216138045982646208147458209"
+    },
+    {
+      "key": "22",
+      "label": "Louisiana",
+      "amount": "257551400.00",
+      "records": 461,
+      "establishments": "99981",
+      "intensity": "4.610876066452625998939798562"
+    },
+    {
+      "key": "42",
+      "label": "Pennsylvania",
+      "amount": "923666200.00",
+      "records": 2254,
+      "establishments": "282707",
+      "intensity": "7.972918958497667196072258557"
+    }
+  ],
+  "programs": [
+    {
+      "key": "7a",
+      "label": "SBA 7(a)",
+      "amount": "33695288800.00",
+      "records": 67933,
+      "known_amount_records": 67933,
+      "average": "496007.6663771657368289343912",
+      "share": "0.8233053137778165591694964963"
+    },
+    {
+      "key": "504",
+      "label": "SBA 504",
+      "amount": "7231556000.00",
+      "records": 6165,
+      "known_amount_records": 6165,
+      "average": "1173001.784266017842660178427",
+      "share": "0.1766946862221834408305035037"
+    }
+  ],
+  "industries": [
+    {
+      "key": "72",
+      "label": "Accommodation and Food Services",
+      "amount": "7097151600.00",
+      "records": 9319,
+      "known_amount_records": 9319,
+      "average": "761578.6672389741388561004400",
+      "share": "0.1734106705435548259024355574"
+    },
+    {
+      "key": "44-45",
+      "label": "Retail Trade",
+      "amount": "5105000600.00",
+      "records": 8284,
+      "known_amount_records": 8284,
+      "average": "616248.2617093191694833413810",
+      "share": "0.1247347706608450793646325749"
+    },
+    {
+      "key": "62",
+      "label": "Health Care and Social Assistance",
+      "amount": "4663970700.00",
+      "records": 7624,
+      "known_amount_records": 7624,
+      "average": "611748.5178384050367261280168",
+      "share": "0.1139587164070854540929575886"
+    },
+    {
+      "key": "23",
+      "label": "Construction",
+      "amount": "4197975900.00",
+      "records": 9952,
+      "known_amount_records": 9952,
+      "average": "421822.3372186495176848874598",
+      "share": "0.1025726737674143891004273068"
+    },
+    {
+      "key": "81",
+      "label": "Other Services Except Public Administration",
+      "amount": "3574618300.00",
+      "records": 7766,
+      "known_amount_records": 7766,
+      "average": "460290.7932011331444759206799",
+      "share": "0.08734165356426401089194151610"
+    },
+    {
+      "key": "54",
+      "label": "Professional Scientific and Technical Services",
+      "amount": "3348937200.00",
+      "records": 7609,
+      "known_amount_records": 7609,
+      "average": "440128.4268629254829806807728",
+      "share": "0.08182739755203411136154820320"
+    },
+    {
+      "key": "31-33",
+      "label": "Manufacturing",
+      "amount": "3230173200.00",
+      "records": 4296,
+      "known_amount_records": 4296,
+      "average": "751902.5139664804469273743017",
+      "share": "0.07892553691312162915622559792"
+    },
+    {
+      "key": "42",
+      "label": "Wholesale Trade",
+      "amount": "2160283400.00",
+      "records": 3062,
+      "known_amount_records": 3062,
+      "average": "705513.8471587197909862834749",
+      "share": "0.05278402013536113099048378144"
+    },
+    {
+      "key": "71",
+      "label": "Arts Entertainment and Recreation",
+      "amount": "1833092300.00",
+      "records": 3113,
+      "known_amount_records": 3113,
+      "average": "588850.7227754577577899132669",
+      "share": "0.04478948496904408326145874798"
+    },
+    {
+      "key": "56",
+      "label": "Administrative and Support and Waste Management and Remediation Services",
+      "amount": "1479314400.00",
+      "records": 4266,
+      "known_amount_records": 4266,
+      "average": "346768.4950773558368495077356",
+      "share": "0.03614533217082984124884212916"
+    },
+    {
+      "key": "48-49",
+      "label": "Transportation and Warehousing",
+      "amount": "1246470800.00",
+      "records": 3202,
+      "known_amount_records": 3202,
+      "average": "389278.8257339163023110555903",
+      "share": "0.03045606877567068155715732086"
+    },
+    {
+      "key": "53",
+      "label": "Real Estate and Rental and Leasing",
+      "amount": "849442700.00",
+      "records": 1518,
+      "known_amount_records": 1518,
+      "average": "559580.1712779973649538866930",
+      "share": "0.02075514748696190721254915796"
+    },
+    {
+      "key": "61",
+      "label": "Educational Services",
+      "amount": "611163500.00",
+      "records": 1288,
+      "known_amount_records": 1288,
+      "average": "474505.8229813664596273291925",
+      "share": "0.01493307150811684364195111371"
+    },
+    {
+      "key": "52",
+      "label": "Finance and Insurance",
+      "amount": "553159300.00",
+      "records": 1209,
+      "known_amount_records": 1209,
+      "average": "457534.5740281224152191894127",
+      "share": "0.01351580613416844681855367458"
+    },
+    {
+      "key": "11",
+      "label": "Agriculture Forestry Fishing and Hunting",
+      "amount": "515881700.00",
+      "records": 645,
+      "known_amount_records": 645,
+      "average": "799816.5891472868217054263566",
+      "share": "0.01260497119973441001735858221"
+    },
+    {
+      "key": "51",
+      "label": "Information",
+      "amount": "276906600.00",
+      "records": 681,
+      "known_amount_records": 681,
+      "average": "406617.6211453744493392070485",
+      "share": "0.006765891711251584192485808239"
+    },
+    {
+      "key": "21",
+      "label": "Mining Quarrying and Oil and Gas Extraction",
+      "amount": "92347900.00",
+      "records": 111,
+      "known_amount_records": 111,
+      "average": "831963.0630630630630630630631",
+      "share": "0.002256413863596931860234679024"
+    },
+    {
+      "key": "22",
+      "label": "Utilities",
+      "amount": "44551500.00",
+      "records": 87,
+      "known_amount_records": 87,
+      "average": "512086.2068965517241379310345",
+      "share": "0.001088564247200409644087686916"
+    },
+    {
+      "key": "55",
+      "label": "Management of Companies and Enterprises",
+      "amount": "42375100.00",
+      "records": 46,
+      "known_amount_records": 46,
+      "average": "921197.8260869565217391304348",
+      "share": "0.001035386436630463142861186309"
+    },
+    {
+      "key": "92",
+      "label": "Public Administration",
+      "amount": "4028100.00",
+      "records": 20,
+      "known_amount_records": 20,
+      "average": "201405.00",
+      "share": "0.00009842195311376654180778675614"
+    }
+  ],
+  "lenders": [
+    {
+      "key": "0be83157497997473ee4cc18e84fa695",
+      "label": "LIVE OAK BANKING COMPANY",
+      "amount": "2769252000.00",
+      "records": 2183,
+      "known_amount_records": 2183,
+      "average": "1268553.366926248282180485570",
+      "share": "0.06766346180685787925679528562"
+    },
+    {
+      "key": "3b6fb88a5b9b7af71bfbfa276a6613ba",
+      "label": "THE HUNTINGTON NATIONAL BANK",
+      "amount": "2254722600.00",
+      "records": 6749,
+      "known_amount_records": 6749,
+      "average": "334082.4714772558897614461402",
+      "share": "0.05509153248969732452964466003"
+    },
+    {
+      "key": "a4c948bb7f71f17b2ddf24cdcd08ca3e",
+      "label": "NEWTEK BANK, NATIONAL ASSOCIATION",
+      "amount": "1540640900.00",
+      "records": 4087,
+      "known_amount_records": 4087,
+      "average": "376961.3163689747981404453144",
+      "share": "0.03764377409323281134049209677"
+    },
+    {
+      "key": "7e9d0dd96137ce011e79792b449d2fab",
+      "label": "NORTHEAST BANK",
+      "amount": "1101101100.00",
+      "records": 6312,
+      "known_amount_records": 6312,
+      "average": "174445.6749049429657794676806",
+      "share": "0.02690412870527463675870757572"
+    },
+    {
+      "key": "a4bc50c8b503737a68fca205ff4c9cfe",
+      "label": "READYCAP LENDING, LLC",
+      "amount": "900542700.00",
+      "records": 2430,
+      "known_amount_records": 2430,
+      "average": "370593.7037037037037037037037",
+      "share": "0.02200371673899474410497434681"
+    }
+  ],
+  "unknown_industry": {
+    "amount": "0",
+    "records": 0,
+    "known_amount_records": 0,
+    "average": null
+  },
+  "industry_coverage": "1",
+  "lender_coverage": "1",
+  "known_lender_amount": "40926844800.00",
+  "known_lender_name_count": 1825,
+  "unknown_lender_amount": "0.00",
+  "unknown_lender_records": 0,
+  "top_five_lender_share": "0.2093066138340573959906139649",
+  "sources": [
+    {
+      "system": "sba",
+      "observation_date": "2026-06-30",
+      "observation_age_days": 97,
+      "status": [
+        "latest_published"
+      ],
+      "reasons": [
+        "latest_verified_release"
+      ],
+      "download_dates": [
+        "2026-10-05"
+      ],
+      "publication_reference_date": "2026-06-30",
+      "publication_date": "",
+      "publication_verified_date": "2026-10-05",
+      "publication_source_url": "https://data.sba.gov/dataset/7a-504-foia",
+      "publication_cadence": "quarterly",
+      "next_scheduled_release_date": "",
+      "publication_status": "latest_published",
+      "resources": 6
+    },
+    {
+      "system": "census",
+      "observation_date": "2023-03-12",
+      "observation_age_days": 1303,
+      "status": [
+        "latest_published"
+      ],
+      "reasons": [
+        "latest_verified_release"
+      ],
+      "download_dates": [
+        "2026-10-05"
+      ],
+      "publication_reference_date": "2023-03-12",
+      "publication_date": "2025-09-25",
+      "publication_verified_date": "2026-10-05",
+      "publication_source_url": "https://www.census.gov/programs-surveys/bds/news-updates/updates.html",
+      "publication_cadence": "annual",
+      "next_scheduled_release_date": "",
+      "publication_status": "latest_published",
+      "resources": 1
+    },
+    {
+      "system": "bls",
+      "observation_date": "2026-08-31",
+      "observation_age_days": 35,
+      "status": [
+        "latest_published"
+      ],
+      "reasons": [
+        "latest_verified_release"
+      ],
+      "download_dates": [
+        "2026-10-05"
+      ],
+      "publication_reference_date": "2026-08-31",
+      "publication_date": "2026-09-18",
+      "publication_verified_date": "2026-10-05",
+      "publication_source_url": "https://www.bls.gov/news.release/archives/laus_09182026.htm",
+      "publication_cadence": "monthly",
+      "next_scheduled_release_date": "2026-10-20",
+      "publication_status": "latest_published",
+      "resources": 1
+    }
+  ],
+  "extraction_dates": [
+    "2026-10-05"
+  ],
+  "freshness_checked_at_utc": "2026-10-05 06:06:54.443163",
+  "input_csv_sha256": {
+    "bi_state_lending_trends": "4b8318ea0431b9face2d48d3764ab9f96b1a7fc8711aa9d666340bdfee3c6f90",
+    "bi_regional_business_health": "1717d6930defcbca89144ad15b3a869283529448750f375610208e5d04265375",
+    "bi_program_mix": "e3c1024a876bd3949d01b6148bbe2f9202c4f223b2c9c3d7bd2e65a09b2f8230",
+    "bi_industry_mix": "c9dbec4d457725f621758678ffb2cdfb4035a0dd43452b2af0a795a38eff5d0f",
+    "bi_lender_mix": "eddf940edcec7d882c1544611b452417ec9ee2692f2c1abf3e47d88e033b726c",
+    "bi_source_freshness": "97ee293c4de85c6c4f6ac174c298efbcc7d4b5306e69785ba897562ba84a1f4a"
+  },
+  "readiness_checked_at_utc": "2026-10-05T06:07:25.506301+00:00",
+  "report_language_sha256": "d97b2ff58c38bfc67aee9874f4170e9dfd52f9fab149a628d8b9d677eb67f020",
+  "report_language_hash_encoding": "UTF-8 with LF line endings"
+}

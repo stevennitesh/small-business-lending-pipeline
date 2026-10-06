@@ -1,0 +1,636 @@
+version: 2
+
+models:
+  - name: mart_lending_monthly_state
+    description: Monthly state-level lending KPI mart.
+    meta:
+      grain: one row per project state and approval month
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_month"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved in the state-month.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved-dollar growth as a decimal ratio.
+      - name: loan_count_yoy_growth_pct
+        description: Year-over-year loan-count growth as a decimal ratio.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_annual_state
+    description: Annual state-level lending KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: approved_loan_amount_yoy_growth_pct
+        description: Year-over-year approved-dollar growth as a decimal ratio.
+      - name: loan_count_yoy_growth_pct
+        description: Year-over-year loan-count growth as a decimal ratio.
+
+      - name: is_full_calendar_year
+        description: Full calendar year according to dated reporting policy, not record min/max.
+
+      - name: calendar_period_status
+        description: Full, partial, or outside dated coverage evidence.
+
+      - name: is_comparable_yoy
+        description: Consecutive full calendar years; false for gaps or partial years.
+
+      - name: comparable_prior_year_amount
+        description: Prior approved dollars only for comparable consecutive full years.
+
+      - name: first_observed_approval_date
+        description: First observed approval; not proof of source completeness.
+
+      - name: last_observed_approval_date
+        description: Last observed approval; not proof of source completeness.
+
+      - name: source_calendar_start
+        description: Calendar coverage start from publisher snapshot evidence.
+
+      - name: source_calendar_end
+        description: Calendar coverage end from publisher snapshot evidence.
+
+      - name: coverage_evidence_as_of
+        description: Date of the source coverage evidence.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_lender_state_period
+    description: Annual state-lender lending KPI mart for known lenders only.
+    meta:
+      grain: one row per project state, approval year, and lender
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "lender_key"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved for the known lender in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: lender_approved_amount_share
+        description: Known lender share of known-lender approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_concentration_state_period
+    description: Annual state known-lender concentration KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved by known lenders in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: lender_count
+        description: Number of active known lenders in the state-year.
+        data_tests:
+          - non_negative
+      - name: top_1_approved_loan_amount
+        description: Approved dollars from the top-ranked known lender in the state-year.
+        data_tests:
+          - non_negative
+      - name: top_1_lender_share
+        description: Share of known-lender approved dollars from the top-ranked known lender in the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: top_5_approved_loan_amount
+        description: Approved dollars from the top five known lenders in the state-year.
+        data_tests:
+          - non_negative
+      - name: top_5_lender_share
+        description: Share of known-lender approved dollars from the top five known lenders in the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_industry_state_period
+    description: Annual state-industry lending KPI mart.
+    meta:
+      grain: one row per project state, approval year, and NAICS sector
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "naics_key"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved for the industry in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: industry_approved_amount_share
+        description: Industry share of approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+      - name: is_known_industry
+        description: True for a known valid reference sector; excludes UNKNOWN and unclassified 99 without changing source keys.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_program_state_period
+    description: Annual state-program lending KPI mart.
+    meta:
+      grain: one row per project state, approval year, and SBA loan program
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_program_key"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: loan_count
+        description: Number of SBA loans approved for the program in the state-year.
+        data_tests:
+          - non_negative
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: program_approved_amount_share
+        description: Program share of approved dollars within the state-year.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_performance_state_period
+    description: Annual state-level loan performance and charge-off KPI mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar year of approval_date; missing dates stay null, with no fiscal-year substitution.
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: charged_off_loan_count
+        description: Number of loans whose grouped status is explicitly charged-off.
+        data_tests:
+          - non_negative
+      - name: chargeoff_amount_rate
+        description: Gross charge-off dollars divided by approved dollars as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: charged_off_loan_count_rate
+        description: Charged-off loan count divided by loan count as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_status_mix_state_period
+    description: Annual state-level lending status mix mart.
+    meta:
+      grain: one row per project state, approval year, and loan status group
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year", "loan_status_group"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar year of approval_date; missing dates stay null, with no fiscal-year substitution.
+      - name: loan_status_group
+        description: Stable status group used for loan performance KPI calculations.
+        data_tests:
+          - not_null
+      - name: loan_status_group_label
+        description: Display label for the loan status group.
+        data_tests:
+          - not_null
+      - name: loan_status_sort_order
+        description: Display sort order for grouped loan statuses.
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans in the status group in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: gross_chargeoff_amount
+        description: Gross charge-off dollars reported by SBA for the status group in the state-year.
+        data_tests:
+          - non_negative
+      - name: charged_off_loan_count
+        description: Number of loans in the status group whose grouped status is explicitly charged-off.
+        data_tests:
+          - non_negative
+      - name: status_group_approved_amount_share
+        description: Status-group share of approved dollars within the state-year as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: status_group_loan_count_share
+        description: Status-group share of loan count within the state-year as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+  - name: mart_lending_terms_pricing_state_period
+    description: Annual state-level SBA loan term, pricing coverage, guarantee, and third-party financing mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar year of approval_date; missing dates stay null, with no fiscal-year substitution.
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: term_coverage_count
+        description: Number of loans with a reported term in months.
+        data_tests:
+          - non_negative
+      - name: term_coverage_rate
+        description: Share of loans with a reported term in months as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: average_term_months
+        description: Average reported loan term in months.
+        data_tests:
+          - non_negative
+      - name: initial_interest_rate_coverage_count
+        description: Number of loans with a reported initial interest rate, primarily SBA 7(a).
+        data_tests:
+          - non_negative
+      - name: initial_interest_rate_coverage_rate
+        description: Share of loans with a reported initial interest rate as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: average_initial_interest_rate
+        description: Average reported initial interest rate converted from source percent points to a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: interest_type_coverage_count
+        description: Number of loans with a reported fixed or variable interest type.
+        data_tests:
+          - non_negative
+      - name: fixed_interest_loan_count
+        description: Number of loans reported with fixed interest type.
+        data_tests:
+          - non_negative
+      - name: variable_interest_loan_count
+        description: Number of loans reported with variable interest type.
+        data_tests:
+          - non_negative
+      - name: fixed_interest_loan_share
+        description: Fixed-interest share among loans with a reported fixed or variable interest type as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: variable_interest_loan_share
+        description: Variable-interest share among loans with a reported fixed or variable interest type as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: seven_a_approved_loan_amount
+        description: All reported whole-loan 7(a) approval dollars; paired_7a_approval_amount is the guarantee-rate denominator.
+        data_tests:
+          - non_negative
+      - name: sba_guaranteed_approval_amount
+        description: SBA-guaranteed approved dollars reported for SBA 7(a) loans.
+        data_tests:
+          - non_negative
+      - name: seven_a_sba_guarantee_rate
+        description: Guaranteed dollars divided by whole-loan amounts on the same paired known 7(a) records.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: third_party_dollars
+        description: Third-party financing dollars reported for SBA 504 loans.
+        data_tests:
+          - non_negative
+      - name: third_party_to_approved_amount_rate
+        description: Deprecated mixed-program ratio; new visuals use known_504_third_party_to_sba_amount_rate and paired coverage.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10
+
+      - name: total_term_months
+        description: Additive known term numerator.
+
+      - name: total_initial_interest_rate
+        description: Additive known initial-rate numerator as decimals.
+
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+
+      - name: program_504_loan_count
+        description: All eligible 504 approval records; denominator for paired financing coverage.
+        data_tests:
+          - non_negative
+
+      - name: paired_504_coverage_count
+        description: Eligible 504 records with both valid third-party dollars and gross SBA/CDC amounts, including zero.
+        data_tests:
+          - non_negative
+
+      - name: paired_504_third_party_dollars
+        description: Third-party dollars summed only on paired known 504 records.
+
+      - name: paired_504_approval_amount
+        description: SBA/CDC approval amount summed on the same paired known 504 records.
+
+      - name: paired_504_coverage_rate
+        description: Paired known 504 record count divided by all eligible 504 records.
+
+      - name: known_504_third_party_to_sba_amount_rate
+        description: Paired third-party dollars divided by paired SBA/CDC amounts; may exceed one and is not a total-project financing share.
+
+      - name: program_7a_loan_count
+        description: All eligible 7(a) records; denominator for paired guarantee coverage.
+        data_tests:
+          - non_negative
+
+      - name: paired_7a_coverage_count
+        description: 7(a) records with valid gross and guaranteed amounts, including zero.
+        data_tests:
+          - non_negative
+
+      - name: paired_7a_guaranteed_amount
+        description: SBA guarantee amount summed on paired known 7(a) records.
+
+      - name: paired_7a_approval_amount
+        description: Whole-loan approval amount summed on the same paired known 7(a) records.
+
+      - name: paired_7a_coverage_rate
+        description: Paired known guarantee count divided by all eligible 7(a) records.
+  - name: mart_lending_jobs_impact_state_period
+    description: Annual state-level descriptive jobs-supported efficiency mart.
+    meta:
+      grain: one row per project state and approval year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "approval_year"]
+    columns:
+      - name: state_key
+        description: Project state dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: state_name
+        description: Project state display name.
+      - name: approval_year
+        description: Calendar year of approval_date; missing dates stay null, with no fiscal-year substitution.
+      - name: total_approved_loan_amount
+        description: Sum of source-reported gross approval amounts at this grain; whole 7(a) loans versus SBA/CDC 504 portions, not total financing.
+        data_tests:
+          - non_negative
+      - name: loan_count
+        description: Number of SBA loans approved in the state-year.
+        data_tests:
+          - non_negative
+      - name: average_loan_size
+        description: Sum of reported gross approval amounts divided by valid-amount record count at this grain; program bases differ.
+      - name: jobs_supported_coverage_count
+        description: Number of loans with a reported jobs-supported value.
+        data_tests:
+          - non_negative
+      - name: jobs_supported_coverage_rate
+        description: Share of loans with a reported jobs-supported value as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: total_jobs_supported
+        description: Source-reported total jobs supported; descriptive and not causal.
+        data_tests:
+          - non_negative
+      - name: jobs_supported_per_loan
+        description: Source-reported jobs supported divided by loan count; descriptive, not causal.
+        data_tests:
+          - non_negative
+      - name: jobs_supported_per_1m_approved
+        description: Source-reported jobs supported per $1M approved; descriptive, not causal.
+        data_tests:
+          - non_negative
+      - name: approved_loan_dollars_per_job_supported
+        description: Approved dollars divided by source-reported jobs supported; descriptive, not causal.
+        data_tests:
+          - non_negative
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative

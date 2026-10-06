@@ -1,0 +1,288 @@
+// Contract v3. Create each measure in Desktop; one block per measure.
+
+// Format: General
+Selected Year Label =
+VAR SelectedCount = COUNTROWS(VALUES(bi_year_filter[year]))
+VAR AllCount = COUNTROWS(ALL(bi_year_filter))
+RETURN SWITCH(
+    TRUE(),
+    SelectedCount = 0, "No years",
+    SelectedCount = 1, FORMAT(SELECTEDVALUE(bi_year_filter[year]), "0"),
+    SelectedCount = AllCount, "All years",
+    "Multiple years"
+)
+
+// Format: General
+Selected State Label =
+VAR SelectedCount = COUNTROWS(VALUES(bi_state_filter[state_name]))
+VAR AllCount = COUNTROWS(ALL(bi_state_filter))
+RETURN SWITCH(
+    TRUE(),
+    SelectedCount = 0, "No states",
+    SelectedCount = 1, SELECTEDVALUE(bi_state_filter[state_name]),
+    SelectedCount = AllCount, "All states",
+    "Multiple states"
+)
+
+// Format: $#,0.00
+Approval Dollars =
+SUM(bi_executive_overview[total_approved_loan_amount])
+
+// Format: #,0
+Approval Records =
+SUM(bi_executive_overview[loan_count])
+
+// Format: $#,0.00
+Average Approval Size =
+DIVIDE(SUM(bi_executive_overview[total_approved_loan_amount]), SUM(bi_executive_overview[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Program Dollars =
+SUM(bi_program_mix[total_approved_loan_amount])
+
+// Format: #,0
+Program Records =
+SUM(bi_program_mix[loan_count])
+
+// Format: $#,0.00
+Program Average Approval Size =
+DIVIDE(SUM(bi_program_mix[total_approved_loan_amount]), SUM(bi_program_mix[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Industry Dollars =
+SUM(bi_industry_mix[total_approved_loan_amount])
+
+// Format: #,0
+Industry Records =
+SUM(bi_industry_mix[loan_count])
+
+// Format: $#,0.00
+Industry Average Approval Size =
+DIVIDE(SUM(bi_industry_mix[total_approved_loan_amount]), SUM(bi_industry_mix[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Known Lender Dollars =
+SUM(bi_lender_mix[total_approved_loan_amount])
+
+// Format: #,0
+Known Lender Records =
+SUM(bi_lender_mix[loan_count])
+
+// Format: $#,0.00
+Known Lender Average Approval Size =
+DIVIDE(SUM(bi_lender_mix[total_approved_loan_amount]), SUM(bi_lender_mix[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Matched Context Dollars =
+SUM(bi_regional_business_health[total_approved_loan_amount])
+
+// Format: #,0
+Matched Context Records =
+SUM(bi_regional_business_health[loan_count])
+
+// Format: $#,0.00
+Matched Context Average Approval Size =
+DIVIDE(SUM(bi_regional_business_health[total_approved_loan_amount]), SUM(bi_regional_business_health[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Performance Dollars =
+SUM(bi_lending_performance[total_approved_loan_amount])
+
+// Format: #,0
+Performance Records =
+SUM(bi_lending_performance[loan_count])
+
+// Format: $#,0.00
+Performance Average Approval Size =
+DIVIDE(SUM(bi_lending_performance[total_approved_loan_amount]), SUM(bi_lending_performance[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Status Dollars =
+SUM(bi_lending_status_mix[total_approved_loan_amount])
+
+// Format: #,0
+Status Records =
+SUM(bi_lending_status_mix[loan_count])
+
+// Format: $#,0.00
+Status Average Approval Size =
+DIVIDE(SUM(bi_lending_status_mix[total_approved_loan_amount]), SUM(bi_lending_status_mix[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Terms Dollars =
+SUM(bi_lending_terms_pricing[total_approved_loan_amount])
+
+// Format: #,0
+Terms Records =
+SUM(bi_lending_terms_pricing[loan_count])
+
+// Format: $#,0.00
+Terms Average Approval Size =
+DIVIDE(SUM(bi_lending_terms_pricing[total_approved_loan_amount]), SUM(bi_lending_terms_pricing[approval_amount_coverage_count]))
+
+// Format: $#,0.00
+Jobs Dollars =
+SUM(bi_lending_jobs_impact[total_approved_loan_amount])
+
+// Format: #,0
+Jobs Records =
+SUM(bi_lending_jobs_impact[loan_count])
+
+// Format: $#,0.00
+Jobs Average Approval Size =
+DIVIDE(SUM(bi_lending_jobs_impact[total_approved_loan_amount]), SUM(bi_lending_jobs_impact[approval_amount_coverage_count]))
+
+// Format: 0.00%
+Program Dollar Share =
+DIVIDE(SUM(bi_program_mix[total_approved_loan_amount]), CALCULATE(SUM(bi_program_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_loan_program_filter)))
+
+// Format: 0.00%
+Known Industry Dollar Share =
+DIVIDE(CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), bi_industry_mix[is_known_industry] = TRUE()), CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), bi_industry_mix[is_known_industry] = TRUE()))
+
+// Format: 0.00%
+Industry Dollar Coverage =
+DIVIDE(CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), bi_industry_mix[is_known_industry] = TRUE()), CALCULATE(SUM(bi_industry_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_naics_filter), REMOVEFILTERS(bi_industry_mix[is_known_industry])))
+
+// Format: 0.00%
+Lender Dollar Coverage =
+DIVIDE(SUM(bi_lender_concentration[total_approved_loan_amount]), SUM(bi_executive_overview[total_approved_loan_amount]))
+
+// Format: 0.00%
+Selected Top Five Known Lender Share =
+VAR Lenders =
+    CALCULATETABLE(
+        ADDCOLUMNS(
+            SUMMARIZE(bi_lender_mix, bi_lender_mix[lender_key]),
+            "__Amount", CALCULATE(SUM(bi_lender_mix[total_approved_loan_amount]))
+        ),
+        REMOVEFILTERS(bi_lender_filter)
+    )
+VAR TopFive = TOPN(5, Lenders, [__Amount], DESC, bi_lender_mix[lender_key], ASC)
+RETURN DIVIDE(SUMX(TopFive, [__Amount]), SUMX(Lenders, [__Amount]))
+
+// Format: 0.00%
+Pooled State Year Top Five Share =
+DIVIDE(SUM(bi_lender_concentration[top_5_approved_loan_amount]), SUM(bi_lender_concentration[total_approved_loan_amount]))
+
+// Format: 0.00
+Approvals per 1000 Establishment Years =
+DIVIDE(CALCULATE(SUM(bi_regional_business_health[loan_count]) * 1000, bi_regional_business_health[has_matched_establishment_population] = TRUE()), CALCULATE(SUM(bi_regional_business_health[establishment_count]), bi_regional_business_health[has_matched_establishment_population] = TRUE()))
+
+// Format: $#,0.00
+Approval Dollars per Establishment Year =
+DIVIDE(CALCULATE(SUM(bi_regional_business_health[total_approved_loan_amount]), bi_regional_business_health[has_matched_establishment_population] = TRUE()), CALCULATE(SUM(bi_regional_business_health[establishment_count]), bi_regional_business_health[has_matched_establishment_population] = TRUE()))
+
+// Format: 0.00%
+Comparable Full Year Dollar Growth =
+VAR SelectedYear = SELECTEDVALUE(bi_year_filter[year])
+VAR CurrentStates = VALUES(bi_state_lending_trends[state_key])
+VAR PriorStates =
+    CALCULATETABLE(
+        VALUES(bi_state_lending_trends[state_key]),
+        REMOVEFILTERS(bi_year_filter),
+        bi_year_filter[year] = SelectedYear - 1
+    )
+RETURN IF(
+    HASONEVALUE(bi_year_filter[year]) &&
+    COUNTROWS(EXCEPT(CurrentStates, PriorStates)) = 0 &&
+    COUNTROWS(EXCEPT(PriorStates, CurrentStates)) = 0 &&
+    COUNTROWS(bi_state_lending_trends) = CALCULATE(COUNTROWS(bi_state_lending_trends), bi_state_lending_trends[is_comparable_yoy] = TRUE()),
+    DIVIDE(SUM(bi_state_lending_trends[total_approved_loan_amount]) - SUM(bi_state_lending_trends[comparable_prior_year_amount]), SUM(bi_state_lending_trends[comparable_prior_year_amount]))
+)
+
+// Format: 0.00%
+Chargeoff Dollar Rate =
+DIVIDE(SUM(bi_lending_performance[gross_chargeoff_amount]), SUM(bi_lending_performance[total_approved_loan_amount]))
+
+// Format: 0.00%
+Charged Off Record Share =
+DIVIDE(SUM(bi_lending_performance[charged_off_loan_count]), SUM(bi_lending_performance[loan_count]))
+
+// Format: 0.00%
+Term Coverage =
+DIVIDE(SUM(bi_lending_terms_pricing[term_coverage_count]), SUM(bi_lending_terms_pricing[loan_count]))
+
+// Format: 0.00
+Average Known Term Months =
+DIVIDE(SUM(bi_lending_terms_pricing[total_term_months]), SUM(bi_lending_terms_pricing[term_coverage_count]))
+
+// Format: 0.00%
+Initial Rate Coverage =
+DIVIDE(SUM(bi_lending_terms_pricing[initial_interest_rate_coverage_count]), SUM(bi_lending_terms_pricing[loan_count]))
+
+// Format: 0.00%
+Average Known Initial Rate =
+DIVIDE(SUM(bi_lending_terms_pricing[total_initial_interest_rate]), SUM(bi_lending_terms_pricing[initial_interest_rate_coverage_count]))
+
+// Format: 0.00%
+Fixed Interest Share =
+DIVIDE(SUM(bi_lending_terms_pricing[fixed_interest_loan_count]), SUM(bi_lending_terms_pricing[interest_type_coverage_count]))
+
+// Format: 0.00%
+Variable Interest Share =
+DIVIDE(SUM(bi_lending_terms_pricing[variable_interest_loan_count]), SUM(bi_lending_terms_pricing[interest_type_coverage_count]))
+
+// Format: 0.00%
+7a Guarantee Rate =
+DIVIDE(SUM(bi_lending_terms_pricing[paired_7a_guaranteed_amount]), SUM(bi_lending_terms_pricing[paired_7a_approval_amount]))
+
+// Format: 0.00%
+Known 504 Third Party to SBA Amount Ratio =
+DIVIDE(SUM(bi_lending_terms_pricing[paired_504_third_party_dollars]), SUM(bi_lending_terms_pricing[paired_504_approval_amount]))
+
+// Format: 0.00%
+Jobs Coverage =
+DIVIDE(SUM(bi_lending_jobs_impact[jobs_supported_coverage_count]), SUM(bi_lending_jobs_impact[loan_count]))
+
+// Format: 0.00
+Reported Jobs per Known Record =
+DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]), SUM(bi_lending_jobs_impact[jobs_supported_coverage_count]))
+
+// Format: 0.00
+Reported Jobs per Million Approved =
+DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]) * 1000000, SUM(bi_lending_jobs_impact[total_approved_loan_amount]))
+
+// Format: $#,0.00
+Approved Dollars per Reported Job =
+DIVIDE(SUM(bi_lending_jobs_impact[total_approved_loan_amount]), SUM(bi_lending_jobs_impact[total_jobs_supported]))
+
+// Format: 0.00%
+Status Dollar Share =
+DIVIDE(SUM(bi_lending_status_mix[total_approved_loan_amount]), CALCULATE(SUM(bi_lending_status_mix[total_approved_loan_amount]), REMOVEFILTERS(bi_lending_status_mix[loan_status_group]), REMOVEFILTERS(bi_lending_status_mix[loan_status_group_label]), REMOVEFILTERS(bi_lending_status_mix[loan_status_sort_order])))
+
+// Format: 0.00
+Reported Jobs per Approval Record =
+DIVIDE(SUM(bi_lending_jobs_impact[total_jobs_supported]), SUM(bi_lending_jobs_impact[loan_count]))
+
+// Format: 0.0%
+State Mean Monthly SA Unemployment Rate =
+IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[annual_average_unemployment_rate]))
+
+// Format: 0.00 "pp"
+State Unemployment Change PP =
+IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[unemployment_rate_yoy_change_pp]))
+
+// Format: 0.0%
+State Published Establishment Entry Rate =
+IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[establishment_entry_rate]))
+
+// Format: 0.0%
+State Published Establishment Exit Rate =
+IF(HASONEVALUE(bi_state_filter[state_key]) && HASONEVALUE(bi_year_filter[year]), SELECTEDVALUE(bi_regional_business_health[establishment_exit_rate]))
+
+// Format: #,0
+Selected Known Source Name Count =
+CALCULATE(DISTINCTCOUNT(bi_lender_mix[lender_key]), REMOVEFILTERS(bi_lender_filter))
+
+// Format: 0.00%
+Approval Amount Coverage =
+DIVIDE(SUM(bi_executive_overview[approval_amount_coverage_count]), SUM(bi_executive_overview[loan_count]))
+
+// Format: 0.00%
+504 Paired Financing Coverage =
+DIVIDE(SUM(bi_lending_terms_pricing[paired_504_coverage_count]), SUM(bi_lending_terms_pricing[program_504_loan_count]))
+
+// Format: 0.00%
+7a Paired Guarantee Coverage =
+DIVIDE(SUM(bi_lending_terms_pricing[paired_7a_coverage_count]), SUM(bi_lending_terms_pricing[program_7a_loan_count]))

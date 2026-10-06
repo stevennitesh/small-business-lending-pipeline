@@ -1,0 +1,8 @@
+services:
+  pipeline:
+    build: .
+    container_name: small_business_lending_pipeline
+    env_file:
+      - .env.example
+    working_dir: /app
+    command: make ci-check

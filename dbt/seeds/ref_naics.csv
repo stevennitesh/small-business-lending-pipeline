@@ -1,0 +1,22 @@
+naics_sector_code,naics_sector_name,naics_description,is_valid_current_code
+11,Agriculture Forestry Fishing and Hunting,Agriculture forestry fishing and hunting sector,true
+21,Mining Quarrying and Oil and Gas Extraction,Mining quarrying and oil and gas extraction sector,true
+22,Utilities,Utilities sector,true
+23,Construction,Construction sector,true
+31-33,Manufacturing,Manufacturing sector,true
+42,Wholesale Trade,Wholesale trade sector,true
+44-45,Retail Trade,Retail trade sector,true
+48-49,Transportation and Warehousing,Transportation and warehousing sector,true
+51,Information,Information sector,true
+52,Finance and Insurance,Finance and insurance sector,true
+53,Real Estate and Rental and Leasing,Real estate and rental and leasing sector,true
+54,Professional Scientific and Technical Services,Professional scientific and technical services sector,true
+55,Management of Companies and Enterprises,Management of companies and enterprises sector,true
+56,Administrative and Support and Waste Management and Remediation Services,Administrative support waste management and remediation services sector,true
+61,Educational Services,Educational services sector,true
+62,Health Care and Social Assistance,Health care and social assistance sector,true
+71,Arts Entertainment and Recreation,Arts entertainment and recreation sector,true
+72,Accommodation and Food Services,Accommodation and food services sector,true
+81,Other Services Except Public Administration,Other services except public administration sector,true
+92,Public Administration,Public administration sector,true
+99,Unclassified,Unclassified or unavailable NAICS sector,false

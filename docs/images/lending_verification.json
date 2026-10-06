@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "recorded_readiness": {
+    "scope": "Prior saved-data verification; not rerun by the chart generator",
+    "checked_at_utc": "2026-10-05T06:07:25.506301+00:00",
+    "csv_tables": 18,
+    "csv_rows": 253942,
+    "csv_warehouse_differences": 0,
+    "duplicate_grains": 0,
+    "null_grain_keys": 0,
+    "relationships": 25,
+    "unmatched_relationship_keys": 0
+  },
+  "chart_generation_checks": {
+    "scope": "Executed before publication: six input byte hashes and row counts; selected category amount, record and known-amount reconciliation",
+    "inputs": {
+      "bi_state_lending_trends": {
+        "rows": 1887,
+        "sha256": "4b8318ea0431b9face2d48d3764ab9f96b1a7fc8711aa9d666340bdfee3c6f90"
+      },
+      "bi_regional_business_health": {
+        "rows": 1734,
+        "sha256": "1717d6930defcbca89144ad15b3a869283529448750f375610208e5d04265375"
+      },
+      "bi_program_mix": {
+        "rows": 3762,
+        "sha256": "e3c1024a876bd3949d01b6148bbe2f9202c4f223b2c9c3d7bd2e65a09b2f8230"
+      },
+      "bi_industry_mix": {
+        "rows": 31806,
+        "sha256": "c9dbec4d457725f621758678ffb2cdfb4035a0dd43452b2af0a795a38eff5d0f"
+      },
+      "bi_lender_mix": {
+        "rows": 178888,
+        "sha256": "eddf940edcec7d882c1544611b452417ec9ee2692f2c1abf3e47d88e033b726c"
+      },
+      "bi_source_freshness": {
+        "rows": 8,
+        "sha256": "97ee293c4de85c6c4f6ac174c298efbcc7d4b5306e69785ba897562ba84a1f4a"
+      }
+    },
+    "not_executed": [
+      "source download",
+      "warehouse rebuild",
+      "full dbt data test suite",
+      "Power BI Desktop DAX or Power Query",
+      "live cloud execution"
+    ]
+  },
+  "public_text_hash_policy": "SHA256 of UTF-8 text with line endings normalized to LF; CSV hashes use exact bytes",
+  "generator_sha256": "5151ef4e6e033afc930b8a41c6a9ff64d29ec1c744f9cfde3d6235d4826f7d0a",
+  "report_language_sha256": "d97b2ff58c38bfc67aee9874f4170e9dfd52f9fab149a628d8b9d677eb67f020",
+  "public_outputs": {
+    "lending_findings.svg": {
+      "sha256": "d61d377e2e7ea5b0ab39e2e53dabd0e6aa7f8e8d0cc834dfe4895e4c4a25b502"
+    },
+    "lending_geography.svg": {
+      "sha256": "443d56716cc627b55f2f0a02d062380b26c821cf7eb1ce4353653306febf8686"
+    },
+    "lending_programs.svg": {
+      "sha256": "1964fa3c605376e737007f2379f5efd9823e6fc7f0e948ec457f9f1b4926dcfa"
+    },
+    "lending_industries.svg": {
+      "sha256": "f39ae6a990109c275cb9d36c6af735649fe336d0e2e7f1c139be64804468a560"
+    },
+    "lending_lenders.svg": {
+      "sha256": "bf2f2de4c105ed7e2402b808ba862ee7e651fb9bff0503a72bb2c549f82ccf21"
+    },
+    "lending_coverage.svg": {
+      "sha256": "31e486ce32e8a52539699aebcdaf58e02e2fb7978f83b7c66fbf226850201e2e"
+    },
+    "lending_analysis.json": {
+      "sha256": "a47724600a1abfbc13f4a95e1c692232cfe83900466c78aedc7a339777e5b05b"
+    },
+    "analysis_results.md": {
+      "sha256": "2c7bdc69dd3525690ab1aefab929333417531cac526f3a00b00d78180d91fef0"
+    }
+  }
+}

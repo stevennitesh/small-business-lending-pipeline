@@ -1,0 +1,44 @@
+name: small_business_lending_pipeline
+version: "1.0.0"
+config-version: 2
+
+profile: small_business_lending_pipeline
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+seeds:
+  small_business_lending_pipeline:
+    +schema: seeds
+    +quote_columns: false
+
+models:
+  small_business_lending_pipeline:
+    staging:
+      +schema: staging
+      +materialized: view
+      audit:
+        +schema: audit
+    marts:
+      +schema: marts
+      +materialized: table
+      pipeline:
+        +schema: audit
+      dimensions:
+        +materialized: table
+      facts:
+        +materialized: table
+      context:
+        +materialized: table
+      lending:
+        +materialized: table
+    bi:
+      +schema: bi
+      +materialized: table

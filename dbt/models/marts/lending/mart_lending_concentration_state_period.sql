@@ -1,0 +1,52 @@
+-- Lending mart: aggregate SBA loan facts to the dashboard grain while keeping KPI math in dbt.
+
+with lender_period as (
+    select
+        state_key,
+        approval_year,
+        total_approved_loan_amount,
+        loan_count,
+        approval_amount_coverage_count,
+        lender_rank
+    from {{ ref('mart_lending_lender_state_period') }}
+),
+
+concentration as (
+    select
+        state_key,
+        approval_year,
+        sum(case when lender_rank = 1 then total_approved_loan_amount else 0 end) as top_1_approved_loan_amount,
+        sum(case when lender_rank <= 5 then total_approved_loan_amount else 0 end) as top_5_approved_loan_amount,
+        sum(total_approved_loan_amount) as total_approved_loan_amount,
+        sum(loan_count) as loan_count,
+        sum(approval_amount_coverage_count) as approval_amount_coverage_count,
+        count(*) as lender_count
+    from lender_period
+    group by 1, 2
+)
+
+select
+    concentration.state_key,
+    state.state_name,
+    concentration.approval_year,
+    concentration.total_approved_loan_amount,
+    concentration.loan_count,
+    concentration.approval_amount_coverage_count,
+    {{ safe_divide(
+        'concentration.total_approved_loan_amount',
+        'concentration.approval_amount_coverage_count'
+    ) }} as average_loan_size,
+    concentration.lender_count,
+    concentration.top_1_approved_loan_amount,
+    {{ safe_divide(
+        'concentration.top_1_approved_loan_amount',
+        'concentration.total_approved_loan_amount'
+    ) }} as top_1_lender_share,
+    concentration.top_5_approved_loan_amount,
+    {{ safe_divide(
+        'concentration.top_5_approved_loan_amount',
+        'concentration.total_approved_loan_amount'
+    ) }} as top_5_lender_share
+from concentration
+left join {{ ref('dim_state') }} as state
+    on concentration.state_key = state.state_key

@@ -1,0 +1,224 @@
+version: 2
+
+models:
+  - name: mart_laus_monthly_state
+    description: Monthly state LAUS unemployment context mart.
+    meta:
+      grain: one row per state and observed month
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "observed_month"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: unemployment_rate
+        description: Monthly state unemployment rate as a decimal ratio.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: unemployment_rate_yoy_change_pp
+        description: Comparable year-over-year change in percentage points, not decimal-point change.
+
+  - name: mart_laus_annual_state
+    description: Annual state LAUS unemployment context mart.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: annual_average_unemployment_rate
+        description: Mean monthly seasonally adjusted state unemployment rates as a decimal ratio; not official weighted annual estimates.
+        data_tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: unemployment_rate_yoy_change_pp
+        description: Comparable year-over-year change in percentage points, not decimal-point change.
+
+      - name: observed_month_count
+        description: Distinct months with a non-null monthly SA rate.
+
+      - name: observed_expected_month_count
+        description: Distinct non-null months matching available expected month identities.
+
+      - name: unexpected_month_count
+        description: Non-null months beyond dated coverage or in documented omitted months.
+
+      - name: expected_month_count
+        description: Expected available months after documented publisher omissions.
+
+      - name: publisher_omitted_month_count
+        description: Months not published by BLS inside the elapsed expected range.
+
+      - name: missing_month_count
+        description: Expected available months missing from this state/year.
+
+      - name: is_year_to_date
+        description: Current partial calendar year in the dated source evidence.
+
+      - name: is_comparable_annual
+        description: Twelve matched expected months in a completed year without unexpected observations or publisher omissions.
+
+      - name: annual_coverage_status
+        description: Full year, year to date, publisher omission, data gap or policy conflict.
+
+  - name: mart_business_dynamics_annual_state
+    description: Annual state Census BDS business dynamics context mart.
+    meta:
+      grain: one row per state and year
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: establishment_count
+        description: Number of establishments.
+        data_tests:
+          - non_negative
+      - name: establishment_entry_rate
+        description: Establishment entry rate as a decimal ratio.
+        data_tests:
+          - non_negative
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: establishment_exit_rate
+        description: Establishment exit rate as a decimal ratio.
+        data_tests:
+          - non_negative
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+
+      - name: bds_reference_date
+        description: March 12 reference date for the BDS year; stocks and March-to-March flows are context for calendar-year lending.
+  - name: mart_regional_business_health_annual_state
+    description: Annual state regional business-health mart combining compatible lending, LAUS, and BDS annual grains.
+    meta:
+      grain: one row per state and year
+      powerbi_ready: true
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["state_key", "year"]
+    columns:
+      - name: state_key
+        description: State dimension key.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_state')
+                field: state_key
+      - name: annual_average_unemployment_rate
+        description: Mean monthly seasonally adjusted state unemployment rates as a decimal ratio; not official weighted annual estimates.
+      - name: unemployment_rate_yoy_change_pp
+        description: Comparable year-over-year change in percentage points, not decimal-point change.
+      - name: establishment_count
+        description: Number of establishments.
+        data_tests:
+          - non_negative
+      - name: establishment_entry_rate
+        description: Establishment entry rate as a decimal ratio.
+        data_tests:
+          - non_negative
+      - name: establishment_exit_rate
+        description: Establishment exit rate as a decimal ratio.
+        data_tests:
+          - non_negative
+      - name: loans_per_1000_establishments
+        description: SBA loan count per 1,000 establishments.
+        data_tests:
+          - non_negative
+      - name: approved_loan_dollars_per_establishment
+        description: Approved SBA loan dollars per establishment.
+        data_tests:
+          - non_negative
+      - name: has_lending_data
+        description: True when lending data exists for the state-year.
+      - name: has_laus_data
+        description: True when LAUS unemployment data exists for the state-year.
+      - name: has_business_dynamics_data
+        description: True when Census BDS business dynamics data exists for the state-year.
+      - name: context_join_status
+        description: Flag indicating which annual context sources are present.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - complete_context
+                  - missing_laus
+                  - missing_business_dynamics
+                  - missing_context
+                  - missing_lending
+
+      - name: observed_month_count
+        description: Distinct months with a non-null monthly SA rate.
+
+      - name: observed_expected_month_count
+        description: Distinct non-null months matching available expected month identities.
+
+      - name: unexpected_month_count
+        description: Non-null months beyond dated coverage or in documented omitted months.
+
+      - name: expected_month_count
+        description: Expected available months after documented publisher omissions.
+
+      - name: publisher_omitted_month_count
+        description: Months not published by BLS inside the elapsed expected range.
+
+      - name: missing_month_count
+        description: Expected available months missing from this state/year.
+
+      - name: is_year_to_date
+        description: Current partial calendar year in the dated source evidence.
+
+      - name: is_comparable_annual
+        description: Twelve matched expected months in a completed year without unexpected observations or publisher omissions.
+
+      - name: annual_coverage_status
+        description: Full year, year to date, publisher omission, data gap or policy conflict.
+
+      - name: is_full_calendar_year
+        description: SBA policy declares a full calendar year.
+
+      - name: is_comparable_context
+        description: Full SBA calendar year, comparable 12-month LAUS year and matched BDS.
+
+      - name: has_matched_establishment_population
+        description: Lending and a positive non-null BDS establishment stock share this state/year; both intensity components use this population.
+
+      - name: approval_amount_coverage_count
+        description: Eligible approval records with a valid reported gross amount, including zero; denominator for average_loan_size.
+        data_tests:
+          - non_negative
+
+      - name: bds_reference_date
+        description: March 12 reference date for the BDS year; stocks and March-to-March flows are context for calendar-year lending.

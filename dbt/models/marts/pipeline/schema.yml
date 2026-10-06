@@ -1,0 +1,159 @@
+version: 2
+
+models:
+  - name: mart_pipeline_source_freshness
+    description: Source-resource publication comparison, download review and independent validation status.
+    meta:
+      grain: one row per source resource
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["source_system", "source_dataset", "source_resource_name"]
+    columns:
+      - name: freshness_status
+        description: Latest_published means the saved period matches verified publisher evidence and the download is within its review window. Stale means a verified newer published period is missing; expired or inconsistent checks are unknown.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [current, latest_published, stale, unknown]
+      - name: latest_row_count
+        description: Latest observed raw row count for the source resource.
+        data_tests:
+          - non_negative
+      - name: observed_snapshot_count
+        description: Number of manifest snapshots observed for the source resource.
+        data_tests:
+          - non_negative
+      - name: is_latest_successful_snapshot
+        description: Whether the source resource has a latest successful manifest.
+
+      - name: latest_observation_date
+        description: Latest valid observation across the selected source; not per-resource completeness.
+
+      - name: freshness_checked_at_utc
+        description: UTC time at which ages were checked.
+
+      - name: max_extract_age_days
+        description: Configured maximum extraction age.
+
+      - name: max_observation_age_days
+        description: Null for all sources. Observation age is descriptive and never establishes staleness.
+
+      - name: extract_age_days
+        description: Days since extraction.
+
+      - name: observation_age_days
+        description: Days since latest source observation.
+
+      - name: snapshot_validity_status
+        description: Validity/selection is separate from publication recency and download review.
+
+
+      - name: observation_date_basis
+        description: Source clock used for observation age, independent of extract time (approval date, March 12 BDS reference, or BLS month end).
+      - name: publication_reference_date
+        description: Latest verified publisher reference at quarter grain for SBA, year grain for Census, and month grain for BLS.
+      - name: publication_date
+        description: Actual publisher release date, nullable when unconfirmed; never substitute coverage end or catalog modified date.
+      - name: publication_verified_date
+        description: Dated check of the official publisher evidence, independently of extraction and release.
+      - name: publication_source_url
+        description: Official publisher evidence URL.
+      - name: publication_cadence
+        description: Expected release frequency; never a proof of newer available data.
+      - name: next_scheduled_release_date
+        description: Announced next publication, nullable if unconfirmed; passing it prompts verification, not presumed publication.
+      - name: max_release_check_age_days
+        description: Local maximum age of publisher verification.
+      - name: release_check_age_days
+        description: Age of publisher verification at the frozen check time.
+      - name: publication_status
+        description: Saved source period compared with recently verified publication evidence.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [latest_published, newer_release_available, verification_due, unknown]
+      - name: download_status
+        description: Saved resource download age relative to its local review window; review due does not prove a newer publication.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [current, review_due, unknown]
+      - name: freshness_reason
+        description: Explicit explanation of release comparison, overdue review or unknown evidence.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [latest_verified_release, newer_release_available, publisher_verification_due, publisher_evidence_unknown, download_review_due, download_date_unknown]
+  - name: mart_pipeline_validation_summary
+    description: Validation check summary by run and source resource.
+    meta:
+      grain: one row per pipeline run and validation source resource
+    data_tests:
+      - not_empty
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["pipeline_run_id", "source_system", "source_dataset", "source_resource_name"]
+    columns:
+      - name: validation_status
+        description: Passed, warning, or failed status for the validation group.
+      - name: failed_check_count
+        description: Number of failed validation checks.
+        data_tests:
+          - non_negative
+      - name: warning_check_count
+        description: Number of warning validation checks.
+        data_tests:
+          - non_negative
+      - name: passed_check_count
+        description: Number of passed validation checks.
+        data_tests:
+          - non_negative
+
+  - name: mart_pipeline_run_summary
+    description: Pipeline run health summary for dashboard use.
+    meta:
+      grain: one row per loaded pipeline run summary
+    data_tests:
+      - not_empty
+    columns:
+      - name: latest_run_status
+        description: Final pipeline completion is unknown in the same dbt pass; use final run_summary.json.
+      - name: loaded_at_utc
+        description: UTC timestamp when raw loading completed.
+      - name: validation_status
+        description: Overall validation status from the raw load summary.
+      - name: failed_check_count
+        description: Number of failed validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: warning_check_count
+        description: Number of warning validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: passed_check_count
+        description: Number of passed validation checks represented in the latest run summary.
+        data_tests:
+          - non_negative
+      - name: source_resource_count
+        description: Number of source resources represented in the freshness rollup.
+        data_tests:
+          - non_negative
+      - name: current_source_resource_count
+        description: Number meeting their recency policy, including current SBA/LAUS and the latest verified published BDS release.
+        data_tests:
+          - non_negative
+      - name: stale_or_unknown_source_resource_count
+        description: Number of source resources with stale or unknown freshness status.
+        data_tests:
+          - non_negative
+
+      - name: raw_load_status
+        description: Loaded evidence; separate from raw validity and final completion.
+
+      - name: final_pipeline_status_evidence
+        description: Final run_summary.json is not loaded in the same dbt pass.
+
+      - name: freshness_checked_at_utc
+        description: UTC date/time at which source ages were evaluated.

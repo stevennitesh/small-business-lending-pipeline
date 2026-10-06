@@ -1,0 +1,440 @@
+from __future__ import annotations
+
+import csv
+import io
+import re
+from typing import Any
+
+import boto3
+
+from pipelines.load.raw_load_metadata import (
+    RAW_ROW_METADATA_COLUMNS,
+    manifest_raw_row_metadata,
+)
+from pipelines.load.snowflake_errors import SnowflakeRawLoadError
+from pipelines.load.snowflake_stage_load import (
+    snowflake_identifier,
+    snowflake_sql_literal,
+)
+from pipelines.storage.raw_artifacts import parse_s3_uri
+from pipelines.utils.source_resources import SBA_OPTIONAL_RAW_COLUMNS
+
+
+RAW_METADATA_COLUMNS = {
+    column_name.upper(): "varchar" for column_name in RAW_ROW_METADATA_COLUMNS
+}
+
+CENSUS_BDS_RAW_COLUMNS = {
+    "YEAR": "varchar",
+    "NAME": "varchar",
+    "STATE": "varchar",
+    "ESTAB": "varchar",
+    "ESTABS_ENTRY": "varchar",
+    "ESTABS_ENTRY_RATE": "varchar",
+    "ESTABS_EXIT": "varchar",
+    "ESTABS_EXIT_RATE": "varchar",
+    "FIRM": "varchar",
+    "JOB_CREATION": "varchar",
+    "JOB_DESTRUCTION": "varchar",
+}
+
+BLS_LAUS_RAW_COLUMNS = {
+    "SERIES_ID": "varchar",
+    "STATE_FIPS": "varchar",
+    "STATE_ABBR": "varchar",
+    "STATE_NAME": "varchar",
+    "OBSERVED_MONTH": "varchar",
+    "VALUE": "varchar",
+    "YEAR": "varchar",
+    "PERIOD": "varchar",
+    "FOOTNOTES": "variant",
+}
+
+
+def load_s3_manifest_group(
+    connection,
+    *,
+    raw_schema: str,
+    source_table: str,
+    table_name: str,
+    manifests: list[dict[str, Any]],
+    stage_name: str,
+    s3_client: Any | None,
+) -> None:
+    """Load one source manifest group from S3 stage files into Snowflake."""
+    if source_table in {"raw_sba_7a_foia", "raw_sba_504_foia"}:
+        csv_columns = [
+            snowflake_csv_columns(
+                _csv_header_from_manifest(manifest, s3_client=s3_client)
+            )
+            for manifest in manifests
+        ]
+        source_columns = dict.fromkeys(
+            (column for columns in csv_columns for column in columns), "varchar"
+        )
+        for optional_column in SBA_OPTIONAL_RAW_COLUMNS:
+            source_columns.setdefault(optional_column.upper(), "varchar")
+        if set(source_columns) & set(RAW_METADATA_COLUMNS):
+            raise SnowflakeRawLoadError(
+                "CSV source columns collide with raw lineage columns"
+            )
+        _create_explicit_source_table(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            source_columns=source_columns,
+        )
+        _copy_csv_manifest_group_from_stage(
+            connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            manifests=manifests,
+            stage_name=stage_name,
+            csv_columns=csv_columns,
+            target_columns=list(source_columns),
+        )
+        return
+
+    if source_table == "raw_census_bds_state_year":
+        _create_explicit_source_table(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            source_columns=CENSUS_BDS_RAW_COLUMNS,
+        )
+        for manifest in manifests:
+            _insert_census_bds_json_from_stage(
+                connection=connection,
+                raw_schema=raw_schema,
+                table_name=table_name,
+                manifest=manifest,
+                stage_name=stage_name,
+            )
+        return
+
+    if source_table == "raw_bls_laus_state_month":
+        _create_explicit_source_table(
+            connection=connection,
+            raw_schema=raw_schema,
+            table_name=table_name,
+            source_columns=BLS_LAUS_RAW_COLUMNS,
+        )
+        for manifest in manifests:
+            _insert_bls_laus_json_from_stage(
+                connection=connection,
+                raw_schema=raw_schema,
+                table_name=table_name,
+                manifest=manifest,
+                stage_name=stage_name,
+            )
+        return
+
+    raise SnowflakeRawLoadError(
+        f"Unsupported Snowflake S3 source table: {source_table}"
+    )
+
+
+def snowflake_csv_columns(header: list[str]) -> list[str]:
+    """Normalize CSV header names into unique Snowflake column names."""
+    if not header:
+        raise SnowflakeRawLoadError("CSV source header is empty.")
+
+    columns: list[str] = []
+    seen: dict[str, int] = {}
+    for index, raw_column in enumerate(header, start=1):
+        normalized = _snowflake_identifier(raw_column)
+        if not normalized:
+            normalized = f"COLUMN_{index}"
+        base_name = normalized
+        suffix = seen.get(base_name, 1)
+        while normalized in seen:
+            suffix += 1
+            normalized = f"{base_name}_{suffix}"
+        seen[base_name] = suffix
+        seen[normalized] = 1
+        columns.append(normalized)
+    return columns
+
+
+def _csv_header_from_manifest(
+    manifest: dict[str, Any],
+    *,
+    s3_client: Any | None = None,
+) -> list[str]:
+    """Read the header row for the CSV artifact described by a manifest."""
+    raw_uri = str(manifest.get("raw_uri") or manifest["s3_raw_uri"])
+    reference = parse_s3_uri(raw_uri)
+    client = s3_client or boto3.client("s3")
+    # Header discovery only needs the first bytes; avoid downloading large SBA
+    # FOIA CSVs just to define the Snowflake target table.
+    response = client.get_object(
+        Bucket=reference.bucket,
+        Key=reference.key,
+        Range="bytes=0-65535",
+    )
+    header_chunk = response["Body"].read().decode("utf-8-sig", errors="replace")
+    return next(csv.reader(io.StringIO(header_chunk)))
+
+
+def _snowflake_identifier(value: str) -> str:
+    """Normalize a source column label into a Snowflake identifier token."""
+    identifier = re.sub(r"[^0-9A-Za-z_]+", "_", value.strip()).strip("_").upper()
+    identifier = re.sub(r"_+", "_", identifier)
+    if identifier and identifier[0].isdigit():
+        identifier = f"_{identifier}"
+    return identifier
+
+
+def _copy_csv_manifest_group_from_stage(
+    connection,
+    *,
+    raw_schema: str,
+    table_name: str,
+    manifests: list[dict[str, Any]],
+    stage_name: str,
+    csv_columns: list[list[str]],
+    target_columns: list[str],
+) -> None:
+    """Map each exact file's fields by name and attach its lineage during COPY."""
+    table_name_sql = _qualified_table_name(raw_schema, table_name)
+    stage_path = snowflake_sql_literal(_stage_path_prefix(raw_schema, stage_name))
+    columns_sql = ", ".join(
+        snowflake_identifier(name)
+        for name in [*target_columns, *RAW_ROW_METADATA_COLUMNS]
+    )
+    with connection.cursor() as cursor:
+        for manifest, columns in zip(manifests, csv_columns, strict=True):
+            reference = parse_s3_uri(
+                str(manifest.get("raw_uri") or manifest["s3_raw_uri"])
+            )
+            positions = {name: index for index, name in enumerate(columns, 1)}
+            values = [
+                f"source.${positions[name]}" if name in positions else "null"
+                for name in target_columns
+            ]
+            values.extend(
+                _sql_literal(value) for value in _metadata_values(manifest).values()
+            )
+            cursor.execute(f"""
+                copy into {table_name_sql} ({columns_sql})
+                from (select {", ".join(values)} from {stage_path} source)
+                files = ({snowflake_sql_literal(reference.key)})
+                file_format = (format_name = {_csv_load_file_format(raw_schema)})
+                on_error = abort_statement
+            """)
+
+
+def _create_explicit_source_table(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    source_columns: dict[str, str],
+) -> None:
+    """Create a raw table with known source columns plus lineage columns."""
+    column_definitions = {
+        **source_columns,
+        **RAW_METADATA_COLUMNS,
+    }
+    columns_sql = ",\n              ".join(
+        f"{snowflake_identifier(column_name)} {column_type}"
+        for column_name, column_type in column_definitions.items()
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            create or replace temporary table {_qualified_table_name(raw_schema, table_name)} (
+              {columns_sql}
+            )
+            """
+        )
+
+
+def _insert_census_bds_json_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    """Insert Census BDS rows from a staged JSON payload."""
+    table_name_sql = _qualified_table_name(raw_schema, table_name)
+    landing_table_name_sql = _qualified_table_name(
+        raw_schema,
+        f"{table_name}_LANDING",
+    )
+    _copy_json_payload_to_landing(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        manifest=manifest,
+        stage_name=stage_name,
+    )
+    with connection.cursor() as cursor:
+        # Census API JSON is an array where element 0 is the header row and the
+        # remaining elements are positional rows, so selects index into headers.
+        cursor.execute(
+            f"""
+            insert into {table_name_sql} (
+              "YEAR", "NAME", "STATE", "ESTAB", "ESTABS_ENTRY",
+              "ESTABS_ENTRY_RATE", "ESTABS_EXIT", "ESTABS_EXIT_RATE",
+              "FIRM", "JOB_CREATION", "JOB_DESTRUCTION",
+              {", ".join(RAW_ROW_METADATA_COLUMNS)}
+            )
+            select
+              get(data_row, array_position(to_variant('YEAR'), headers))::varchar
+                as "YEAR",
+              get(data_row, array_position(to_variant('NAME'), headers))::varchar
+                as "NAME",
+              get(data_row, array_position(to_variant('state'), headers))::varchar
+                as "STATE",
+              get(data_row, array_position(to_variant('ESTAB'), headers))::varchar
+                as "ESTAB",
+              get(data_row, array_position(to_variant('ESTABS_ENTRY'), headers))::varchar
+                as "ESTABS_ENTRY",
+              get(data_row, array_position(to_variant('ESTABS_ENTRY_RATE'), headers))::varchar
+                as "ESTABS_ENTRY_RATE",
+              get(data_row, array_position(to_variant('ESTABS_EXIT'), headers))::varchar
+                as "ESTABS_EXIT",
+              get(data_row, array_position(to_variant('ESTABS_EXIT_RATE'), headers))::varchar
+                as "ESTABS_EXIT_RATE",
+              get(data_row, array_position(to_variant('FIRM'), headers))::varchar
+                as "FIRM",
+              get(data_row, array_position(to_variant('JOB_CREATION'), headers))::varchar
+                as "JOB_CREATION",
+              get(data_row, array_position(to_variant('JOB_DESTRUCTION'), headers))::varchar
+                as "JOB_DESTRUCTION",
+              {_metadata_select_list(manifest)}
+            from (
+              select
+                PAYLOAD[0] as headers,
+                flattened.value as data_row
+              from {landing_table_name_sql},
+                lateral flatten(input => PAYLOAD) as flattened
+              where flattened.index > 0
+            )
+            """
+        )
+
+
+def _insert_bls_laus_json_from_stage(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    """Insert normalized BLS LAUS rows from a staged JSON payload."""
+    table_name_sql = _qualified_table_name(raw_schema, table_name)
+    landing_table_name_sql = _qualified_table_name(
+        raw_schema,
+        f"{table_name}_LANDING",
+    )
+    _copy_json_payload_to_landing(
+        connection=connection,
+        raw_schema=raw_schema,
+        table_name=table_name,
+        manifest=manifest,
+        stage_name=stage_name,
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            insert into {table_name_sql} (
+              "SERIES_ID", "STATE_FIPS", "STATE_ABBR", "STATE_NAME",
+              "OBSERVED_MONTH", "VALUE", "YEAR", "PERIOD", "FOOTNOTES",
+              {", ".join(RAW_ROW_METADATA_COLUMNS)}
+            )
+            select
+              value:series_id::varchar as "SERIES_ID",
+              value:state_fips::varchar as "STATE_FIPS",
+              value:state_abbr::varchar as "STATE_ABBR",
+              value:state_name::varchar as "STATE_NAME",
+              value:observed_month::varchar as "OBSERVED_MONTH",
+              value:value::varchar as "VALUE",
+              value:year::varchar as "YEAR",
+              value:period::varchar as "PERIOD",
+              value:footnotes as "FOOTNOTES",
+              {_metadata_select_list(manifest)}
+            from {landing_table_name_sql},
+              lateral flatten(input => PAYLOAD:normalized_rows)
+            """
+        )
+
+
+def _copy_json_payload_to_landing(
+    *,
+    connection,
+    raw_schema: str,
+    table_name: str,
+    manifest: dict[str, Any],
+    stage_name: str,
+) -> None:
+    """Copy one staged JSON artifact into a temporary variant landing table."""
+    reference = parse_s3_uri(str(manifest.get("raw_uri") or manifest["s3_raw_uri"]))
+    file_format = _stage_file_format(raw_schema, str(manifest["file_format"]))
+    landing_table_name_sql = _qualified_table_name(raw_schema, f"{table_name}_LANDING")
+    stage_path = snowflake_sql_literal(_stage_path_prefix(raw_schema, stage_name))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            create or replace temporary table {landing_table_name_sql} (
+              "PAYLOAD" variant
+            )
+            """
+        )
+        cursor.execute(
+            f"""
+            copy into {landing_table_name_sql}
+            from {stage_path}
+            files = ({snowflake_sql_literal(reference.key)})
+            file_format = (format_name = {file_format})
+            on_error = abort_statement
+            """
+        )
+
+
+def _metadata_select_list(manifest: dict[str, Any]) -> str:
+    """Render lineage metadata expressions for an insert-select statement."""
+    return ", ".join(
+        f"{_sql_literal(value)} as {snowflake_identifier(column_name)}"
+        for column_name, value in _metadata_values(manifest).items()
+    )
+
+
+def _metadata_values(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Return uppercase lineage metadata values for Snowflake raw rows."""
+    return manifest_raw_row_metadata(manifest, uppercase=True)
+
+
+def _sql_literal(value: Any) -> str:
+    """Return a nullable SQL literal for Snowflake statements."""
+    if value is None:
+        return "null"
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _stage_file_format(raw_schema: str, file_format: str) -> str:
+    """Resolve the Snowflake file format object for a manifest file format."""
+    if file_format.lower() == "csv":
+        return _csv_load_file_format(raw_schema)
+    if file_format.lower() == "json":
+        return _qualified_table_name(raw_schema, "RAW_JSON_FORMAT")
+    raise SnowflakeRawLoadError(f"Unsupported Snowflake S3 file format: {file_format}")
+
+
+def _csv_load_file_format(raw_schema: str) -> str:
+    """Return the qualified Snowflake CSV file format name."""
+    return _qualified_table_name(raw_schema, "RAW_CSV_LOAD_FORMAT")
+
+
+def _qualified_table_name(raw_schema: str, table_name: str) -> str:
+    """Return a quoted schema-qualified Snowflake object name."""
+    return f"{snowflake_identifier(raw_schema)}.{snowflake_identifier(table_name)}"
+
+
+def _stage_path_prefix(raw_schema: str, stage_name: str) -> str:
+    """Return the quoted Snowflake stage path prefix."""
+    return f"@{snowflake_identifier(raw_schema)}.{snowflake_identifier(stage_name)}"
