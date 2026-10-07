@@ -7,6 +7,14 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   checks:
@@ -30,3 +38,45 @@ jobs:
 
       - name: Run CI checks
         run: make ci-check
+
+  publish-report:
+    name: Publish reader report
+    needs: checks
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out verified revision
+        uses: actions/checkout@v4
+
+      - name: Set up presentation Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the public report package
+        run: |
+          python scripts/render_portfolio_report.py --output-dir .tmp/pages
+          cmp reports/portfolio/index.html .tmp/pages/index.html
+          cmp reports/portfolio/provenance.json .tmp/pages/provenance.json
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the report package
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .tmp/pages
+          retention-days: 1
+
+      - name: Deploy the reader report
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -112,7 +112,7 @@ validation evidence rather than bypassing result persistence.
 S3/Snowflake and local routes share those obligations. Fixed fixtures prove parser
 and orchestration behavior; they do not establish live publisher completeness.
 See [architecture](architecture.md), [methodology](kpi_definitions.md) and
-[dated evidence](case_study.md).
+[dated evidence](../implementation/lending_verification_history.md).
 
 ## Publication dates and reference periods
 

@@ -9,7 +9,8 @@ measure expressions, references and allowed aggregation patterns.
 
 ## Reading the analysis
 
-Start with [the case study](case_study.md) and [current chart results](analysis_results.md).
+Start with the [HTML reader report](https://stevennitesh.github.io/small-business-lending-pipeline/).
+The [generated aggregate results](analysis_results.md) supply tables and source charts.
 The report calls Census establishments **employer business locations** and calls
 mixed-basis nominal amounts **reported approval amounts**. A share based on known
 names or industries always states that denominator and its coverage. The

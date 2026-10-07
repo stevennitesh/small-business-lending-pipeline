@@ -40,6 +40,26 @@ measurements do not support a fixed speedup promise. Current materialization
 settings belong to `dbt/dbt_project.yml`; command effects and fast/full test
 scope belong to the [runtime guide](orchestration_runtime.md#command-scope).
 
+## Measurement method and limits
+
+The historical [benchmark wrapper](../../scripts/benchmark_local_command.py)
+timed one shell command per invocation with `time.perf_counter()`. It read the
+operating system's maximum child-process resident-memory statistic through
+`resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss` and converted it to bytes.
+It also recorded exit status and disk-size changes. This method does not sample
+combined memory across the process tree.
+
+The later full-build and BI-refresh observations used
+`make benchmark-local COMMAND="make dbt-build-local-full"` and
+`make benchmark-local COMMAND="make powerbi-refresh-local"`. The native-loading
+trial invoked a temporary Python helper against retained raw inputs; its full
+invocation and original timing JSON are not present in the maintained checkout.
+
+Original hardware, exact Python/dependency versions, cache conditions and repeat
+counts are not recorded in the retained summary. The values above are individual
+recorded observations, with no estimated variability or controlled speedup claim.
+No benchmark was rerun for this documentation update.
+
 ## Rejected intermediate table
 
 A broad intermediate loan table reduced the fact model's time by about four

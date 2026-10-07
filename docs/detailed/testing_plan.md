@@ -17,6 +17,7 @@ use cloud credentials, launch Power BI Desktop or run a full live warehouse buil
 | Prefect wiring | Isolated fixture command from the [runtime guide](orchestration_runtime.md#safe-local-proof) |
 | Power BI model / export contract | `make powerbi-model-check` and relevant `tests/unit/test_powerbi_*.py`; actual report checks in Desktop |
 | Reader charts / aggregate report | Supported historical-year wording, derived geography scope, reader denominators and public-proof sanitization/line-ending portability in `tests/unit/test_analysis_report.py`; readiness-bound real generation, deterministic output comparison and rendered visual review; generator never refreshes sources or writes warehouse/exports |
+| HTML portfolio presentation | `tests/unit/test_portfolio_report.py`: evidence-hash rejection before replacement, matching CSV/readiness/vocabulary proof, publication versus download-review reasons, escaped labels, supported annual changes, CRLF/LF repeatability, embedded charts/downloads, internal anchors and checked-in regeneration; rendered desktop/mobile review of layout, enlargement, disclosures and navigation. For publication, require successful checks and Pages deployment at the pushed revision, anonymous public access and served HTML/provenance hash agreement. |
 | Saved real CSV readiness | After an authorized source or derived refresh, `.venv/bin/python scripts/verify_powerbi_readiness.py`; CSV schema/types/grains, relationship references, independent raw/fact/component reconciliation and aggregate SQL selection references. A PBIX is not required or inspected. |
 
 A test/compile pass is evidence for that scope. Read the runtime guide before a
@@ -73,7 +74,8 @@ preserved validated raw inputs. Record small findings and remove copied
 warehouses/BI CSVs after verification using the runtime guide's explicit scratch
 cleanup. Never overwrite the saved active warehouse with fixture outputs. A full `dbt build` is heavier and requires deliberate live-data scope and
 memory headroom. Generated dbt artifacts are ignored; record checks actually run
-with their population/date and limits in [case_study.md](case_study.md).
+with their population/date and limits in the
+[verification appendix](../implementation/lending_verification_history.md).
 
 Successful pytest temporary fixtures are removed automatically; retain only the
 most recent failed session's scratch fixtures. `test_correctness_audit.py` exercises

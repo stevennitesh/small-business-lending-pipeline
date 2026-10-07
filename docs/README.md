@@ -1,7 +1,9 @@
 # Documentation map
 
 [AGENTS.md](../AGENTS.md) supplies the brief context loaded for repository work.
-The [project README](../README.md) is the public overview. Use the relevant owner
+The [project README](../README.md) is the concise repository introduction; the
+[HTML report](https://stevennitesh.github.io/small-business-lending-pipeline/)
+is the main reader story. Use the relevant owner
 below for deeper work; neither entry point requires loading the entire doc tree.
 
 ## Current owners
@@ -18,7 +20,8 @@ below for deeper work; neither entry point requires loading the entire doc tree.
 | Verification scope and evidence limits | [Testing guide](detailed/testing_plan.md) | `tests/`, `dbt/tests/`, CI workflow and Makefile |
 | Required report pages and acceptance | [Dashboard specification](detailed/dashboard_spec.md) | Power BI handoff and actual report/screenshots |
 | Imports, relationships, semantic measures and manual Desktop work | [Power BI handoff](../powerbi/README.md) | Export schema, model JSON, DAX, Power Query and contract validators |
-| Reader story and reproducible charts | [Case study](detailed/case_study.md), [reader results](detailed/analysis_results.md) | `scripts/render_analysis_report.py`, checked reporting CSVs, [aggregate JSON](images/lending_analysis.json), [public verification](images/lending_verification.json) |
+| Main reader story | [Hosted HTML report](https://stevennitesh.github.io/small-business-lending-pipeline/), [offline copy](../reports/portfolio/index.html) | `scripts/render_portfolio_report.py` and `scripts/portfolio/`; [HTML provenance](../reports/portfolio/provenance.json); CI publishes after checks pass |
+| Generated charts and aggregate evidence | [Aggregate results](detailed/analysis_results.md), [aggregate JSON](images/lending_analysis.json), [public verification](images/lending_verification.json) | `scripts/render_analysis_report.py`, checked reporting CSVs; [supporting-evidence guide](detailed/case_study.md) routes existing links to their owners |
 | Reader vocabulary, current chart sequence and planned Desktop page narration | [Report reader guide](../powerbi/report_reader_guide.md) | `powerbi/report_language.json`, model display names/descriptions |
 | Engineering choices and historical benchmarks | [Design decisions](detailed/design_decisions.md) | Recorded comparisons and rejected trials, with current implementation owners |
 | Dated data and check results | [Verification appendix](implementation/lending_verification_history.md) | Public aggregate proof, retained local evidence and linked CI runs |

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "scope": "HTML presentation rebuilt from hash-verified public aggregates and existing charts; prior data checks are not rerun",
+  "source_readiness_checked_at_utc": "2026-10-05T06:07:25.506301+00:00",
+  "source_publication_checked_at_utc": "2026-10-05 06:06:54.443163",
+  "text_hash_policy": "SHA256 of UTF-8 text with LF line endings",
+  "inputs": {
+    "docs/detailed/analysis_results.md": {
+      "sha256": "2c7bdc69dd3525690ab1aefab929333417531cac526f3a00b00d78180d91fef0"
+    },
+    "docs/images/lending_analysis.json": {
+      "sha256": "a47724600a1abfbc13f4a95e1c692232cfe83900466c78aedc7a339777e5b05b"
+    },
+    "docs/images/lending_coverage.svg": {
+      "sha256": "31e486ce32e8a52539699aebcdaf58e02e2fb7978f83b7c66fbf226850201e2e"
+    },
+    "docs/images/lending_findings.svg": {
+      "sha256": "d61d377e2e7ea5b0ab39e2e53dabd0e6aa7f8e8d0cc834dfe4895e4c4a25b502"
+    },
+    "docs/images/lending_geography.svg": {
+      "sha256": "443d56716cc627b55f2f0a02d062380b26c821cf7eb1ce4353653306febf8686"
+    },
+    "docs/images/lending_industries.svg": {
+      "sha256": "f39ae6a990109c275cb9d36c6af735649fe336d0e2e7f1c139be64804468a560"
+    },
+    "docs/images/lending_lenders.svg": {
+      "sha256": "bf2f2de4c105ed7e2402b808ba862ee7e651fb9bff0503a72bb2c549f82ccf21"
+    },
+    "docs/images/lending_programs.svg": {
+      "sha256": "1964fa3c605376e737007f2379f5efd9823e6fc7f0e948ec457f9f1b4926dcfa"
+    },
+    "docs/images/lending_verification.json": {
+      "sha256": "32a755023d7aa880c3e7b035699da33519145910d7c7f5f52d944af2f8cb1c78"
+    },
+    "powerbi/report_language.json": {
+      "sha256": "d97b2ff58c38bfc67aee9874f4170e9dfd52f9fab149a628d8b9d677eb67f020"
+    },
+    "scripts/portfolio/index.html": {
+      "sha256": "d753adeb3b842dd2a4bdf73fab51435e828bb225166b60f7cf81df2f33abaef6"
+    },
+    "scripts/portfolio/report.css": {
+      "sha256": "0ddf80a1bc881ca165fce090a53149269bd48f7e75f772c40e366aec38f5f6d2"
+    },
+    "scripts/portfolio/report.js": {
+      "sha256": "a228e048f841a444a3144b68cae9f13da8bbfad403d59ee60b6aefd31720fe2a"
+    },
+    "scripts/render_portfolio_report.py": {
+      "sha256": "b0394da2b4d65ea485d0356ec24ec826dbe8148c02904a3fc55d62dbff80d55a"
+    }
+  },
+  "outputs": {
+    "index.html": {
+      "sha256": "fd2f1a5c54acb882a0f21faa88cc7d126528de3222c0d30cc0ff2ade4f8cdb15",
+      "bytes": 300547
+    }
+  },
+  "not_executed": [
+    "CSV and warehouse readiness verification",
+    "source download",
+    "warehouse rebuild",
+    "full dbt data test suite",
+    "Power BI Desktop DAX or Power Query",
+    "live cloud execution"
+  ]
+}

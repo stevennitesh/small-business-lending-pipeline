@@ -1,4 +1,4 @@
-.PHONY: install ci-check test lint format-check format runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local powerbi-ci-check cleanup-local-data-dry-run cleanup-local-data powerbi-model-check
+.PHONY: install ci-check test lint format-check format runtime-smoke run-local run-local-fixture run-local-live run-cloud benchmark-local dbt-local dbt-compile-local dbt-build-local-fast dbt-build-local-full dbt-seed-local powerbi-refresh-local powerbi-ci-check cleanup-local-data-dry-run cleanup-local-data powerbi-model-check portfolio-report
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -30,6 +30,9 @@ ci-check:
 
 test:
 	$(VENV_PYTHON) -m pytest
+
+portfolio-report:
+	$(VENV_PYTHON) scripts/render_portfolio_report.py
 
 lint:
 	$(VENV_PYTHON) -m ruff check .

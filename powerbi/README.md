@@ -3,6 +3,9 @@
 The report follows a simple story: how approval activity changes, where it is
 concentrated, how it compares with local employer business locations, and what
 programs, industries and lender names make up the total.
+The [HTML reader report](https://stevennitesh.github.io/small-business-lending-pipeline/)
+presents those findings, methods and engineering decisions in a browser,
+independently of Desktop. An [offline copy](../reports/portfolio/index.html) is included.
 The [reader guide](report_reader_guide.md) distinguishes the current chart sequence from the six planned Desktop page titles, questions,
 plain labels and tooltips. The [current data report](../docs/detailed/analysis_results.md)
 contains six reproducible charts from checked local exports; they are not PBIX screenshots. Version 3 local saved-data outputs were
@@ -251,4 +254,4 @@ to publish them. The default ignore rules keep unfinished report artifacts local
 Do not close the dashboard/evidence tasks on source-contract tests alone.
 See [methodology](../docs/detailed/kpi_definitions.md),
 [dashboard specification](../docs/detailed/dashboard_spec.md) and
-[dated case-study evidence](../docs/detailed/case_study.md).
+[dated verification evidence](../docs/implementation/lending_verification_history.md).

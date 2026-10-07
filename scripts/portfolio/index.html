@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A public-data analytics engineering case study of SBA approval activity, geographic concentration and the business context behind the numbers.">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#153e48">
+  <meta name="author" content="Steven Bangdiwala">
+  <link rel="canonical" href="$site">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Business lending, in context | Steven Bangdiwala">
+  <meta property="og:description" content="SBA approval trends, geographic context and the engineering decisions behind a reproducible public-data analysis.">
+  <meta property="og:url" content="$site">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23153e48'/%3E%3Cpath d='M8 24V17M16 24V12M24 24V7' stroke='%23e8bb76' stroke-width='4'/%3E%3C/svg%3E">
+  <title>Business lending, in context | Steven Bangdiwala</title>
+  <style>$styles</style>
+</head>
+<body>
+<a class="skip" href="#report">Skip to report</a>
+<div class="page">
+  <div class="masthead"><a href="$repo" class="brand">Steven Bangdiwala <span>/ Analytics engineering</span></a>
+    <span class="edition">Public-data portfolio · Report 01</span></div>
+  <header class="hero">
+    <p class="eyebrow">Small business lending · SBA 7(a) &amp; 504</p>
+    <h1>Business lending,<br>in context.</h1>
+    <p class="hero-deck">Where is loan approval activity concentrated, and how does the answer change
+      when we compare it with the local business base?</p>
+    <p class="hero-finding">$movement.</p>
+    <p class="hero-note">I built a Python and SQL pipeline that turns public agency files into validated
+      snapshots, tested metrics and reproducible reports.</p>
+    <div class="periods"><span>$year lending results</span><span>$context employer-location comparison</span>
+      <span>Evidence checked $checked UTC</span></div>
+  </header>
+  <div class="metrics" aria-label="$year approval activity">
+    <div class="metric"><span class="metric-label">Reported approval amounts</span><strong>$amount</strong><span>$year · nominal source amounts</span></div>
+    <div class="metric"><span class="metric-label">Approval records</span><strong>$records</strong><span>$records_change from $prior_year</span></div>
+    <div class="metric"><span class="metric-label">Annual dollar change</span><strong>$growth</strong><span>Comparable full calendar years</span></div>
+    <div class="metric"><span class="metric-label">Average reported amount</span><strong>$average</strong><span>Per record with a known amount</span></div>
+  </div>
+  <p class="population">$scope · Recognized project state and calendar approval date.
+    Includes canceled/not-funded approvals. Records are not unique borrowers or disbursements.</p>
+
+  <div class="layout">
+    <aside>
+      <nav aria-label="Report contents">
+        <p class="eyebrow">Read the report</p>
+        <a href="#question">The question</a>
+        <a href="#activity"><span>01</span> Activity over time</a>
+        <a href="#geography"><span>02</span> Geography &amp; context</a>
+        <a href="#composition"><span>03</span> Programs &amp; industries</a>
+        <a href="#lenders"><span>04</span> Lender concentration</a>
+        <a href="#coverage"><span>05</span> Publication timelines</a>
+        <a href="#engineering"><span>06</span> Engineering decisions</a>
+        <a href="#limits">What the findings support</a>
+        <a href="#methods">Definitions &amp; methods</a>
+        <a href="#evidence">Evidence &amp; downloads</a>
+      </nav>
+      <p class="sidebar-note">Six charts. Public aggregates.<br>No account or BI software required.</p>
+    </aside>
+    <main id="report">
+      <section id="question" class="intro">
+        <p class="eyebrow">The question</p>
+        <h2>Give the totals a useful comparison.</h2>
+        <p>The U.S. Small Business Administration (SBA) publishes historical 7(a) and 504 loan approval records.
+          Dollar totals describe the scale of that activity. Record counts describe its volume.
+          Comparing activity with employer business locations adds geographic context. Each view answers
+          a different question.</p>
+        <p>A lending analyst or economic-development researcher could use these comparisons to choose
+          states, sectors or lender assignments for closer study. The results do not establish credit
+          access, unmet demand or the effect of SBA programs.</p>
+      </section>
+
+      <section id="activity">
+        <div class="section-heading"><span class="section-number">01</span><div><p class="eyebrow">Activity over time · $year</p>
+          <h2>$movement.</h2></div></div>
+        <p>$trend_description The dollar change is $growth; the record change is $records_change.
+          A dollar trend alone misses the change in volume.</p>
+        $trend_chart
+        <div class="callout"><strong>Read the average with its denominator.</strong>
+          The $average average divides reported dollars by $known_records records with known amounts.
+          A zero amount is known; a missing amount stays out of this denominator.</div>
+        <details><summary>Inspect annual totals</summary>$trend_table</details>
+      </section>
+
+      <section id="geography">
+        <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">Geography &amp; context · $context</p>
+          <h2>Large dollar totals and high relative activity tell different stories.</h2></div></div>
+        <p>$geography_description The two rankings answer different questions about the same year.</p>
+        $geography_chart
+        <div class="callout"><strong>Why use $context here?</strong>
+          It is the complete context year used by these inputs. Census employer establishments are
+          business locations with employees, across firm sizes. They exclude businesses without employees
+          and do not count eligible small-business borrowers.</div>
+        <p>Census measures an annual March 12 stock; SBA activity spans the calendar year.
+          Records per 1,000 locations are a contextual comparison, with different source scopes and
+          observation windows. They do not measure lending penetration.</p>
+        <details><summary>Compare the leading states in both rankings</summary>$geography_table $intensity_table</details>
+      </section>
+
+      <section id="composition">
+        <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">Programs &amp; industries · $year</p>
+          <h2>Show what makes up the total.</h2></div></div>
+        <p>$programs_description SBA 7(a) supports general business uses such as working capital,
+          equipment and real estate. SBA 504 supports major fixed assets.</p>
+        $program_chart
+        <div class="callout"><strong>The programs report different amount bases.</strong>
+          7(a) reports whole loans. 504 reports the SBA/Certified Development Company portion.
+          The combined total does not measure total project financing or comparable government exposure.</div>
+        <details><summary>Inspect program amounts and records</summary>$program_table</details>
+        <p class="subsection-lead">$industries_description A known-industry share divides by known-sector dollars,
+          rather than by all dollars regardless of classification.</p>
+        $industry_chart
+        <p class="coverage-note">Unknown or unclassified sectors: $unknown_industry.</p>
+        <details><summary>Inspect all known-industry totals</summary>$industry_table</details>
+      </section>
+
+      <section id="lenders">
+        <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">Lender concentration · $year</p>
+          <h2>Rank names after combining the selected geography.</h2></div></div>
+        <p>$lenders_description Adding each state's top five would combine different memberships and
+          answer a different question.</p>
+        $lender_chart
+        <p>7(a) uses the currently assigned bank name; 504 uses the reported third-party lender name.
+          Cleaning standardizes case and whitespace. These names describe snapshot assignments of
+          historical approvals, rather than historical originators or consolidated banking groups.</p>
+        <p class="coverage-note">Unknown lender names: $unknown_lender.</p>
+        <details><summary>Inspect the five largest reporting names</summary>$lender_table</details>
+      </section>
+
+      <section id="coverage">
+        <div class="section-heading"><span class="section-number">05</span><div><p class="eyebrow">Publication timelines</p>
+          <h2>An older reference year can be the latest published data.</h2></div></div>
+        <p>The report separates the period observed, the publication date, the publisher check and
+          the download date. Census Business Dynamics Statistics (BDS) is an annual release with a multi-year lag; its reference year
+          alone cannot tell us whether a newer release is missing.</p>
+        $coverage_chart
+        <details><summary>Inspect reference, publication and download dates</summary>$source_table
+          <p>Official release evidence (network required): $source_links.</p></details>
+        <div class="callout"><strong>This evidence is frozen at $checked UTC.</strong>
+          A verified newer published period missing from saved data is stale. An expired check or old
+          download requires verification. Opening this file later does not check publishers again.
+          Unconfirmed publication dates remain unconfirmed.</div>
+        <p>The lending view uses $year and the geographic context comparison uses $context. Bureau of Labor Statistics (BLS) state
+          labor data is validated for the BI handoff; these charts do not report a lending–unemployment
+          relationship. October 2025 unemployment data was not published. Its 11-month mean is
+          descriptive, and an ordinary comparable annual change is suppressed.</p>
+      </section>
+
+      <section id="engineering">
+        <div class="section-heading"><span class="section-number">06</span><div><p class="eyebrow">What I built</p>
+          <h2>Preserve the meaning from source file to report.</h2></div></div>
+        <p>My contribution covers source adapters and validation, Python/Prefect orchestration,
+          dbt models and tests, reporting contracts, reproducible charts and the Power BI model handoff.
+          Public agencies supply the data. DuckDB, dbt, Prefect and Power BI supply the processing tools.</p>
+        <ol class="pipeline" aria-label="Implemented reporting pipeline">
+          <li><strong>Public files</strong><span>SBA · Census · BLS</span></li>
+          <li><strong>Validated snapshots</strong><span>Python · checksums · manifests</span></li>
+          <li><strong>Modeled metrics</strong><span>DuckDB · dbt SQL and tests</span></li>
+          <li><strong>Reporting</strong><span>Current charts · Power BI handoff</span></li>
+        </ol>
+        <div class="decision-grid">
+          <article><h3>Define the population once</h3><p>dbt owns record eligibility, period alignment and
+            additive components. Reporting sums dollars and known-amount counts before division,
+            so a state-level average cannot distort the combined result.</p></article>
+          <article><h3>Test plausible wrong answers</h3><p>Small SQL fixtures use unequal groups,
+            missing values, absent periods and changing state sets. They distinguish the intended
+            formulas from results that look reasonable but use the wrong denominator.</p></article>
+          <article><h3>Measure the whole refresh</h3><p>A broad intermediate table saved about four
+            seconds in one model, but added a 14–15 second build and hundreds of megabytes.
+            Full refreshes became slower, so I rejected it.</p></article>
+        </div>
+        <details><summary>Read the recorded performance result and its limits</summary>
+          <p>A May 2026 native DuckDB CSV-load comparison recorded wall time of about 28.6 → 18.1 seconds
+            and maximum resident memory of about 4.7 → 2.0 GB on the same retained inputs.
+            Source-table row counts matched. This is a historical observation on an earlier population.</p>
+          <p>The wrapper timed one command invocation and recorded child-process maximum resident
+            memory; it did not measure combined process-tree RAM. The retained summary lacks hardware,
+            environment versions, cache conditions and repeat counts. It cannot establish a controlled
+            speedup or performance for the current larger warehouse. $decision_link.</p>
+        </details>
+        <p class="status"><strong>Delivery status:</strong> Local data, tested models and this HTML report are available.
+          Power BI Desktop correction is pending. The S3/Snowflake route is implemented; paid live
+          cloud execution is deferred. $powerbi_link.</p>
+      </section>
+
+      <section id="limits">
+        <p class="eyebrow">What the findings support</p>
+        <h2>A descriptive analysis with inspectable evidence.</h2>
+        <ul class="limits-list">
+          <li><strong>Activity, concentration and context.</strong> These comparisons support a closer
+            look at changes over time and differences across states, sectors and assigned lender names.</li>
+          <li><strong>A defined slice of public lending data.</strong> SBA approvals include canceled or
+            not-funded records. They do not represent all small-business credit, borrower funding,
+            unique borrowers or inflation-adjusted activity.</li>
+          <li><strong>An engineering portfolio.</strong> The work demonstrates data validation, SQL
+            metric design and reproducible reporting. It does not claim business deployment,
+            causal impact, credit-access measurement or borrower risk prediction.</li>
+        </ul>
+      </section>
+
+      <details id="methods" class="major-detail">
+        <summary>Definitions &amp; methods <span>Populations, formulas and comparison windows</span></summary>
+        <div class="detail-body">
+          <h2>Use the denominator that answers the question.</h2>
+          <dl class="glossary">
+            <dt>Reported approval amounts</dt><dd>Sum of valid, nonnegative nominal source amounts.
+              Whole-loan amounts for 7(a), SBA/Certified Development Company (CDC) portions for 504.
+              Missing amounts do not add dollars.</dd>
+            <dt>Approval records</dt><dd>Count of eligible source records with a recognized project state
+              and calendar approval date. Cancellation/not-funded statuses stay in scope.</dd>
+            <dt>Average reported amount</dt><dd>Summed dollars ÷ summed records with known amounts.
+              Zero is known. Missing amounts remain in record volume but leave this denominator.</dd>
+            <dt>Annual dollar change</dt><dd>(Current full-year dollars ÷ prior full-year dollars) − 1.
+              Requires consecutive comparable years and matching observed state sets.</dd>
+            <dt>Approval records per 1,000 employer locations</dt><dd>1,000 × matched state-year records
+              ÷ matched employer establishments. Both components use the same matched rows.
+              Annual stocks provide context across firm sizes, rather than an eligible-borrower count.</dd>
+            <dt>Program share</dt><dd>Program dollars ÷ all-program dollars in the selected state/year population.</dd>
+            <dt>Known-industry share and coverage</dt><dd>Sector dollars ÷ all known-sector dollars.
+              Coverage is known-sector dollars ÷ all dollars. Missing/unclassified sectors are disclosed separately.</dd>
+            <dt>Top-five lender-name share and coverage</dt><dd>Sum of the five largest known-name dollar
+              totals ÷ all known-name dollars, after selection-wide aggregation. Coverage is known-name
+              dollars ÷ all dollars. Ties use a stable name key.</dd>
+          </dl>
+          <p>SBA calendar years, Census March 12 establishment stocks and BLS monthly state rates have
+            different observation windows. A matching year gives regional context without certifying
+            identical temporal exposure. State unemployment rates are not averaged into a national rate.</p>
+          <p>$method_link · $architecture_link</p>
+        </div>
+      </details>
+
+      <details id="evidence" class="major-detail">
+        <summary>Evidence &amp; downloads <span>Recorded checks, exact aggregates and reproduction</span></summary>
+        <div class="detail-body">
+          <h2>Separate the checks by what they prove.</h2>
+          <p>The October local rebuild passed 328 real-data dbt tests. The saved-data readiness record
+            below is a later check of reporting exports against modeled tables. Neither check was
+            rerun to create this HTML file.</p>
+          $evidence_table
+          <p>Chart generation checked six input CSV byte hashes and row counts, then reconciled selected
+            category dollars, record counts and known-amount counts. This HTML builder verifies the
+            versioned aggregate and chart text hashes against that public proof. Its own provenance
+            binds the inputs, template and output. Hash agreement preserves the evidence trail;
+            it does not independently rerun the source-data analysis.</p>
+          <p>The live Prefect extraction initially failed source validation. After compatibility repairs,
+            processing resumed from retained downloads; a separate final summary records success.
+            That recovery was not an uninterrupted full Prefect pass.</p>
+          <div class="downloads" aria-label="Report downloads">
+            <a href="$aggregate_uri" download="lending_analysis.json">Exact aggregate values · JSON</a>
+            <a href="$proof_uri" download="lending_verification.json">Saved-data and chart checks · JSON</a>
+            <a href="provenance.json" download>HTML provenance · JSON</a>
+          </div>
+          <p>The aggregate and check downloads are embedded in this file. Each chart has an SVG download.
+            HTML provenance is supplied alongside the report. Optional project links below need a network connection.</p>
+          <h3>Rebuild this presentation from a fresh checkout</h3>
+          <pre><code>python scripts/render_portfolio_report.py</code></pre>
+          <p>This standard-library command reads versioned public aggregates and charts. It needs no raw
+            records, database, plotting dependency or credentials. It replaces only this report and its
+            small provenance file.</p>
+          <h3>Reproduce the underlying data analysis</h3>
+          <p>Exact chart regeneration requires matching saved CSV exports and readiness evidence,
+            which are excluded from Git. Rebuilding modeled data also requires validated raw snapshots
+            and manifests. A new live refresh can include publisher revisions and change historical totals.</p>
+          <pre><code>make install PYTHON=python3.12
+make ci-check</code></pre>
+          <p>The lightweight gate uses Linux/WSL Python 3.12. It checks code, SQL compilation and report
+            contracts, without downloading sources or executing the full warehouse data-test suite.
+            Desktop DAX, Power Query and current live cloud data remain outside that gate.</p>
+          <div class="evidence-links">$runtime_link · $test_link · $history_link · $decision_link</div>
+        </div>
+      </details>
+      <footer><p>Steven Bangdiwala · Public-data analytics engineering</p>
+        <p>This report works offline. Charts, text and styles are embedded. Data evidence is frozen at
+          $checked UTC; reading or rebuilding the HTML does not refresh it.</p>
+        <a href="#report">Back to the report ↑</a> · <a href="$repo">Project repository</a></footer>
+    </main>
+  </div>
+</div>
+<dialog id="chart-viewer" aria-labelledby="viewer-title">
+  <div class="viewer-toolbar"><h2 id="viewer-title">Chart</h2><div>
+    <button type="button" id="size-toggle" aria-pressed="false">Use full size</button>
+    <button type="button" id="close-viewer" aria-label="Close chart">Close ×</button></div></div>
+  <div class="viewer-scroll"><img id="viewer-image" alt=""></div>
+  <p id="viewer-caption"></p>
+</dialog>
+<script>$script</script>
+</body>
+</html>

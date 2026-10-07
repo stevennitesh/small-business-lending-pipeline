@@ -1,7 +1,8 @@
 # Lending analysis: dated verification
 
-Start with the [case study](../detailed/case_study.md) and
-[current results](../detailed/analysis_results.md). This appendix records the
+Start with the [HTML reader report](https://stevennitesh.github.io/small-business-lending-pipeline/).
+The [generated aggregate results](../detailed/analysis_results.md) provide supporting tables and charts.
+This appendix records the
 population and scope of checks already performed. Counts are dated observations,
 not hardcoded expectations for future runs.
 

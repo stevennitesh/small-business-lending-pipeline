@@ -96,10 +96,74 @@ large builds. Do not assume the fixture demonstrates a complete publisher year.
 
 ## Reader report and chart generation
 
+### HTML reader report
+
+The [hosted report](https://stevennitesh.github.io/small-business-lending-pipeline/)
+is the main reading destination. Open the identical
+[offline copy](../../reports/portfolio/index.html) in a browser for the findings,
+methods, engineering story and evidence. The file
+embeds its six SVG charts, styling, interactions and aggregate/check JSON downloads.
+It works alone offline; `provenance.json` is supplied alongside it. Optional links
+to project documentation and publisher pages require a network connection.
+
+Rebuild this presentation from the versioned public artifacts in a fresh checkout:
+
+```bash
+python scripts/render_portfolio_report.py
+# Or, with the supported project environment:
+make portfolio-report
+```
+
+The standard-library builder verifies the aggregate and chart text hashes against
+the existing public proof, and checks agreement on CSV hashes, readiness time and
+the owned report vocabulary. Recency assessments use its publication/download reasons.
+It writes only `reports/portfolio/index.html` and its small `provenance.json`, with
+normalized text hashes for the evidence inputs, generator and presentation assets.
+It does not rerun data readiness or check current publisher releases. No raw data,
+warehouse, ignored CSVs, plotting package or credentials are required.
+`--output-dir <directory>` redirects these two outputs. Keep only the current
+report; there is no per-run HTML archive. The default package is under 500 KB.
+Presentation sources live in `scripts/portfolio/`; regenerate after changing them.
+Review desktop/mobile rendering, chart enlargement, disclosures, navigation and
+downloads. GitHub's ordinary file viewer shows HTML source; use the hosted report
+or download/open the file for the rendered report.
+
+### GitHub Pages publication
+
+The `publish-report` job in [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
+depends on the standard checks. It runs only for a push to `master` or a manual
+workflow dispatch on `master`; pull requests run checks without deployment.
+The workflow serializes runs per ref so a later push cannot finish publication
+before an earlier running revision. Repository Pages settings use GitHub Actions
+as the build source and the `github-pages` deployment environment.
+
+The publication job rebuilds from versioned public evidence into `.tmp/pages`
+using standard-library Python 3.12, compares both files with the committed report,
+and uploads only that small package. The uploaded Pages artifact expires after
+one day; the current deployed site remains available. There is no warehouse,
+raw data, CSV bundle, secret or saved-run archive in the publication package.
+The job needs `contents: read`, `pages: write` and `id-token: write`; the test job
+has only read access. It performs no source refresh, dbt data build or cloud run.
+
+After changing the report sources, regenerate the checked-in HTML/provenance,
+run the appropriate checks, then commit and push the reviewed candidate. Verify
+that CI and Pages deployment completed for that revision, inspect the public
+URL without authentication, and check that served HTML/provenance match the
+versioned output hashes. A local pass or an enabled Pages setting alone does
+not prove a successful publication.
+
+### Underlying charts and analysis
+
 The optional presentation command reads existing checked local CSVs. It does not
 extract sources, rebuild a warehouse, change exports or edit the PBIX. Run it with
 Python 3.12 and **Matplotlib 3.10.8** available in an optional plotting environment;
 Matplotlib is not required by the pipeline or `make ci-check`.
+
+The checkout includes the finished charts and aggregate evidence, but not the
+CSV exports or retained readiness summary needed to regenerate those exact
+charts. Exact replay requires the matching saved inputs. Rebuilding modeled
+tables additionally requires the validated raw snapshots and manifests; a new
+live refresh may include publisher revisions and produce different figures.
 
 ```bash
 python scripts/render_analysis_report.py \
@@ -139,6 +203,7 @@ purpose and effects. Use the smallest check that establishes the changed behavio
 |---|---|
 | `make install PYTHON=python3.12` | Creates/updates the local `.venv` from `requirements.txt` |
 | `make ci-check` | Runtime imports, pytest, dbt compile, Power BI contract, Ruff lint/format; no source refresh or cloud job |
+| `make portfolio-report` | Rebuilds the two small offline HTML presentation files from versioned public evidence; no data refresh or warehouse access |
 | `make test`, `make lint`, `make format-check` | Focused runtime-quality entry points; `make format` modifies Python formatting |
 | `make dbt-local` | Compile only; alias for `dbt-compile-local` |
 | `make dbt-seed-local` | Loads reference seeds into the configured local warehouse |
@@ -253,7 +318,8 @@ maintenance. Remove registered `.tmp/worktrees/` checkouts with `git worktree re
 rather than deleting their directory.
 
 [Architecture](architecture.md), [testing](testing_plan.md) and
-[case study](case_study.md) provide further context and dated evidence.
+[dated verification appendix](../implementation/lending_verification_history.md)
+provide further context and dated evidence.
 
 ## Maintaining publication evidence
 
