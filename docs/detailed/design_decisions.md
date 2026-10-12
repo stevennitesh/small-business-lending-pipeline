@@ -96,3 +96,17 @@ the [documentation map](../README.md) identifies maintained owners and the
 the October 5 source/build evidence and October 11 local Desktop verification.
 The verified seven-page report remains a local artifact; the HTML report is the
 public reading destination.
+
+## October 11, 2026 reader delivery scope
+
+The user accepted the hosted/offline HTML report and verified local seven-page
+Power BI report as the completed reader delivery. Optional public PBIX/capture
+publication ([issue #25](https://github.com/stevennitesh/small-business-lending-pipeline/issues/25))
+and paid live S3/Snowflake verification
+([issue #28](https://github.com/stevennitesh/small-business-lending-pipeline/issues/28))
+were retired as requirements and closed as not planned. This reduces the portfolio
+delivery burden without claiming those activities occurred. The PBIX, PDF and
+genuine captures remain local and ignored; the implemented cloud route and its
+custody/validation protections remain supported, without current live certification.
+The [project specification](project_spec.md#acceptance-and-honest-limits) owns
+current acceptance; future publication or paid verification needs a new request.

@@ -22,7 +22,7 @@ activity, not all small-business credit or borrower creditworthiness.
 - Provide trusted dbt facts, marts and BI components; a small versioned Power BI
   semantic layer handles supported filter-context aggregation.
 - Deliver the seven-page story in [dashboard_spec.md](dashboard_spec.md), with
-  meaningful coverage/period labels, reproducible handoff and genuine screenshots.
+  meaningful coverage/period labels, reproducible handoff and genuine local screenshots.
 - Keep Python 3.12, Make, pytest, dbt and Ruff gates plus the Docker runtime.
 - Present the findings and engineering story in one HTML reader report, available
   offline and through GitHub Pages after CI. The README introduces the project;
@@ -36,18 +36,23 @@ validation requirements.
 
 ## Acceptance and honest limits
 
-The report/evidence issues cannot be closed by a model
-contract alone. The October 11 local report was saved and reopened, passed 24
-Desktop DAX checks and produced genuine captures plus a seven-page PDF.
-Public artifact delivery remains separately authorized. Paid cloud execution is deferred.
+The October 11 local report was saved and reopened, passed 24 Desktop DAX checks
+and produced genuine captures plus a seven-page PDF. The accepted reader delivery
+is the hosted/offline HTML report and the verified local seven-page Power BI report.
+On October 11, the user retired optional public PBIX/capture publication
+([issue #25](https://github.com/stevennitesh/small-business-lending-pipeline/issues/25))
+and paid live S3/Snowflake verification
+([issue #28](https://github.com/stevennitesh/small-business-lending-pipeline/issues/28))
+as requirements. These closures record a scope decision, not additional verification.
+The PBIX, PDF and captures remain local and ignored. The implemented cloud route
+remains supported, with no current live cloud certification.
 The [verification appendix](../implementation/lending_verification_history.md)
 records dated observations and
 check results; [KPI methodology](kpi_definitions.md) owns scientific definitions.
 
-For the October 4 pre-PBIX handoff, paid Snowflake execution is deliberately
-deferred. Preserve the implemented route and distinguish mocked/local checks
-from current live cloud certification. This does not close the separate report
-or cloud-evidence acceptance tasks.
+Preserve the implemented cloud route and distinguish mocked/local checks from
+live cloud evidence. Any future public manual-artifact delivery or paid cloud run
+requires a new explicit request.
 
 ## Tracker workflow
 

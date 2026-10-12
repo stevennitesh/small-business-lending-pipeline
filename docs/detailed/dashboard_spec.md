@@ -46,15 +46,20 @@ report refreshed 18 imports, applied 62 maintained DAX expressions and retained
 all 24 engine checks passed on that reopened binary. Seven genuine current page
 captures and a seven-page native PDF were produced locally.
 The old five screenshots remain historical.
-Public report/capture publication still requires an explicit request; do not close
-dashboard/evidence issues on source-contract tests or local verification alone.
+The accepted delivery is the hosted/offline HTML report and this verified local
+Desktop story. On October 11, the user retired public PBIX/capture publication and
+paid live cloud verification as requirements; see the
+[scope decision](design_decisions.md#october-11-2026-reader-delivery-scope).
+The manual PBIX, PDF and captures remain local and ignored. Source-contract tests
+do not certify the manual report, and retired cloud acceptance does not establish
+live cloud verification.
 The [handoff](../../powerbi/README.md#october-11-local-desktop-verification) owns final artifact status.
 
 The October 5 source refresh rebuilt modeled outputs from current downloads and
 checked 18 exports and 25 relationships. Keep its separately dated final completion
 apart from the frozen publisher/download check and unknown same-build BI completion.
 SBA now ends June 30, BLS August 31, and Census still ends in 2023.
-Paid Snowflake execution is deferred for cost; the implemented route remains,
+Paid live S3/Snowflake verification is outside current acceptance; the implemented route remains,
 with no current live cloud certification.
 
 ## Desktop review checklist
