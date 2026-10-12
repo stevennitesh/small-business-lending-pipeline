@@ -1,0 +1,9 @@
+[
+  {"file":"01_lending_at_a_glance.png","title":"Lending at a glance","caption":"2025 · All states. Reported amounts, records, known-amount average, comparable annual growth and state/region rankings."},
+  {"file":"02_geographic_patterns.png","title":"How lending varies by state","caption":"2025 · All states. The trend retains complete calendar years; the state record ranking follows the selected year."},
+  {"file":"03_reporting_lenders.png","title":"Reporting lender names","caption":"2025 · All states. Selected-name amounts, selection-wide top-five share and known-name coverage. Snapshot names do not resolve historical originators or banking groups."},
+  {"file":"04_programs_and_industries.png","title":"Programs and industries","caption":"2025 · All states. The cards select 7(a) and Accommodation and Food Services; the charts retain both programs and the leading sectors. Each category filter affects its own panel."},
+  {"file":"05_lending_and_business_base.png","title":"Lending relative to local businesses","caption":"2023 · All states. Approval activity compared with Census employer business locations across firm sizes. This is geographic context, not credit access."},
+  {"file":"06_local_business_conditions.png","title":"Local business conditions","caption":"2023 · California. State unemployment and employer-location entry/exit rates. History retains available years for California; the cards follow the selected state and year."},
+  {"file":"07_source_coverage.png","title":"Source coverage and data checks","caption":"Frozen October 5, 2026 UTC evidence. The page distinguishes observed periods, publication checks, downloads and recorded load/validation status."}
+]

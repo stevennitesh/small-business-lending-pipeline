@@ -236,5 +236,5 @@
     "census": "Annual; typically September, about two years after the reference year.",
     "bls": "Monthly; use the dated state release and its announced next release."
   },
-  "page_status": "The seven-page Power BI report was saved, reopened and verified locally on October 11, 2026; all 24 DAX checks passed. Its PBIX, PDF and Desktop captures are excluded from the public report and fresh checkouts. The HTML findings can be read without Power BI Desktop."
+  "page_status": "The seven-page Power BI report was saved, reopened and verified locally on October 11, 2026; all 24 DAX checks passed. Genuine captures of all seven pages are included in the public HTML gallery. The editable PBIX and Desktop-exported PDF remain local and excluded from fresh checkouts. The findings and captures can be read without Power BI Desktop."
 }

@@ -8,10 +8,8 @@
   const toggle = document.getElementById('size-toggle');
   let opener;
   const resetSize = () => {
-    const full = window.matchMedia('(max-width: 600px)').matches;
-    scroll.classList.toggle('full', full);
-    toggle.setAttribute('aria-pressed', String(full));
-    toggle.textContent = full ? 'Fit to window' : 'Use full size';
+    scroll.classList.remove('full');
+    toggle.textContent = 'Use full size';
   };
   if (typeof viewer.showModal === 'function') {
     document.querySelectorAll('.zoom').forEach(button => {
@@ -20,7 +18,7 @@
         const figure = button.closest('figure');
         const source = figure.querySelector('img');
         opener = button;
-        image.src = source.src;
+        image.src = source.currentSrc || source.src;
         image.alt = source.alt;
         title.textContent = figure.querySelector('h3').textContent;
         caption.textContent = figure.querySelector('figcaption').textContent;
@@ -43,7 +41,6 @@
   viewer.addEventListener('close', () => { if (opener) opener.focus(); });
   toggle.addEventListener('click', () => {
     const full = scroll.classList.toggle('full');
-    toggle.setAttribute('aria-pressed', String(full));
     toggle.textContent = full ? 'Fit to window' : 'Use full size';
   });
   const revealHash = () => {

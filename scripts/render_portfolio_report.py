@@ -16,6 +16,11 @@ import json
 from pathlib import Path
 from string import Template
 
+if __package__:
+    from .portfolio.mobile_charts import mobile_charts
+else:
+    from portfolio.mobile_charts import mobile_charts
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = Path("scripts/portfolio")
@@ -131,12 +136,54 @@ def render(root: Path, output_dir: Path) -> dict:
     """Regenerate two small report files without modifying their evidence inputs."""
     a, proof, inputs = read_evidence(root)
     language = json.loads(inputs["powerbi/report_language.json"])
-    for name in ("index.html", "report.css", "report.js"):
+    for name in (
+        "index.html",
+        "report.css",
+        "report.js",
+        "desktop-gallery.json",
+        "mobile_charts.py",
+    ):
         relative = (TEMPLATES / name).as_posix()
         inputs[relative] = text(root / relative)
     inputs["scripts/render_portfolio_report.py"] = text(
         root / "scripts/render_portfolio_report.py"
     )
+    narrow_charts = mobile_charts(a, language)
+    gallery = json.loads(inputs[(TEMPLATES / "desktop-gallery.json").as_posix()])
+    gallery_images = {}
+    for item in gallery:
+        name = item["file"]
+        if Path(name).name != name or not name.endswith(".png"):
+            raise ValueError("Gallery must use named public PNG captures")
+        gallery_images[name] = (root / "docs/images/powerbi" / name).read_bytes()
+    featured = root / "docs/images/featured.jpg"
+    if featured.exists():
+        gallery_images["featured.jpg"] = featured.read_bytes()
+
+    def gallery_markup(offline: bool) -> str:
+        figures = []
+        for number, item in enumerate(gallery, start=1):
+            name = item["file"]
+            uri = (
+                "data:image/png;base64,"
+                + base64.b64encode(gallery_images[name]).decode("ascii")
+                if offline
+                else f"assets/{name}"
+            )
+            figures.append(f'''<figure class="desktop-capture">
+              <div class="figure-heading"><div><span class="eyebrow">Desktop page {number}</span>
+                <h3>{e(item["title"])}</h3></div><div class="chart-actions">
+                <a href="{uri}" target="_blank" rel="noopener">Open full-size capture ↗</a></div></div>
+              <a href="{uri}" target="_blank" rel="noopener" aria-label="Open {e(item["title"])} at full size">
+                <img src="{uri}" alt="Power BI Desktop: {e(item["caption"])}" width="3226" height="1233" loading="lazy"></a>
+              <figcaption>{e(item["caption"])}</figcaption></figure>''')
+        return (
+            figures[0]
+            + '<details class="gallery-detail"><summary>View the other six report pages</summary>'
+            + "\n".join(figures[1:])
+            + "</details>"
+        )
+
     year, context = a["lending_year"], a["context_year"]
     h = a["headline"]
     annual = {row["year"]: row for row in a["trend"]}
@@ -183,15 +230,16 @@ def render(root: Path, output_dir: Path) -> dict:
         name: str, number: int, title: str, description: str, source: str
     ) -> str:
         uri = data_uri(inputs[f"docs/images/lending_{name}.svg"], "image/svg+xml")
+        mobile_uri = data_uri(narrow_charts[name], "image/svg+xml")
         return f"""<figure id="chart-{name}" aria-labelledby="{name}-title">
         <div class="figure-heading"><div><span class="eyebrow">Figure {number}</span>
         <h3 id="{name}-title">{e(title)}</h3></div>
         <div class="chart-actions"><button type="button" class="zoom" hidden
         aria-haspopup="dialog" aria-label="Enlarge {e(title)}">Enlarge chart ↗</button>
         <a href="{uri}" download="lending_{name}.svg">Download SVG</a></div></div>
-        <div class="chart-scroll" tabindex="0" role="region" aria-label="{e(title)} chart">
-        <img src="{uri}" alt="{e(description)}" loading="lazy"></div>
-        <p class="mobile-hint">Scroll sideways to inspect the chart, or enlarge it.</p>
+        <div class="chart-scroll" role="region" aria-label="{e(title)} chart">
+        <picture><source media="(max-width: 600px)" srcset="{mobile_uri}">
+        <img src="{uri}" alt="{e(description)}" loading="lazy"></picture></div>
         <figcaption>{e(description)} <span class="chart-source">{e(source)}</span></figcaption>
         </figure>"""
 
@@ -273,6 +321,8 @@ def render(root: Path, output_dir: Path) -> dict:
         "context": str(context),
         "checked": e(checked),
         "desktop_delivery_status": e(language["page_status"]),
+        "desktop_gallery": gallery_markup(False),
+        "offline_note": "Charts, text and styles are embedded. The Desktop gallery loads separate public images; download the self-contained offline report to retain those images too.",
         "scope": e(scope),
         "movement": e(movement),
         "amount": e(money(h["amount"])),
@@ -433,6 +483,14 @@ def render(root: Path, output_dir: Path) -> dict:
         "site": SITE,
     }
     html = Template(inputs[(TEMPLATES / "index.html").as_posix()]).substitute(values)
+    offline_values = {
+        **values,
+        "desktop_gallery": gallery_markup(True),
+        "offline_note": "Charts, Desktop captures, text and styles are embedded. This copy works without a network connection.",
+    }
+    offline_html = Template(inputs[(TEMPLATES / "index.html").as_posix()]).substitute(
+        offline_values
+    )
     provenance = {
         "schema_version": 1,
         "scope": "HTML presentation rebuilt from hash-verified public aggregates and existing charts; prior data checks are not rerun",
@@ -442,8 +500,25 @@ def render(root: Path, output_dir: Path) -> dict:
         "inputs": {
             name: {"sha256": sha(value)} for name, value in sorted(inputs.items())
         },
+        "binary_inputs": {
+            f"docs/images/{'powerbi/' if name.endswith('.png') else ''}{name}": {
+                "sha256": hashlib.sha256(content).hexdigest()
+            }
+            for name, content in gallery_images.items()
+        },
         "outputs": {
-            "index.html": {"sha256": sha(html), "bytes": len(html.encode("utf-8"))}
+            "index.html": {"sha256": sha(html), "bytes": len(html.encode("utf-8"))},
+            "offline.html": {
+                "sha256": sha(offline_html),
+                "bytes": len(offline_html.encode("utf-8")),
+            },
+            **{
+                f"assets/{name}": {
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                    "bytes": len(content),
+                }
+                for name, content in gallery_images.items()
+            },
         },
         "not_executed": [
             "CSV and warehouse readiness verification",
@@ -452,6 +527,12 @@ def render(root: Path, output_dir: Path) -> dict:
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "index.html").write_text(html, encoding="utf-8", newline="\n")
+    (output_dir / "offline.html").write_text(
+        offline_html, encoding="utf-8", newline="\n"
+    )
+    (output_dir / "assets").mkdir(exist_ok=True)
+    for name, content in gallery_images.items():
+        (output_dir / "assets" / name).write_bytes(content)
     (output_dir / "provenance.json").write_text(
         json.dumps(provenance, indent=2) + "\n", encoding="utf-8", newline="\n"
     )

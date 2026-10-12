@@ -1,4 +1,4 @@
-# Business lending, in context
+# Small-Business Lending Analytics
 
 Where is SBA loan approval activity concentrated, and how does the answer change
 when we compare it with the local business base? I built a Python and SQL pipeline
@@ -6,6 +6,8 @@ that turns public agency files into validated snapshots, tested metrics and a
 readable analysis.
 
 **[Read the report →](https://stevennitesh.github.io/small-business-lending-pipeline/)**
+
+[![Small-business lending analytics by Steven Bangdiwala](docs/images/featured.jpg)](https://stevennitesh.github.io/small-business-lending-pipeline/)
 
 Start with the findings, then follow six charts from annual change to geography,
 programs, industries and lender names. Definitions, engineering decisions and
@@ -16,6 +18,8 @@ and **2023 for the employer-location comparison**, from saved inputs checked on
 **Main finding:** reported 2025 amounts rose **1.71% to $40.93 billion**, while
 approval records fell from **81,081 to 74,098**. Dollar totals and record volume
 tell different stories.
+
+![2025 reported approval dollars rose 1.71% while approval records fell; complete calendar-year trends show both measures.](docs/images/lending_findings.svg)
 
 The population covers 50 states and Washington, DC. These are nominal SBA
 7(a)/504 approvals, including canceled/not-funded records, rather than
@@ -49,21 +53,18 @@ flowchart LR
 
 ## Delivery status
 
-The HTML report presents the current saved-data findings. The October local
-rebuild passed **328 real-data dbt tests**; a later readiness check matched
-**18 reporting CSVs / 253,942 rows** and checked **25 relationships**. The
-[verification record](docs/images/lending_verification.json) separates those
-recorded checks from chart generation.
+- **Public:** browser findings, six responsive charts, exact aggregate downloads
+  and [genuine captures of all seven Power BI pages](https://stevennitesh.github.io/small-business-lending-pipeline/#desktop-gallery).
+- **Local:** the editable PBIX and Desktop-exported PDF stay out of Git. The
+  report was saved and reopened on October 11, 2026 with 18 refreshed imports and
+  24 passing DAX checks. [Desktop verification](powerbi/README.md#october-11-local-desktop-verification).
+- **Data checks:** the October rebuild passed 328 real-data dbt tests; later
+  readiness checked 18 CSVs / 253,942 rows and 25 relationships.
+  [Recorded aggregate proof](docs/images/lending_verification.json).
+- **Cloud:** the S3/Snowflake route is implemented; paid live execution is deferred.
 
-The seven-page Power BI report was saved and reopened in Desktop on **October 11,
-2026**, with 18 refreshed imports and **24 passing DAX checks**. Its PBIX, genuine
-seven-page PDF and current Desktop captures are local files, excluded from the
-public report and fresh checkouts. The browser report is the public reading route;
-the [Power BI handoff](powerbi/README.md#october-11-local-desktop-verification)
-records local verification. Paid live Snowflake execution is deferred.
-Source evidence is frozen at its stated check time; opening either report does
-not refresh sources. The hosted site reflects its last published revision; the
-checked-in HTML reflects the current repository revision.
+Source evidence is frozen at its stated check time. Reading or rebuilding the
+presentation does not refresh sources. The hosted site reflects its last published revision.
 
 ## Reproduce and inspect
 
@@ -77,7 +78,7 @@ make portfolio-report
 ```
 
 The HTML builder uses versioned public aggregates and charts. You can also
-download and open the [offline report](reports/portfolio/index.html). Exact
+download and open the [self-contained offline report](https://stevennitesh.github.io/small-business-lending-pipeline/offline.html). Exact
 regeneration of the underlying charts needs matching saved CSVs and readiness
 evidence, which are excluded from Git. A new live refresh may include publisher
 revisions and change historical figures.

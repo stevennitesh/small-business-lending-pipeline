@@ -6,7 +6,9 @@ This guide explains the vocabulary and the local Desktop report's page sequence
 and filters. Use **2025** for complete-year lending and **2023** when comparing
 lending with employer business locations and labor context.
 The local seven-page Desktop report was saved, reopened and verified on
-October 11, 2026. Its PBIX, PDF and captures are excluded from the public package.
+October 11, 2026. Its seven genuine report-page captures are available in the
+[public gallery](https://stevennitesh.github.io/small-business-lending-pipeline/#desktop-gallery).
+The editable PBIX and Desktop-exported PDF remain local.
 
 ## Follow the current static charts
 

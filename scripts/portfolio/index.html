@@ -9,22 +9,26 @@
   <meta name="author" content="Steven Bangdiwala">
   <link rel="canonical" href="$site">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Business lending, in context | Steven Bangdiwala">
+  <meta property="og:title" content="Small-Business Lending Analytics | Steven Bangdiwala">
   <meta property="og:description" content="SBA approval trends, geographic context and the engineering decisions behind a reproducible public-data analysis.">
   <meta property="og:url" content="$site">
+  <meta property="og:image" content="${site}assets/featured.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="627">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23153e48'/%3E%3Cpath d='M8 24V17M16 24V12M24 24V7' stroke='%23e8bb76' stroke-width='4'/%3E%3C/svg%3E">
-  <title>Business lending, in context | Steven Bangdiwala</title>
+  <title>Small-Business Lending Analytics | Steven Bangdiwala</title>
   <style>$styles</style>
 </head>
 <body>
 <a class="skip" href="#report">Skip to report</a>
 <div class="page">
-  <div class="masthead"><a href="$repo" class="brand">Steven Bangdiwala <span>/ Analytics engineering</span></a>
-    <span class="edition">Public-data portfolio · Report 01</span></div>
+  <div class="masthead"><span class="brand">Steven Bangdiwala <span>/ Analytics engineering</span></span>
+    <a href="$repo" class="repository-link">Project on GitHub ↗</a></div>
   <header class="hero">
     <div class="hero-copy">
     <p class="eyebrow">Small business lending · SBA 7(a) &amp; 504</p>
-    <h1>Business lending,<br>in context.</h1>
+    <h1>Small-business lending,<br>in context.</h1>
+    <p class="byline">A public-data study by Steven Bangdiwala</p>
     <p class="hero-deck">Where is loan approval activity concentrated, and how does the answer change
       when we compare it with the local business base?</p>
     <p class="hero-note">I built a Python and SQL pipeline that turns public agency files into validated
@@ -51,17 +55,28 @@
   <p class="population">$scope · Project location and calendar approval year.
     Includes canceled/not-funded approvals. Records are not unique borrowers or disbursements.</p>
 
+  <section id="contribution" class="contribution-summary">
+    <p class="eyebrow">What I built</p>
+    <h2>From agency files to tested metrics and readable reports.</h2>
+    <p>I implemented public-source adapters, snapshot validation, Python/Prefect orchestration and dbt SQL models
+      with explicit eligibility, period and denominator rules. The same modeled components support this
+      report and a seven-page Power BI report.</p>
+    <p><a href="#engineering">Explore the engineering decisions</a> · <a href="#desktop-gallery">View the Power BI pages</a></p>
+  </section>
+
   <div class="layout">
     <aside>
       <nav aria-label="Report contents">
         <p class="eyebrow">Read the report</p>
-        <a href="#question">The question</a>
+        <a href="#question">Overview</a>
+        <a href="#contribution">What I built</a>
         <a href="#activity"><span>01</span> Activity over time</a>
         <a href="#geography"><span>02</span> Geography &amp; context</a>
         <a href="#composition"><span>03</span> Programs &amp; industries</a>
         <a href="#lenders"><span>04</span> Lender concentration</a>
         <a href="#coverage"><span>05</span> Publication timelines</a>
         <a href="#engineering"><span>06</span> Engineering decisions</a>
+        <a href="#desktop-gallery">Power BI gallery</a>
         <a href="#limits">What the findings support</a>
         <a href="#methods">Definitions &amp; methods</a>
         <a href="#evidence">Evidence &amp; downloads</a>
@@ -202,7 +217,7 @@
             environment versions, cache conditions and repeat counts. It cannot establish a controlled
             speedup or performance for the current larger warehouse. $decision_link.</p>
         </details>
-        <div class="report-delivery"><h3>Explore the local Power BI report</h3>
+        <div class="report-delivery"><h3>Explore the Power BI report</h3>
           <p>Seven pages move from lending scale through states, reporting lender names and the program/industry mix,
             then compare lending with employer locations, show single-state conditions and expose source checks.
             Lending opens at $year; the business comparison and conditions open at $context.</p>
@@ -210,6 +225,17 @@
         <p class="status"><strong>Public delivery:</strong> This browser report contains the findings, charts,
           definitions and downloadable aggregate evidence. The S3/Snowflake route is implemented;
           paid live cloud execution is deferred.</p>
+      </section>
+
+      <section id="desktop-gallery">
+        <p class="eyebrow">Power BI delivery</p>
+        <h2>Seven pages from the verified Desktop report.</h2>
+        <p>These genuine captures show the report saved and reopened on October 11, 2026.
+          All 18 tables were refreshed and all 24 DAX checks passed again. The first four pages show
+          2025 lending; the employer-location comparison and California conditions show 2023.</p>
+        <p>Open a capture at full size to read its labels. These are static images; the editable PBIX
+          and seven-page PDF remain local. $powerbi_link.</p>
+        <div class="desktop-gallery">$desktop_gallery</div>
       </section>
 
       <section id="limits">
@@ -278,6 +304,7 @@
             <a href="$aggregate_uri" download="lending_analysis.json">Exact aggregate values · JSON</a>
             <a href="$proof_uri" download="lending_verification.json">Saved-data and chart checks · JSON</a>
             <a href="provenance.json" download>HTML provenance · JSON</a>
+            <a href="offline.html" download>Self-contained offline report · HTML</a>
           </div>
           <p>The aggregate and check downloads are embedded in this file. Each chart has an SVG download.
             HTML provenance is supplied alongside the report. Optional project links below need a network connection.</p>
@@ -289,7 +316,7 @@
           <pre><code>python scripts/render_portfolio_report.py</code></pre>
           <p>This standard-library command reads versioned public aggregates and charts. It needs no raw
             records, database, plotting dependency or credentials. It replaces only this report and its
-            small provenance file.</p>
+            presentation package and provenance file.</p>
           <h3>Reproduce the underlying data analysis</h3>
           <p>Exact chart regeneration requires matching saved CSV exports and readiness evidence,
             which are excluded from Git. Rebuilding modeled data also requires validated raw snapshots
@@ -303,7 +330,7 @@ make ci-check</code></pre>
         </div>
       </details>
       <footer><p>Steven Bangdiwala · Public-data analytics engineering</p>
-        <p>This report works offline. Charts, text and styles are embedded. Data evidence is frozen at
+        <p>$offline_note Data evidence is frozen at
           $checked UTC; reading or rebuilding the HTML does not refresh it.</p>
         <a href="#report">Back to the report ↑</a> · <a href="$repo">Project repository</a></footer>
     </main>
@@ -311,9 +338,9 @@ make ci-check</code></pre>
 </div>
 <dialog id="chart-viewer" aria-labelledby="viewer-title">
   <div class="viewer-toolbar"><h2 id="viewer-title">Chart</h2><div>
-    <button type="button" id="size-toggle" aria-pressed="false">Use full size</button>
+    <button type="button" id="size-toggle">Use full size</button>
     <button type="button" id="close-viewer" aria-label="Close chart">Close ×</button></div></div>
-  <p class="viewer-hint">Scroll across the chart to inspect labels. “Fit to window” shows the full figure.</p>
+  <p class="viewer-hint">The full chart fits this window. Choose “Use full size” to inspect it at its native size, then scroll inside the viewer when needed.</p>
   <div class="viewer-scroll" tabindex="0" role="region" aria-label="Enlarged chart"><img id="viewer-image" alt=""></div>
   <p id="viewer-caption"></p>
 </dialog>

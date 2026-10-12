@@ -6,10 +6,10 @@
   "text_hash_policy": "SHA256 of UTF-8 text with LF line endings",
   "inputs": {
     "docs/detailed/analysis_results.md": {
-      "sha256": "2bdfbb4e9b3c86cc2f77ef2987b24eb47609c951d766b1f6834e121e836c7ee1"
+      "sha256": "11d9eda62ccf477e639f3d83ef8715126d3e79fddc19dd26199241db5fbb737f"
     },
     "docs/images/lending_analysis.json": {
-      "sha256": "f919362f7f851c6d69b7ad2ec95e82e160e9ca2226ce761f03b8892b9c79e349"
+      "sha256": "32e65e3a91831dcb0444f1c22330b84728464e1ec66d9b9653446bd21d626291"
     },
     "docs/images/lending_coverage.svg": {
       "sha256": "23f71406628ece76881d9f26787229a1ad009db2e8230b13ae73b1c0ddf4cc37"
@@ -30,28 +30,96 @@
       "sha256": "e22b03418efc0c714040e75bcb74700b9d3fbe9ed53725f21ed4fad3e04cf695"
     },
     "docs/images/lending_verification.json": {
-      "sha256": "0eef0afbba47e0bf92013da6132892af829ccac7550322c18e484ad9ea3f6d9d"
+      "sha256": "5ca394fb9546cec0baeaba4ff16c30f064a4a038ea97a5bf1c5bf65f0eeb8a9a"
     },
     "powerbi/report_language.json": {
-      "sha256": "e2a618d5e1df4db0cd16adb947ebe5ed5a2ef6efe236ac84f8fdc0232461a6e9"
+      "sha256": "def1bcce86f6f7cc73f6e3246808122b8db15fd832db22f61a1fdad79969306c"
+    },
+    "scripts/portfolio/desktop-gallery.json": {
+      "sha256": "cc9756e5197ab2101fc90d96e7345671bdaebfd2b262e68b2e49ab342f67d4d2"
     },
     "scripts/portfolio/index.html": {
-      "sha256": "4caeda4dcf5da10d286fb0a4a716b36f82d86eb982e54fdd8278df410517a118"
+      "sha256": "35d7a25471f35e593a186b04e65d5221af77fa5eea2eef9e8e522154fd478b46"
+    },
+    "scripts/portfolio/mobile_charts.py": {
+      "sha256": "1c957d063a1734a940bc87cc58bca0a9e746375b8ef3f8e4a06e01a0ce7b40e0"
     },
     "scripts/portfolio/report.css": {
-      "sha256": "61fbc296c655dfcba292e3cd0ec1cb49ea07af5c63bf51141b7ecd63df3f4026"
+      "sha256": "9f7222726a068b7ee6dc1679e7224c478a762e4d6905817e75ebb555b6e604dc"
     },
     "scripts/portfolio/report.js": {
-      "sha256": "cda8f19706ff738126131e121bb299824737d87291498f205180a668c7038a05"
+      "sha256": "ec25f5ff0e009aaa30566bc73a3d9c52f45ac69b459fcd3ff3b479459681768e"
     },
     "scripts/render_portfolio_report.py": {
-      "sha256": "dad91e230913efb84cc8dd6f507a4dd8b3f1ec710938b17ddd1fd5c9e7c9b85d"
+      "sha256": "a11e4f9ac2b3a9734b0491afb24d9ba14f5aa19507d49c292150110ec9a2710d"
+    }
+  },
+  "binary_inputs": {
+    "docs/images/powerbi/01_lending_at_a_glance.png": {
+      "sha256": "4370625e4b87731f8204669e8f019eaba9710913d772ed1fd66a6bda71086404"
+    },
+    "docs/images/powerbi/02_geographic_patterns.png": {
+      "sha256": "239747044e3876a3f5407159ba66c7b0ffae9d15982faf2a63c46a5926ca3c65"
+    },
+    "docs/images/powerbi/03_reporting_lenders.png": {
+      "sha256": "a3c63a09cea3db9a1020bead84ae5ad553584c9a2c7365cb5e219570aa199034"
+    },
+    "docs/images/powerbi/04_programs_and_industries.png": {
+      "sha256": "9df6eed4448e7a00557f8fe419ff60e6292da69709937fe83b9734f0b5ed8d71"
+    },
+    "docs/images/powerbi/05_lending_and_business_base.png": {
+      "sha256": "b0692a22d47d37b6185fe4b2456a21c3b181f1334fd56d18847113e95e1b37f7"
+    },
+    "docs/images/powerbi/06_local_business_conditions.png": {
+      "sha256": "82c19db9a2ee1f9983cb2aca00d8045816c817ad645d817dcd855054f4b98b69"
+    },
+    "docs/images/powerbi/07_source_coverage.png": {
+      "sha256": "9db98b53f034e26da6b38747955c8b8015b168ed42dc034d3df36f5b27e9b4f9"
+    },
+    "docs/images/featured.jpg": {
+      "sha256": "e1e7a87508fcf5aa47bad236dd0c09201d7b7cda22482e5ceffce751d6f2a104"
     }
   },
   "outputs": {
     "index.html": {
-      "sha256": "7a944c92a3b1cec5da62746d31cb686e59f8236b6b07047f7544cd42ef5a8da8",
-      "bytes": 325323
+      "sha256": "6a31c2a810a23bbbfcde8107ae8c43b9f5d207d4ca70d6bd17b82448e899cd51",
+      "bytes": 359500
+    },
+    "offline.html": {
+      "sha256": "e8a56c5a6e07f88f17248b823c79563312841151c3e1505b28e6177f93e17711",
+      "bytes": 9762094
+    },
+    "assets/01_lending_at_a_glance.png": {
+      "sha256": "4370625e4b87731f8204669e8f019eaba9710913d772ed1fd66a6bda71086404",
+      "bytes": 319901
+    },
+    "assets/02_geographic_patterns.png": {
+      "sha256": "239747044e3876a3f5407159ba66c7b0ffae9d15982faf2a63c46a5926ca3c65",
+      "bytes": 318502
+    },
+    "assets/03_reporting_lenders.png": {
+      "sha256": "a3c63a09cea3db9a1020bead84ae5ad553584c9a2c7365cb5e219570aa199034",
+      "bytes": 330530
+    },
+    "assets/04_programs_and_industries.png": {
+      "sha256": "9df6eed4448e7a00557f8fe419ff60e6292da69709937fe83b9734f0b5ed8d71",
+      "bytes": 319988
+    },
+    "assets/05_lending_and_business_base.png": {
+      "sha256": "b0692a22d47d37b6185fe4b2456a21c3b181f1334fd56d18847113e95e1b37f7",
+      "bytes": 341162
+    },
+    "assets/06_local_business_conditions.png": {
+      "sha256": "82c19db9a2ee1f9983cb2aca00d8045816c817ad645d817dcd855054f4b98b69",
+      "bytes": 323248
+    },
+    "assets/07_source_coverage.png": {
+      "sha256": "9db98b53f034e26da6b38747955c8b8015b168ed42dc034d3df36f5b27e9b4f9",
+      "bytes": 397388
+    },
+    "assets/featured.jpg": {
+      "sha256": "e1e7a87508fcf5aa47bad236dd0c09201d7b7cda22482e5ceffce751d6f2a104",
+      "bytes": 61179
     }
   },
   "not_executed": [

@@ -49,7 +49,7 @@
   },
   "public_text_hash_policy": "SHA256 of UTF-8 text with line endings normalized to LF; CSV hashes use exact bytes",
   "generator_sha256": "39566b3bffea021b49fc056dd2435642065ec1e5f246d1061d5a305c4fced351",
-  "report_language_sha256": "e2a618d5e1df4db0cd16adb947ebe5ed5a2ef6efe236ac84f8fdc0232461a6e9",
+  "report_language_sha256": "def1bcce86f6f7cc73f6e3246808122b8db15fd832db22f61a1fdad79969306c",
   "public_outputs": {
     "lending_findings.svg": {
       "sha256": "8dc4280aa00eb8bb80fe8107cf1040ea6885a2b4aeec7f3ad231d05252054aa7"
@@ -70,10 +70,20 @@
       "sha256": "23f71406628ece76881d9f26787229a1ad009db2e8230b13ae73b1c0ddf4cc37"
     },
     "lending_analysis.json": {
-      "sha256": "f919362f7f851c6d69b7ad2ec95e82e160e9ca2226ce761f03b8892b9c79e349"
+      "sha256": "32e65e3a91831dcb0444f1c22330b84728464e1ec66d9b9653446bd21d626291"
     },
     "analysis_results.md": {
-      "sha256": "2bdfbb4e9b3c86cc2f77ef2987b24eb47609c951d766b1f6834e121e836c7ee1"
+      "sha256": "11d9eda62ccf477e639f3d83ef8715126d3e79fddc19dd26199241db5fbb737f"
     }
+  },
+  "presentation_status_update": {
+    "date": "2026-10-12",
+    "scope": "Power BI capture delivery text and matching public text hashes updated; numeric aggregates and all six canonical chart bytes unchanged",
+    "not_rerun": [
+      "CSV checks",
+      "warehouse readiness",
+      "model evaluation",
+      "Power BI Desktop"
+    ]
   }
 }

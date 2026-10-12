@@ -5,7 +5,7 @@ concentrated, how it compares with local employer business locations, and what
 programs, industries and lender names make up the total.
 The [HTML reader report](https://stevennitesh.github.io/small-business-lending-pipeline/)
 presents those findings, methods and engineering decisions in a browser,
-independently of Desktop. An [offline copy](../reports/portfolio/index.html) is included.
+independently of Desktop. A [self-contained offline copy](https://stevennitesh.github.io/small-business-lending-pipeline/offline.html) is included.
 The [reader guide](report_reader_guide.md) distinguishes the current static charts
 from the seven-page local Desktop story, questions, plain labels and tooltips.
 The [current data report](../docs/detailed/analysis_results.md)
@@ -13,8 +13,9 @@ contains six reproducible charts from checked local exports; they are not PBIX s
 rebuilt and checked on **October 4, 2026 local time (October 5 UTC)**. The saved
 local Desktop report was refreshed, saved and reopened on **October 11, 2026**.
 Its seven pages have genuine current captures and a Desktop-exported PDF.
-Historical screenshots remain withdrawn. Manual report files are local and ignored; fresh clones contain
-the source handoff and current generated charts. Paid Snowflake execution is deliberately
+Historical screenshots remain withdrawn. The public [seven-page gallery](https://stevennitesh.github.io/small-business-lending-pipeline/#desktop-gallery)
+contains reviewed copies of the genuine October 11 captures. The editable PBIX and PDF remain local and ignored;
+fresh clones contain the source handoff, generated charts and public capture copies. Paid Snowflake execution is deliberately
 deferred; the implemented route and mocked checks do not certify current live cloud data.
 Use the [dated Desktop verification](#october-11-local-desktop-verification) for the
 binary identity, tested selections and local evidence. October 5 describes the
@@ -261,7 +262,9 @@ The latest genuine captures are one current set in `powerbi/screenshots/current/
 seven report-page PNGs and `desktop_dax_checks.png`. Native Desktop export produced
 `lending_dashboard.pdf` there, **653,649 bytes / seven pages**; each page contains
 readable report text, including the complete industry and lender labels. The
-PBIX, PDF and captures remain ignored and local; publication has not been requested.
+PBIX and PDF remain ignored and local. On October 12, the user approved publication of
+the seven reviewed report-page PNG captures; aggregate-only copies are versioned in
+`docs/images/powerbi/` and included in the public report gallery. The DAX-check screenshot remains local.
 See the [dated verification appendix](../docs/implementation/lending_verification_history.md#october-11-local-desktop-update).
 
 ## Withdrawn historical report artifacts
@@ -285,9 +288,10 @@ reported 504 third-party lender names. They are snapshot attribution of historic
 records, with no resolved historical banking identity. Do not label rankings as
 historical originator or consolidated banking-group market shares.
 
-Local report verification and public delivery are separate. Publish a corrected
-PBIX and genuine evidence for all seven pages only after an explicit request
-to publish them. The default ignore rules keep manual artifacts local.
+Local report verification and public delivery are separate. The October 12 publication
+includes seven genuine report-page captures, while the PBIX and PDF stay local.
+Publish an editable PBIX only after an explicit request to publish that binary.
+The default ignore rules keep manual artifacts local.
 Do not close the dashboard/evidence tasks on source-contract tests alone.
 See [methodology](../docs/detailed/kpi_definitions.md),
 [dashboard specification](../docs/detailed/dashboard_spec.md) and

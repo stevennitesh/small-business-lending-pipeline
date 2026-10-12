@@ -4,10 +4,12 @@ import base64
 from html.parser import HTMLParser
 import json
 import shutil
+import xml.etree.ElementTree as ET
 
 import pytest
 
 from scripts.render_portfolio_report import ROOT, render, sha, text
+from scripts.portfolio.mobile_charts import mobile_charts
 
 
 @pytest.fixture
@@ -17,7 +19,11 @@ def report_root(tmp_path):
         "docs/images",
         "scripts/portfolio",
     ):
-        shutil.copytree(ROOT / relative, root / relative)
+        shutil.copytree(
+            ROOT / relative,
+            root / relative,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
     for relative in (
         "docs/detailed/analysis_results.md",
         "scripts/render_portfolio_report.py",
@@ -54,18 +60,38 @@ def test_report_is_deterministic_from_a_small_public_checkout(report_root, tmp_p
     render(report_root, first)
     # Windows Git checkouts may use CRLF; the published text hashes normalize LF.
     for source in report_root.rglob("*"):
-        if source.is_file():
+        if source.is_file() and source.suffix in {
+            ".py",
+            ".json",
+            ".html",
+            ".css",
+            ".js",
+            ".md",
+            ".svg",
+        }:
             source.write_bytes(text(source).replace("\n", "\r\n").encode("utf-8"))
     render(report_root, second)
-    for filename in ("index.html", "provenance.json"):
+    for filename in ("index.html", "offline.html", "provenance.json"):
         assert (first / filename).read_bytes() == (second / filename).read_bytes()
     provenance = json.loads(text(first / "provenance.json"))
     html = text(first / "index.html")
     assert provenance["outputs"]["index.html"]["sha256"] == sha(html)
     assert provenance["outputs"]["index.html"]["bytes"] == len(html.encode("utf-8"))
     assert "not rerun" in provenance["scope"]
-    assert set(p.name for p in first.iterdir()) == {"index.html", "provenance.json"}
-    assert sum(p.stat().st_size for p in first.iterdir()) < 500_000
+    assert set(p.name for p in first.iterdir()) == {
+        "index.html",
+        "offline.html",
+        "provenance.json",
+        "assets",
+    }
+    assert (first / "index.html").stat().st_size < 500_000
+    for filename, metadata in provenance["outputs"].items():
+        import hashlib
+
+        assert (
+            hashlib.sha256((first / filename).read_bytes()).hexdigest()
+            == metadata["sha256"]
+        )
 
 
 @pytest.mark.parametrize("filename", ["lending_analysis.json", "lending_geography.svg"])
@@ -136,10 +162,13 @@ def test_offline_charts_downloads_and_fragment_links_are_complete(
         if link.startswith("#"):
             assert link[1:] in parsed.ids
         else:
-            assert link.startswith(("https://", "data:")) or link == "provenance.json"
+            assert link.startswith(("https://", "data:", "assets/")) or link in {
+                "provenance.json",
+                "offline.html",
+            }
     charts = [image for image in parsed.images if image.get("src")]
-    assert len(charts) == 6
-    for image in charts:
+    assert len(charts) == 13
+    for image in charts[:6]:
         assert image["alt"]
         assert image["src"].startswith("data:image/svg+xml;base64,")
         svg = base64.b64decode(image["src"].split(",", 1)[1]).decode("utf-8")
@@ -153,6 +182,48 @@ def test_offline_charts_downloads_and_fragment_links_are_complete(
     assert aggregate == json.loads(
         text(report_root / "docs/images/lending_analysis.json")
     )
+
+
+def test_public_desktop_gallery_is_complete_and_offline_copy_embeds_the_same_captures(
+    report_root, tmp_path
+):
+    output = tmp_path / "report"
+    render(report_root, output)
+    gallery = json.loads(text(report_root / "scripts/portfolio/desktop-gallery.json"))
+    offline = ReportParser()
+    offline.feed(text(output / "offline.html"))
+    captures = [
+        image
+        for image in offline.images
+        if image.get("src", "").startswith("data:image/png")
+    ]
+    assert len(captures) == len(gallery) == 7
+    for item, capture in zip(gallery, captures):
+        expected = (report_root / "docs/images/powerbi" / item["file"]).read_bytes()
+        assert (output / "assets" / item["file"]).read_bytes() == expected
+        assert base64.b64decode(capture["src"].split(",", 1)[1]) == expected
+    assert "California" in captures[5]["alt"]
+
+
+def test_narrow_charts_preserve_selected_values_rankings_and_periods(report_root):
+    analysis = json.loads(text(report_root / "docs/images/lending_analysis.json"))
+    charts = mobile_charts(
+        analysis, json.loads(text(report_root / "powerbi/report_language.json"))
+    )
+    ns = {"svg": "http://www.w3.org/2000/svg"}
+    for svg in charts.values():
+        root = ET.fromstring(svg)
+        assert root.attrib["viewBox"].split()[2] == "360"
+        assert root.find("svg:title", ns).text
+    findings = ET.fromstring(charts["findings"])
+    assert len(findings.findall(".//svg:circle", ns)) == len(analysis["trend"]) * 2
+    assert "2016–2025" in charts["findings"]
+    assert "$40.93bn" in charts["findings"]
+    assert "74.10k" in charts["findings"]
+    assert "82.33%" in charts["programs"] and "17.67%" in charts["programs"]
+    assert charts["geography"].index("California") < charts["geography"].index("Texas")
+    assert "2023" in charts["geography"]
+    assert "Not confirmed" in charts["coverage"]
 
 
 def test_labels_are_escaped_and_unsupported_growth_is_not_presented(
@@ -184,7 +255,7 @@ def test_labels_are_escaped_and_unsupported_growth_is_not_presented(
 
 def test_checked_in_report_matches_its_current_inputs(tmp_path):
     render(ROOT, tmp_path / "report")
-    for filename in ("index.html", "provenance.json"):
+    for filename in ("index.html", "offline.html", "provenance.json"):
         assert text(tmp_path / "report" / filename) == text(
             ROOT / "reports/portfolio" / filename
         )
