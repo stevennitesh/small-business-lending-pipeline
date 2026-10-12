@@ -1,6 +1,6 @@
 # Project specification
 
-Current scope, October 7, 2026. The Small Business Lending Intelligence Pipeline
+Current scope, October 11, 2026. The Small Business Lending Intelligence Pipeline
 is a personal, local-first descriptive analytics engineering project. Its business
 question is: **Where is SBA lending concentrated, how does the picture change
 relative to the local business base, and how can comparisons be trustworthy?**
@@ -21,7 +21,7 @@ activity, not all small-business credit or borrower creditworthiness.
   run summary. Keep validity, source age, raw loads and completion distinct.
 - Provide trusted dbt facts, marts and BI components; a small versioned Power BI
   semantic layer handles supported filter-context aggregation.
-- Deliver the six dashboard pages in [dashboard_spec.md](dashboard_spec.md), with
+- Deliver the seven-page story in [dashboard_spec.md](dashboard_spec.md), with
   meaningful coverage/period labels, reproducible handoff and genuine screenshots.
 - Keep Python 3.12, Make, pytest, dbt and Ruff gates plus the Docker runtime.
 - Present the findings and engineering story in one HTML reader report, available
@@ -37,8 +37,10 @@ validation requirements.
 ## Acceptance and honest limits
 
 The report/evidence issues cannot be closed by a model
-contract alone: Desktop corrections, fresh screenshots and missing cloud evidence
-remain separately owned. The [verification appendix](../implementation/lending_verification_history.md)
+contract alone. The October 11 local report was saved and reopened, passed 24
+Desktop DAX checks and produced genuine captures plus a seven-page PDF.
+Public artifact delivery remains separately authorized. Paid cloud execution is deferred.
+The [verification appendix](../implementation/lending_verification_history.md)
 records dated observations and
 check results; [KPI methodology](kpi_definitions.md) owns scientific definitions.
 

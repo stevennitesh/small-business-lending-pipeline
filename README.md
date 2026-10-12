@@ -7,9 +7,11 @@ readable analysis.
 
 **[Read the report →](https://stevennitesh.github.io/small-business-lending-pipeline/)**
 
-Six charts, the findings, engineering decisions, definitions and downloadable
-evidence. The report uses **2025 for lending** and **2023 for the employer-location
-comparison**, from saved inputs checked on **October 5, 2026 UTC**.
+Start with the findings, then follow six charts from annual change to geography,
+programs, industries and lender names. Definitions, engineering decisions and
+downloadable aggregate evidence are included. The report uses **2025 for lending**
+and **2023 for the employer-location comparison**, from saved inputs checked on
+**October 5, 2026 UTC**.
 
 **Main finding:** reported 2025 amounts rose **1.71% to $40.93 billion**, while
 approval records fell from **81,081 to 74,098**. Dollar totals and record volume
@@ -28,7 +30,9 @@ activity and context; it does not establish credit access or causal impact.
 - Python/Prefect orchestration, local DuckDB processing and an implemented
   S3/Snowflake route.
 - dbt definitions and tests for record eligibility, comparable periods and
-  additive metric components, plus reporting exports and a Power BI model handoff.
+  additive metric components, plus reporting exports.
+- A seven-page Power BI report with filters, explicit DAX measures and a
+  documented semantic model.
 - Reproducible charts and an HTML report with exact aggregate values and provenance.
 
 The agencies supply the data. DuckDB, dbt, Prefect and Power BI supply the
@@ -40,7 +44,7 @@ flowchart LR
     V --> D[DuckDB / implemented S3 and Snowflake route]
     D --> T[dbt metric definitions and tests]
     T --> H[HTML report]
-    T --> P[Power BI handoff]
+    T --> P[Power BI report]
 ```
 
 ## Delivery status
@@ -51,9 +55,15 @@ rebuild passed **328 real-data dbt tests**; a later readiness check matched
 [verification record](docs/images/lending_verification.json) separates those
 recorded checks from chart generation.
 
-Power BI Desktop correction is pending; paid live Snowflake execution is deferred.
-The [handoff](powerbi/README.md) owns the remaining BI work. Publication evidence
-is frozen at its stated check time; opening the report does not refresh sources.
+The seven-page Power BI report was saved and reopened in Desktop on **October 11,
+2026**, with 18 refreshed imports and **24 passing DAX checks**. Its PBIX, genuine
+seven-page PDF and current Desktop captures are local files, excluded from the
+public report and fresh checkouts. The browser report is the public reading route;
+the [Power BI handoff](powerbi/README.md#october-11-local-desktop-verification)
+records local verification. Paid live Snowflake execution is deferred.
+Source evidence is frozen at its stated check time; opening either report does
+not refresh sources. The hosted site reflects its last published revision; the
+checked-in HTML reflects the current repository revision.
 
 ## Reproduce and inspect
 

@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="792pt" height="489.6pt" viewBox="0 0 792 489.6" version="1.1" role="img" aria-labelledby="chart-title chart-description">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="864pt" height="468pt" viewBox="0 0 864 468" version="1.1" role="img" aria-labelledby="chart-title chart-description">
  <metadata>
   <rdf:RDF>
    <ns2:Work>
@@ -18,152 +18,128 @@
  </defs>
  <g id="figure_1">
   <g id="patch_1">
-   <path d="M 0 489.6  L 792 489.6  L 792 0  L 0 0  z " style="fill: #ffffff" />
+   <path d="M 0 468  L 864 468  L 864 0  L 0 0  z " style="fill: #ffffff" />
   </g>
   <g id="axes_1">
    <g id="table_1">
     <g id="patch_2">
-     <path d="M 47.52 193.392  L 207.8208 193.392  L 207.8208 146.88  L 47.52 146.88  z " style="fill: #edf2f7; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 47.52 179.01  L 264.0384 179.01  L 264.0384 135.72  L 47.52 135.72  z " style="fill: #172b3a; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_1">
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="63.55008" y="173.171312" transform="rotate(-0 63.55008 173.171312)">Source</text>
+     <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #ffffff" x="69.17184" y="160.67625" transform="rotate(-0 69.17184 160.67625)">Source</text>
     </g>
     <g id="patch_3">
-     <path d="M 207.8208 193.392  L 298.4256 193.392  L 298.4256 146.88  L 207.8208 146.88  z " style="fill: #edf2f7; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 264.0384 179.01  L 380.0304 179.01  L 380.0304 135.72  L 264.0384 135.72  z " style="fill: #172b3a; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_2">
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(216.88128 167.012516)">Reference</text>
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(216.88128 179.330109)">period</text>
+     <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; fill: #ffffff" transform="translate(275.6376 153.957562)">Reference</text>
+     <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; fill: #ffffff" transform="translate(275.6376 167.394938)">period</text>
     </g>
     <g id="patch_4">
-     <path d="M 298.4256 193.392  L 423.8784 193.392  L 423.8784 146.88  L 298.4256 146.88  z " style="fill: #edf2f7; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 380.0304 179.01  L 550.152 179.01  L 550.152 135.72  L 380.0304 135.72  z " style="fill: #172b3a; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_3">
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="310.97088" y="173.171312" transform="rotate(-0 310.97088 173.171312)">Published on</text>
+     <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #ffffff" x="397.04256" y="160.67625" transform="rotate(-0 397.04256 160.67625)">Published on</text>
     </g>
     <g id="patch_5">
-     <path d="M 423.8784 193.392  L 549.3312 193.392  L 549.3312 146.88  L 423.8784 146.88  z " style="fill: #edf2f7; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 550.152 179.01  L 820.8 179.01  L 820.8 135.72  L 550.152 135.72  z " style="fill: #172b3a; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_4">
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="436.42368" y="173.171312" transform="rotate(-0 436.42368 173.171312)">Downloaded on</text>
+     <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #ffffff" x="577.2168" y="160.67625" transform="rotate(-0 577.2168 160.67625)">Release assessment</text>
     </g>
     <g id="patch_6">
-     <path d="M 549.3312 193.392  L 744.48 193.392  L 744.48 146.88  L 549.3312 146.88  z " style="fill: #edf2f7; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 47.52 222.3  L 264.0384 222.3  L 264.0384 179.01  L 47.52 179.01  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_5">
-     <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="568.84608" y="173.085375" transform="rotate(-0 568.84608 173.085375)">Recency assessment</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="69.17184" y="203.96625" transform="rotate(-0 69.17184 203.96625)">SBA approval records</text>
     </g>
     <g id="patch_7">
-     <path d="M 47.52 239.904  L 207.8208 239.904  L 207.8208 193.392  L 47.52 193.392  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 264.0384 222.3  L 380.0304 222.3  L 380.0304 179.01  L 264.0384 179.01  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_6">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="63.55008" y="219.683312" transform="rotate(-0 63.55008 219.683312)">SBA approval records</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="275.6376" y="203.96625" transform="rotate(-0 275.6376 203.96625)">2026 Q2</text>
     </g>
     <g id="patch_8">
-     <path d="M 207.8208 239.904  L 298.4256 239.904  L 298.4256 193.392  L 207.8208 193.392  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 380.0304 222.3  L 550.152 222.3  L 550.152 179.01  L 380.0304 179.01  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_7">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="216.88128" y="219.683312" transform="rotate(-0 216.88128 219.683312)">2026 Q2</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="397.04256" y="203.96625" transform="rotate(-0 397.04256 203.96625)">Not confirmed</text>
     </g>
     <g id="patch_9">
-     <path d="M 298.4256 239.904  L 423.8784 239.904  L 423.8784 193.392  L 298.4256 193.392  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 550.152 222.3  L 820.8 222.3  L 820.8 179.01  L 550.152 179.01  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_8">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="310.97088" y="219.683312" transform="rotate(-0 310.97088 219.683312)">Not confirmed</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 197.247562)">Latest verified published</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 210.684937)">period</text>
     </g>
     <g id="patch_10">
-     <path d="M 423.8784 239.904  L 549.3312 239.904  L 549.3312 193.392  L 423.8784 193.392  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 47.52 265.59  L 264.0384 265.59  L 264.0384 222.3  L 47.52 222.3  z " style="fill: #ffffff; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_9">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="436.42368" y="219.683312" transform="rotate(-0 436.42368 219.683312)">2026-10-05</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(69.17184 240.537562)">Census employer</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(69.17184 253.974937)">locations</text>
     </g>
     <g id="patch_11">
-     <path d="M 549.3312 239.904  L 744.48 239.904  L 744.48 193.392  L 549.3312 193.392  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 264.0384 265.59  L 380.0304 265.59  L 380.0304 222.3  L 264.0384 222.3  z " style="fill: #ffffff; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_10">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 213.524516)">Latest verified</text>
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 225.842109)">published period</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="275.6376" y="247.25625" transform="rotate(-0 275.6376 247.25625)">2023</text>
     </g>
     <g id="patch_12">
-     <path d="M 47.52 286.416  L 207.8208 286.416  L 207.8208 239.904  L 47.52 239.904  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 380.0304 265.59  L 550.152 265.59  L 550.152 222.3  L 380.0304 222.3  z " style="fill: #ffffff; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_11">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(63.55008 260.036516)">Census employer</text>
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(63.55008 272.354109)">locations</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="397.04256" y="247.25625" transform="rotate(-0 397.04256 247.25625)">Sep 25, 2025</text>
     </g>
     <g id="patch_13">
-     <path d="M 207.8208 286.416  L 298.4256 286.416  L 298.4256 239.904  L 207.8208 239.904  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 550.152 265.59  L 820.8 265.59  L 820.8 222.3  L 550.152 222.3  z " style="fill: #ffffff; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_12">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="216.88128" y="266.195312" transform="rotate(-0 216.88128 266.195312)">2023</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 240.537562)">Latest verified published</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 253.974937)">period</text>
     </g>
     <g id="patch_14">
-     <path d="M 298.4256 286.416  L 423.8784 286.416  L 423.8784 239.904  L 298.4256 239.904  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 47.52 308.88  L 264.0384 308.88  L 264.0384 265.59  L 47.52 265.59  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_13">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="310.97088" y="266.195312" transform="rotate(-0 310.97088 266.195312)">2025-09-25</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="69.17184" y="290.54625" transform="rotate(-0 69.17184 290.54625)">BLS state unemployment</text>
     </g>
     <g id="patch_15">
-     <path d="M 423.8784 286.416  L 549.3312 286.416  L 549.3312 239.904  L 423.8784 239.904  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 264.0384 308.88  L 380.0304 308.88  L 380.0304 265.59  L 264.0384 265.59  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_14">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="436.42368" y="266.195312" transform="rotate(-0 436.42368 266.195312)">2026-10-05</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="275.6376" y="290.54625" transform="rotate(-0 275.6376 290.54625)">2026-08</text>
     </g>
     <g id="patch_16">
-     <path d="M 549.3312 286.416  L 744.48 286.416  L 744.48 239.904  L 549.3312 239.904  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 380.0304 308.88  L 550.152 308.88  L 550.152 265.59  L 380.0304 265.59  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_15">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 260.036516)">Latest verified</text>
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 272.354109)">published period</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="397.04256" y="290.54625" transform="rotate(-0 397.04256 290.54625)">Sep 18, 2026</text>
     </g>
     <g id="patch_17">
-     <path d="M 47.52 332.928  L 207.8208 332.928  L 207.8208 286.416  L 47.52 286.416  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
+     <path d="M 550.152 308.88  L 820.8 308.88  L 820.8 265.59  L 550.152 265.59  z " style="fill: #f3f7f7; stroke: #e0e8eb; stroke-width: 0.6; stroke-linejoin: miter" />
     </g>
     <g id="text_16">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="63.55008" y="312.707312" transform="rotate(-0 63.55008 312.707312)">BLS state unemployment</text>
-    </g>
-    <g id="patch_18">
-     <path d="M 207.8208 332.928  L 298.4256 332.928  L 298.4256 286.416  L 207.8208 286.416  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
-    </g>
-    <g id="text_17">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="216.88128" y="312.707312" transform="rotate(-0 216.88128 312.707312)">2026-08</text>
-    </g>
-    <g id="patch_19">
-     <path d="M 298.4256 332.928  L 423.8784 332.928  L 423.8784 286.416  L 298.4256 286.416  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
-    </g>
-    <g id="text_18">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="310.97088" y="312.707312" transform="rotate(-0 310.97088 312.707312)">2026-09-18</text>
-    </g>
-    <g id="patch_20">
-     <path d="M 423.8784 332.928  L 549.3312 332.928  L 549.3312 286.416  L 423.8784 286.416  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
-    </g>
-    <g id="text_19">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="436.42368" y="312.707312" transform="rotate(-0 436.42368 312.707312)">2026-10-05</text>
-    </g>
-    <g id="patch_21">
-     <path d="M 549.3312 332.928  L 744.48 332.928  L 744.48 286.416  L 549.3312 286.416  z " style="fill: #ffffff; stroke: #e2e8f0; stroke-linejoin: miter" />
-    </g>
-    <g id="text_20">
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 306.548516)">Latest verified</text>
-     <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(568.84608 318.866109)">published period</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 283.827562)">Latest verified published</text>
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(577.2168 297.264937)">period</text>
     </g>
    </g>
   </g>
-  <g id="text_21">
-   <text style="font-weight: 700; font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="47.52" y="42.293344" transform="rotate(-0 47.52 42.293344)">Source recency follows published releases and their reference periods</text>
+  <g id="text_17">
+   <text style="font-weight: 700; font-size: 18px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="47.52" y="39.417188" transform="rotate(-0 47.52 39.417188)">Reference years and release dates explain source recency</text>
   </g>
-  <g id="text_22">
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 76.902281)">Publication evidence evaluated October 05, 2026 UTC; reference age alone does not mean stale.</text>
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 89.219875)">Geography: 50 states and Washington, DC.</text>
+  <g id="text_18">
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 73.878281)">Release evidence checked October 05, 2026 UTC • Each source follows its publication schedule</text>
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 86.195875)">Geography: 50 states and Washington, DC.</text>
   </g>
-  <g id="text_23">
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 380.454281)">Sources: SBA; Census BDS; BLS Local Area Unemployment Statistics (LAUS).</text>
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 392.771875)">Next announced release: BLS state unemployment: 2026-10-20.</text>
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 405.089469)">Publication dates marked 'Not confirmed' are unknown; coverage cutoffs are not release dates.</text>
-   <text style="font-size: 11px; font-family: 'DejaVu Sans'; fill: #172b3a" transform="translate(47.52 417.407062)">Selected complete lending year: 2025; complete same-year business/labor context: 2023.</text>
+  <g id="text_19">
+   <text style="font-size: 10px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 353.918437)">Sources: SBA; Census BDS; BLS Local Area Unemployment Statistics (LAUS).</text>
+   <text style="font-size: 10px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 366.256016)">Next announced release: BLS state unemployment: 2026-10-20.</text>
+   <text style="font-size: 10px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 378.593594)">Publication dates marked 'Not confirmed' are unknown; coverage cutoffs are not release dates.</text>
+   <text style="font-size: 10px; font-family: 'DejaVu Sans'; fill: #526571" transform="translate(47.52 390.931172)">Selected complete lending year: 2025; complete same-year business/labor context: 2023.</text>
   </g>
-  <g id="text_24">
-   <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #718096" x="47.52" y="477.36" transform="rotate(-0 47.52 477.36)">Saved public data extracted 2026-10-05; derived tables verified October 05, 2026 UTC.</text>
+  <g id="text_20">
+   <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #526571" x="47.52" y="456.3" transform="rotate(-0 47.52 456.3)">Saved public data extracted 2026-10-05; derived tables verified October 05, 2026 UTC.</text>
   </g>
  </g>
-<title id="chart-title">Source recency follows published releases and their reference periods</title><desc id="chart-description">SBA approval records | 2026 Q2 | Not confirmed | 2026-10-05 | Latest verified published period; Census employer locations | 2023 | 2025-09-25 | 2026-10-05 | Latest verified published period; BLS state unemployment | 2026-08 | 2026-09-18 | 2026-10-05 | Latest verified published period</desc></svg>
+<title id="chart-title">Reference years and release dates explain source recency</title><desc id="chart-description">SBA approval records | 2026 Q2 | Not confirmed | Latest verified published period; Census employer locations | 2023 | Sep 25, 2025 | Latest verified published period; BLS state unemployment | 2026-08 | Sep 18, 2026 | Latest verified published period</desc></svg>

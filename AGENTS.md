@@ -22,7 +22,7 @@ for task-specific checks.
   context; it does not recreate raw business logic. Preserve source grain and
   scientific meaning when changing metrics.
 - `powerbi/lending_dashboard.pbix` is an ignored, local manual Desktop artifact
-  pending correction. Edit, stage or
+  with status owned by the Power BI handoff. Edit, stage or
   commit it only when the user explicitly asks. Report status and known issues
   belong in the Power BI handoff; source-contract tests do not certify the binary.
 - Power BI consumes modeled BI exports or Snowflake BI tables. Keep credentials

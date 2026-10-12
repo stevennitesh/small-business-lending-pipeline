@@ -48,7 +48,7 @@ writes to cloud; fixture output must not replace a saved live warehouse.
 | Aggregation meaning | Unequal groups distinguish sums-of-components from averages of ratios; selected lender totals differ from pooled state/year top-five |
 | Matched intensity | Missing/zero establishment stock excludes both ratio components; handoff rejects an unfiltered approval numerator |
 | Embedded runtime | ASGI health route proves the pinned FastAPI/Prefect routing interface without starting a service |
-| Power Query handoff | Unique record fields and logical flag/date/timestamp typing; static proof because no M runtime is available |
+| Power Query handoff | Automated source checks verify unique record fields and logical flag/date/timestamp typing without executing M; separate Desktop evidence records actual table refresh |
 | Power BI contract | Actual definitions, nonblank tooltip descriptions, additive-only patterns, table/column/measure dependencies, relationships and exact DAX handoff consistency; static selection-label checks distinguish empty, one, all and subsets while clearing the entire dimension |
 | dbt data | Schema grain/range/reference tests and singular semantic reconciliation checks; critical tests provide fast data gates |
 | SBA discovery | Published distribution anchors, nested titles, relative URLs and 7a/7(a) spelling resolve all seven resources; HTTP errors or unrelated HTML cannot become cached metadata; configured JSON discovery still works |
@@ -65,6 +65,13 @@ adversarial small DuckDB populations. `test_powerbi_model_contract.py` rejects
 broken references and plausible incorrect average-of-ratio definitions.
 The code validator is deliberately limited to this repository's explicit DAX
 patterns; it is not a DAX engine. Desktop selection/visual checks remain manual.
+
+On October 11, 2026, the local report refreshed all 18 Power Query imports and
+executed 24 DAX checks in Desktop. The saved canonical PBIX was reopened and all
+24 checks passed again. The [Power BI handoff](../../powerbi/README.md#october-11-local-desktop-verification)
+records the tested selections, binary identity and local PDF/captures. This is
+dated manual verification of that artifact, separate from CI and from the
+October 5 modeled-data checks; it does not certify every possible interaction.
 
 ## Data and runtime gates
 
@@ -83,7 +90,7 @@ actual SQL on small populations and deliberate failure paths without large saved
 warehouse copies. Cloud connector SQL generation stays mocked; the DML rollback
 regression executes the publication statements in DuckDB.
 
-Keep cloud consumer tests mocked without credentials. A local pass cannot prove
+Keep cloud consumer tests mocked without credentials. A CI or fixture pass cannot prove
 S3 objects, Snowflake promotion, hosted CI or a corrected PBIX. Actual final flow
 completion comes from its final summary; a passing raw load or dbt pass is not a
 proxy. Report remaining publisher gaps and unavailable evidence explicitly.

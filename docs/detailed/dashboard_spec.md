@@ -3,24 +3,24 @@
 The report takes a reader through a question, evidence, interpretation and source
 limits: overall change → geography → distributions → local business context →
 source coverage. The [reader guide](../../powerbi/report_reader_guide.md) owns the
-ready-to-apply titles, narration, labels and tooltips. Its vocabulary comes from
+titles, narration, labels and tooltips. Its vocabulary comes from
 [report_language.json](../../powerbi/report_language.json) and measure display
 metadata in the [model](../../powerbi/lending_dashboard_model.json).
 [KPI methodology](kpi_definitions.md) owns metric populations and formulas;
 the [Power BI handoff](../../powerbi/README.md) owns implementation and Desktop checks.
 
-The table below defines the **planned six-page Desktop correction**, preserving
-the acceptance page order. It is separate from the current static chart sequence
+The table below defines the **seven-page local Desktop story**. It is separate from the current static chart sequence
 in the [reader guide](../../powerbi/report_reader_guide.md#follow-the-current-static-charts).
 
-| Planned reader page title | Existing implementation page | Purpose | Default and interpretation |
-|---|---|---|---|
-| Lending at a glance | Executive Overview | Reported amounts, approval-record count, average known amount, full-year change and trend | 2025. Dollars and record counts are different signals. Include amount coverage. |
-| How lending varies by state | State Lending Trends | Same-year state/region amounts, counts and comparable annual changes | 2025. Partial/gapped years and changing observed state populations cannot support a full-year change. |
-| Reporting lender names | Lender Concentration | Known-name dollar ranking, overall top-five share and coverage | 2025. Rank after adding amounts across selected states/years. Names are source assignments, not resolved historical banks. |
-| Programs and industries | Industry and Program Mix | Separate distribution panels with dollar/count shares and coverage | 2025. Program amounts have different bases; industry shares use known sectors. Category choices affect only their own panel. |
-| Lending relative to local businesses | Regional Business Health | Same-year lending and employer-location counts, intensity and single-state labor context | 2023. Census counts include employers across sizes. Multiple years use establishment-years. No national/regional average of state unemployment rates. |
-| Source coverage and data checks | Data Quality and Pipeline Health | Source periods, download/observation age, frozen UTC check, validation, loading and separately dated completion | No lending slicers. Validity is separate from recency and final completion. |
+| Reader page title | Purpose | Default and interpretation |
+|---|---|---|
+| Lending at a glance | Reported amounts, approval-record count, mean known amount, coverage and full-year change | 2025. Dollars and record counts are different signals. |
+| How lending varies by state | Ten leading states and full-year history | 2025. History excludes partial boundary years and retains all complete years when the year slicer changes. |
+| Reporting lender names | Ten leading known names, overall top-five share and coverage | 2025. Rank after adding across selected geography/years; top-five denominator is not limited to the ten displayed names. Names are source assignments. |
+| Programs and industries | Separate program and ten-sector distributions, category shares and coverage | 2025; initially 7(a) and Accommodation and food services. Category selections affect cards while charts retain the full mix. Program amount bases differ; unknown sectors remain visible where present. |
+| Lending relative to local businesses | Same-year lending relative to employer-location counts | 2023 national; complete-context years 1991–2023. Census includes employers across sizes. Multiple years use establishment-years. |
+| Local business conditions | State unemployment, change in percentage points, entry/exit rates and history | California, 2023; matched regional coverage 1990–2023. Cards require one state/year; histories retain that state's available years. |
+| Source coverage and data checks | Reference/publication dates, publisher/download checks, validation, loading and separately dated completion | No lending slicers. Evidence is frozen October 5 UTC. Source-wide SBA cutoff repeats across archive resources; validity and final completion are separate. |
 
 Every visual needs its selected calendar year/geography, unit, denominator and
 source context. Dollars are nominal reported approval amounts: 7(a) whole loans
@@ -40,11 +40,15 @@ state/year headlines or optional descriptive pages.
 
 The [reader report](analysis_results.md) supplies six real generated data charts
 from checked saved local exports. They are independently useful public analysis;
-they do not replace the manual report's six-page Desktop acceptance.
-Only five historical Power BI screenshots exist. The saved binary has known
-average/concentration errors and needs refresh, measure replacement, labels and
-a source-coverage page. Fresh genuine screenshots remain required before closing
-the dashboard/evidence issues. Source-contract tests do not execute DAX or Power Query.
+they do not replace genuine Desktop evidence. On October 11 the local seven-page
+report refreshed 18 imports, applied 62 maintained DAX expressions and retained
+25 contract relationships. The final PBIX was saved natively, closed and reopened;
+all 24 engine checks passed on that reopened binary. Seven genuine current page
+captures and a seven-page native PDF were produced locally.
+The old five screenshots remain historical.
+Public report/capture publication still requires an explicit request; do not close
+dashboard/evidence issues on source-contract tests or local verification alone.
+The [handoff](../../powerbi/README.md#october-11-local-desktop-verification) owns final artifact status.
 
 The October 5 source refresh rebuilt modeled outputs from current downloads and
 checked 18 exports and 25 relationships. Keep its separately dated final completion
@@ -55,7 +59,7 @@ with no current live cloud certification.
 
 ## Desktop review checklist
 
-- Apply the six reader titles, exact narration, selected periods, field labels and
+- Apply the seven reader titles, narration, selected periods, field labels and
   measure tooltips in the reader guide; keep internal identifiers and expressions.
 - Check title labels for no selection, one value, all values and multiple subsets;
   a region subset must not read “All states”. These require actual Desktop checks.
@@ -70,8 +74,10 @@ with no current live cloud certification.
   selection is 16.98%, including partial boundary years. Show coverage for each.
 - Show unknown industries/names and amount coverage. Paired 504 financing uses
   the same known records on both sides and may exceed 100%; show its coverage.
-- Label partial 1990/2026, the BLS October 2025 omission, Census March 12 references,
+- Label partial 1990/2026, the source-level BLS October 2025 omission, Census March 12 references,
   source evaluation time and separately dated completion. Keep multi-state rate cards blank.
+- Keep conditions-page years within its actual 1990–2023 table; newer BLS source
+  observations do not extend that matched view.
 - Keep borrower identifiers/raw files off report surfaces. Reported jobs and
   economic context are descriptive, never causal claims.
 - Save and export fresh report images only after genuine Desktop verification.

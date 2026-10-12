@@ -1,12 +1,17 @@
 # Reading the lending report
 
-The report follows approval activity from its overall direction to geography, distribution and source coverage.
-Start with **2025** for lending; use **2023** when comparing lending with employer business locations and labor context.
-The [reader results](../docs/detailed/analysis_results.md) show actual current charts. The saved Power BI binary remains historical.
+Start with the [HTML report](https://stevennitesh.github.io/small-business-lending-pipeline/)
+for the question, findings, charts and evidence. It can be read without Power BI.
+This guide explains the vocabulary and the local Desktop report's page sequence
+and filters. Use **2025** for complete-year lending and **2023** when comparing
+lending with employer business locations and labor context.
+The local seven-page Desktop report was saved, reopened and verified on
+October 11, 2026. Its PBIX, PDF and captures are excluded from the public package.
 
 ## Follow the current static charts
 
-The [current reader report](../docs/detailed/analysis_results.md) follows this sequence:
+The HTML report and [aggregate results](../docs/detailed/analysis_results.md) follow
+this sequence:
 
 1. **Annual change (2025):** compare reported dollars with approval-record volume.
 2. **Geography (2023):** compare dollar leaders with records per employer location using the same year.
@@ -15,24 +20,33 @@ The [current reader report](../docs/detailed/analysis_results.md) follows this s
 5. **Reporting lender names (2025):** rank after adding dollars across geography; disclose known-name coverage.
 6. **Source coverage:** distinguish reference periods, publication dates and downloads.
 
+Use the opening comparison and finding links for a quick read. Each chart can be
+enlarged; narrow screens let you scroll across a readable chart or fit the whole
+figure to the window. The evidence section includes downloadable JSON and an
+inline view of the same exact aggregates and saved-data checks.
+
 BLS labor data is validated for state-level Power BI context. The current static
 charts focus on approvals and employer-location comparisons, plus source coverage.
 Eligible approval records have a recognized project state and a calendar approval
 date; the current full population covers 50 states and Washington, DC.
 
-## Planned six Power BI pages
+## Local Power BI pages
 
-These are the Desktop correction targets and defaults. They preserve the required
-page order. Desktop delivery is pending; the outdated PBIX and five screenshots
-are preserved locally and excluded from the public repository.
+This is the seven-page local report sequence. Begin with the scale of activity,
+then compare geography and distributions before adding economic context and
+checking the sources. The local PBIX has been refreshed, saved, reopened and
+checked in Desktop; the [handoff](README.md#october-11-local-desktop-verification)
+records its dated evidence and current local PDF/captures.
+Historical screenshots remain withdrawn, and manual report files are not public.
 
 | Report title | Question | What to look for | Default |
 |---|---|---|---|
 | Lending at a glance | How much approval activity is there, and how has it changed? | Start with reported amounts, record count, average known amount and full-year change. More dollars do not necessarily mean more records. | 2025 |
-| How lending varies by state | Where are reported amounts and approval records largest? | Compare states within the same calendar year. Use full-year trends; blank growth means the selected periods or state populations are not comparable. | 2025 |
-| Reporting lender names | How much activity is assigned to the largest known names? | Rank names after adding amounts across the selected geography and years. Show known-name coverage and distinguish overall top five from combined state/year rankings. | 2025 |
-| Programs and industries | What makes up the reported lending total? | Show program shares of all reported amounts and industry shares of known-sector amounts in separate panels. Category selections apply only to their own panel. | 2025 |
-| Lending relative to local businesses | How does activity compare with the employer business base? | Use the same year for lending and employer locations. Single-year intensity is records per 1,000 locations; several years use establishment-years. Labor context is state-specific. | 2023 |
+| How lending varies by state | Where are reported amounts and approval records largest? | Compare the ten leading states in the selected year. The history chart shows complete calendar years; blank growth means periods or state populations are not comparable. | 2025 |
+| Reporting lender names | How much activity is assigned to the largest known names? | Rank the ten leading names after adding amounts across geography and years. The overall top-five share and coverage retain their full known-name denominator. Names are source assignments, not resolved banking groups. | 2025 |
+| Programs and industries | What makes up the reported lending total? | Compare full program and ten-sector distributions, including unknown sectors where present. Selected-category cards sit beside shares and coverage; category choices leave the distribution charts intact. | 2025; 7(a) and Accommodation and food services initially selected |
+| Lending relative to local businesses | How does activity compare with the employer business base? | Match complete-year lending with employer locations. One year uses records per 1,000 locations; several years use establishment-years. Available complete-context years are 1991–2023. | 2023; all states |
+| Local business conditions | What economic conditions accompany the lending comparison? | Read one state's unemployment and published establishment entry/exit rates, with state history through 2023. Cards require one state/year; these rates do not measure the effects of lending. | California, 2023; available years 1990–2023 |
 | Source coverage and data checks | What periods do these inputs cover, and can they be trusted? | Show reference periods, publication dates, publisher checks and downloads; separate validity and final completion. Show the frozen UTC check time and separately dated source-refresh completion. | Source-wide, no lending filters |
 
 ## Read the terms before comparing
@@ -50,6 +64,9 @@ are preserved locally and excluded from the public repository.
 State, region and calendar year affect supported lending views. Program, industry and lender-name choices affect only their own distribution panel. A program selection does not change the overall state/year headline.
 Lender top-five share and known-name coverage retain geography/time but ignore the selected individual lender name. This lets a selected-name card sit beside a consistent overall concentration benchmark.
 Blank annual growth means the selected years or state populations cannot support the comparison; it does not mean zero growth. Multi-state unemployment cards remain blank because averaging state rates does not produce a national rate.
+History charts on the state and conditions pages retain the relevant full history
+when the calendar-year slicer changes. Cards and rankings use the selected period.
+Boundary lending years are partial: **1990 is October–December; 2026 is January–June**.
 Selection titles name one value, show “Multiple years/states” for a subset,
 and reserve “All years/states” for the whole dimension. A selected region is a
 state subset. Empty contexts show “No years/states”.
@@ -84,16 +101,20 @@ age remains descriptive and secondary to these publication clocks.
 Publisher review windows are local policies: SBA/BDS 90 days, BLS 30 days.
 
 SBA 2026 ends in June and BLS 2026 in August; neither is a complete-year comparison.
-Calendar year 2025 has 11 published unemployment months because October was not
-published; no comparable annual change is shown.
+The newer BLS source has 11 published unemployment months in 2025 because October
+was not published; its mart suppresses comparable annual change. The local
+conditions page uses the matched regional table ending in 2023, so newer source
+coverage is not a later-year economic-context card.
 
-The [Power BI handoff](README.md) owns relationships, supported selections, exact correction work and genuine Desktop acceptance. The [metric methodology](../docs/detailed/kpi_definitions.md) owns formulas and populations.
+The [Power BI handoff](README.md) owns relationships, supported selections,
+refresh procedures and dated Desktop verification. The
+[metric methodology](../docs/detailed/kpi_definitions.md) owns formulas and populations.
 
 
 ## Technical reference for applying labels in Desktop
 
-Use the planned page titles/narration above. Keep measure names and column names unchanged; set visual titles, axis labels and tooltip text to these plain labels.
-The maintained metadata owners are [report_language.json](report_language.json) for pages/fields and [lending_dashboard_model.json](lending_dashboard_model.json) for measure display names/descriptions. They are handoff metadata, not an automatic PBIX update.
+Use the local page titles/narration above. Keep measure names and column names unchanged; set visual titles, axis labels and tooltip text to these plain labels.
+The maintained metadata owners are [report_language.json](report_language.json) for page/field labels, and [lending_dashboard_model.json](lending_dashboard_model.json) for measure display names/descriptions. The seven-page local sequence is documented here and in the dashboard specification. Metadata is not an automatic PBIX update.
 
 | Machine field | Display label | Tooltip / interpretation |
 |---|---|---|
@@ -110,7 +131,7 @@ The maintained metadata owners are [report_language.json](report_language.json) 
 | `bds_reference_date` | Census business-count reference date | March 12 of the reference year; context for calendar-year lending, not an identical time window. |
 | `freshness_checked_at_utc` | Publication and download checks evaluated at (UTC) | The frozen time at which source ages were calculated. Opening the report later does not update the ages. |
 | `latest_extracted_at_utc` | Source files downloaded at (UTC) | When the saved public data was extracted; separate from observation date and modeled-table rebuild. |
-| `latest_observation_date` | Latest source observation/reference | Approval date for SBA; March 12 annual reference for Census; month end for BLS. |
+| `latest_observation_date` | Source-wide latest reference date | Latest source-system observation: approval date for SBA, March 12 annual reference for Census, month end for BLS. The SBA June 30 cutoff repeats across fiscal archive resources; it does not mean each archive contains 2026 records. |
 | `extract_age_days` | Days since source download | Age at the stated UTC check time, compared with the configured extraction tolerance. |
 | `observation_age_days` | Days since source observation/reference | Descriptive age of the reference; it is not a stale-data rule or the time since a warehouse rebuild. |
 | `snapshot_validity_status` | Saved input validation | Passing source checks establish usable saved evidence, independently of age. |

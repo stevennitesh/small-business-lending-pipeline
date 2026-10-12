@@ -65,8 +65,13 @@ Rebuild derived staging/facts/marts/BI and refresh CSVs or Snowflake BI
 before applying the new Desktop measures. Existing warehouse/exports/PBIX are
 saved historical outputs until refreshed; a source-contract change cannot update
 a manual report binary automatically. The October 5 source refresh reloaded
-validated current downloads and rebuilt active tables/CSVs; the PBIX remains
-historical. Optional missing SBA `Subprogram` columns become null on both adapters;
-both ISO and earlier SBA date strings are accepted. Literal `UNKNOWN` lender
-names become missing, and documented BLS missing-month markers remain null rates. No cloud schema promotion was run: paid Snowflake execution is
-deliberately deferred. Keep generated warehouses, CSVs and dbt targets out of Git.
+validated downloads and rebuilt active tables/CSVs. On October 11, all 18 imports
+in the local Power BI report were refreshed; the saved report was reopened and
+verified in Desktop. The [Power BI handoff](../../powerbi/README.md#october-11-local-desktop-verification)
+owns that separate artifact evidence.
+
+Optional missing SBA `Subprogram` columns become null on both adapters; both ISO
+and earlier SBA date strings are accepted. Literal `UNKNOWN` lender names become
+missing, and documented BLS missing-month markers remain null rates. No cloud
+schema promotion was run: paid Snowflake execution is deliberately deferred.
+Keep generated warehouses, CSVs and dbt targets out of Git.

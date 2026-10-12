@@ -406,12 +406,13 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.ticker import MaxNLocator
+    from matplotlib.ticker import FuncFormatter, MaxNLocator
 
+    muted = "#526571"
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
-            "font.size": 11,
+            "font.size": 12,
             "svg.fonttype": "none",
             "svg.hashsalt": "sba-analysis-report",
             "axes.spines.top": False,
@@ -423,6 +424,10 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
             "xtick.color": INK,
             "ytick.color": INK,
             "figure.facecolor": "white",
+            "axes.titleweight": "bold",
+            "axes.labelpad": 10,
+            "xtick.major.size": 0,
+            "ytick.major.size": 0,
         }
     )
     year = analysis["lending_year"]
@@ -438,21 +443,22 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     scope = geography_scope(analysis["geography"])
 
     def canvas(title: str, subtitle: str, height: float = 5.5, columns: int = 1):
-        fig, axes = plt.subplots(1, columns, figsize=(11, height), squeeze=False)
-        wrapped_title = textwrap.fill(title.replace("\n", " "), 78)
+        fig, axes = plt.subplots(1, columns, figsize=(12, height), squeeze=False)
+        wrapped_title = textwrap.fill(title.replace("\n", " "), 76)
         multiline = "\n" in wrapped_title
-        fig.text(0.06, 0.94, wrapped_title, fontsize=17, weight="bold", va="top")
+        fig.text(0.055, 0.945, wrapped_title, fontsize=18, weight="bold", va="top")
         fig.text(
-            0.06,
+            0.055,
             0.80 if multiline else 0.86,
             "\n".join(textwrap.fill(line, 100) for line in subtitle.splitlines())
             + f"\nGeography: {scope}.",
             fontsize=11,
+            color=muted,
             va="top",
         )
         fig.subplots_adjust(
             left=0.30 if columns == 1 else 0.19,
-            right=0.93,
+            right=0.95,
             top=0.65 if multiline else 0.72,
             bottom=0.29,
             wspace=0.95,
@@ -462,8 +468,10 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     def save(
         fig, filename: str, title: str, description: str, note: str, note_top=0.19
     ):
-        fig.text(0.06, note_top, note, fontsize=11, va="top")
-        fig.text(0.06, 0.025, footer, fontsize=10, color=GRAY)
+        fig.text(
+            0.055, note_top, note, fontsize=10, color=muted, va="top", linespacing=1.35
+        )
+        fig.text(0.055, 0.025, footer, fontsize=9, color=muted)
         path = image_dir / filename
         fig.savefig(
             path,
@@ -485,31 +493,39 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     def bars(ax, rows, field, color, unit, formatting, label_width=30):
         labels = [textwrap.fill(row["label"], label_width) for row in rows]
         values = [float(row[field]) for row in rows]
-        ax.barh(labels, values, color=color, height=0.62)
+        colors = (
+            color
+            if isinstance(color, list)
+            else [color] + ["#658b9c"] * (len(rows) - 1)
+        )
+        ax.barh(labels, values, color=colors, height=0.66)
         ax.invert_yaxis()
-        ax.set_xlim(0, max(values) * 1.25)
+        ax.set_xlim(0, max(values) * 1.24)
         ax.set_xlabel(unit)
-        ax.xaxis.set_major_locator(MaxNLocator(4))
-        ax.grid(axis="x", alpha=0.14)
+        ax.xaxis.set_major_locator(MaxNLocator(4, min_n_ticks=3))
+        ax.grid(axis="x", color="#e4ecef", linewidth=0.7)
         ax.set_axisbelow(True)
-        ax.tick_params(axis="y", length=0)
+        ax.tick_params(axis="y", length=0, pad=9, labelsize=12)
+        ax.tick_params(axis="x", pad=8, labelsize=10)
+        ax.get_yticklabels()[0].set_weight("bold")
         for idx, row in enumerate(rows):
             ax.text(
                 float(row[field]) + max(values) * 0.025,
                 idx,
                 formatting(row[field]),
                 va="center",
-                fontsize=11,
+                fontsize=12,
+                weight="bold" if idx == 0 else "normal",
             )
 
     title = f"Reported approval amounts {annual_change_phrase(analysis['headline']['growth'])} in {year}"
     fig, axes = canvas(
         title,
-        "How has annual lending activity changed? • Full calendar years",
-        height=6,
+        f"Dollar totals and approval counts • {analysis['trend'][0]['year']}–{year} • Complete calendar years",
+        height=6.2,
         columns=2,
     )
-    fig.subplots_adjust(left=0.09, wspace=0.40)
+    fig.subplots_adjust(left=0.085, right=0.95, bottom=0.29, wspace=0.36)
     years = [row["year"] for row in analysis["trend"]]
     ticks = sorted(
         set([year for year in years[::2] if year < years[-1] - 1] + [years[-1]])
@@ -521,7 +537,7 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
             1_000_000_000,
             BLUE,
             "Reported amounts ($ billions)",
-            money,
+            lambda value: f"${value / Decimal(1_000_000_000):.2f}bn",
         ),
         (
             axes[1],
@@ -529,31 +545,59 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
             1000,
             TEAL,
             "Approval records (thousands)",
-            lambda value: f"{value:,} records",
+            lambda value: f"{value / 1000:.2f}k",
         ),
     ):
+        values = [float(row[field] / scale) for row in analysis["trend"]]
         ax.plot(
             years,
-            [float(row[field] / scale) for row in analysis["trend"]],
+            values,
             marker="o",
             color=color,
-            linewidth=2.5,
+            linewidth=2.8,
+            markersize=5,
         )
-        ax.set_ylim(bottom=0)
-        ax.set_title(label, loc="left", fontsize=12, pad=14)
+        ax.set_ylim(0, max(values) * 1.26)
+        # Leave room for direct end labels; do not draw an extrapolated line.
+        ax.set_xlim(years[0] - 0.4, years[-1] + 2.5)
+        ax.set_title(label, loc="left", fontsize=12, pad=12)
+        ax.yaxis.set_major_locator(MaxNLocator(4, integer=True))
         ax.set_xticks(ticks)
-        ax.tick_params(axis="x", labelsize=10)
-        ax.grid(axis="y", alpha=0.18)
+        ax.tick_params(axis="x", labelsize=10, pad=8)
+        ax.grid(axis="y", color="#e4ecef", linewidth=0.7)
+        ax.set_axisbelow(True)
         last = analysis["trend"][-1]
+        peak = max(analysis["trend"], key=lambda row: row[field])
+        ax.scatter(
+            last["year"],
+            float(last[field] / scale),
+            s=65,
+            color=color,
+            edgecolor="white",
+            linewidth=1.5,
+            zorder=3,
+        )
         ax.annotate(
             formatting(last[field]),
             (last["year"], float(last[field] / scale)),
-            xytext=(-5, 24),
+            xytext=(7, 0),
             textcoords="offset points",
-            ha="right",
+            ha="left",
+            va="center",
             weight="bold",
-            arrowprops={"arrowstyle": "-", "color": color},
+            fontsize=11,
+            color=color,
         )
+        if peak != last:
+            ax.annotate(
+                f"{peak['year']} · {formatting(peak[field])}",
+                (peak["year"], float(peak[field] / scale)),
+                xytext=(0, 16),
+                textcoords="offset points",
+                ha="center",
+                fontsize=10,
+                color=muted,
+            )
     note = "Source: U.S. Small Business Administration (SBA).\n" + AMOUNT_NOTE
     save(
         fig,
@@ -570,7 +614,7 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     fig, axes = canvas(
         title,
         f"Where is activity concentrated? • Both rankings use {context_year} • Top six in each ranking",
-        height=6,
+        height=6.6,
         columns=2,
     )
     fig.subplots_adjust(bottom=0.32)
@@ -600,7 +644,7 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
         lambda value: f"{value:.2f}",
     )
     axes[0].set_title("Largest dollar totals", loc="left", fontsize=12, pad=18)
-    axes[1].set_title("Highest relative activity", loc="left", fontsize=12, pad=18)
+    axes[1].set_title("Most records per location", loc="left", fontsize=12, pad=18)
     save(
         fig,
         "lending_geography.svg",
@@ -616,17 +660,26 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     fig, (ax,) = canvas(
         title,
         f"How do the two programs contribute? • {year}",
-        height=4.8,
+        height=5.2,
     )
+    fig.subplots_adjust(left=0.16, bottom=0.32)
     rows = [{**row, "percent": row["share"] * 100} for row in analysis["programs"]]
     bars(
         ax,
         rows,
         "percent",
-        BLUE,
+        [BLUE, TEAL],
         "Share of all reported approval amounts (%)",
         lambda value: f"{value:.2f}%",
     )
+    ax.set_xlim(0, 100)
+    ax.set_xticks([0, 25, 50, 75, 100])
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}%"))
+    for label, row in zip(ax.texts, rows):
+        if row["percent"] >= 75:
+            label.set_x(float(row["percent"]) - 2.2)
+            label.set_ha("right")
+            label.set_color("white")
     save(
         fig,
         "lending_programs.svg",
@@ -645,7 +698,7 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     fig, (ax,) = canvas(
         title,
         f"Which industries account for the most reported approval amounts? • {year} • Top six known sectors",
-        height=6.5,
+        height=7,
     )
     fig.subplots_adjust(left=0.36)
     rows = [
@@ -655,11 +708,12 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
         ax,
         rows,
         "percent",
-        TEAL,
+        [TEAL] + ["#678f84"] * (len(rows) - 1),
         "Share of known-industry reported amounts (%)",
         lambda value: f"{value:.2f}%",
         label_width=32,
     )
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}%"))
     save(
         fig,
         "lending_industries.svg",
@@ -675,9 +729,9 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
     fig, (ax,) = canvas(
         title,
         f"How concentrated are reported lender assignments? • {year}\nNames ranked by combined amounts across the shown states",
-        height=6.5,
+        height=7.1,
     )
-    fig.subplots_adjust(left=0.38)
+    fig.subplots_adjust(left=0.39, bottom=0.31)
     rows = [
         {**row, "billions": row["amount"] / 1_000_000_000}
         for row in analysis["lenders"][:5]
@@ -702,13 +756,13 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
         "Normalized names do not resolve historical originators or consolidated banking groups.",
     )
 
-    title = "Source recency follows published releases and their reference periods"
+    title = "Reference years and release dates explain source recency"
     fig, (ax,) = canvas(
         title,
-        f"Publication evidence evaluated {frozen} UTC; reference age alone does not mean stale.",
-        height=6.8,
+        f"Release evidence checked {frozen} UTC • Each source follows its publication schedule",
+        height=6.5,
     )
-    fig.subplots_adjust(left=0.06, right=0.94, top=0.70, bottom=0.32)
+    fig.subplots_adjust(left=0.055, right=0.95, top=0.71, bottom=0.34)
     ax.axis("off")
     language = json.loads(LANGUAGE_FILE.read_text(encoding="utf-8"))
     source_labels = {
@@ -720,10 +774,13 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
         [
             textwrap.fill(source_labels[row["system"]], 22),
             source_reference_period(row["system"], row["publication_reference_date"]),
-            row["publication_date"] or "Not confirmed",
-            "\n".join(row["download_dates"]),
+            datetime.fromisoformat(row["publication_date"])
+            .strftime("%b %d, %Y")
+            .replace(" 0", " ")
+            if row["publication_date"]
+            else "Not confirmed",
             "\n".join(
-                textwrap.fill(language["freshness_reason_labels"][reason], 24)
+                textwrap.fill(language["freshness_reason_labels"][reason], 30)
                 for reason in row["reasons"]
             ),
         ]
@@ -735,21 +792,23 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
             "Source",
             "Reference\nperiod",
             "Published on",
-            "Downloaded on",
-            "Recency assessment",
+            "Release assessment",
         ],
-        colWidths=[0.23, 0.13, 0.18, 0.18, 0.28],
+        colWidths=[0.28, 0.15, 0.22, 0.35],
         cellLoc="left",
         colLoc="left",
         bbox=[0, 0, 1, 1],
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(11)
+    table.set_fontsize(12)
     for (row_index, _), cell in table.get_celld().items():
-        cell.set_edgecolor("#e2e8f0")
-        cell.set_facecolor("#edf2f7" if row_index == 0 else "white")
+        cell.set_edgecolor("#e0e8eb")
+        cell.set_linewidth(0.6)
+        cell.set_facecolor(
+            INK if row_index == 0 else "#f3f7f7" if row_index % 2 else "white"
+        )
         if row_index == 0:
-            cell.set_text_props(weight="bold")
+            cell.set_text_props(weight="bold", color="white")
     announced = (
         "; ".join(
             f"{source_labels[row['system']]}: {row['next_scheduled_release_date']}"
@@ -769,7 +828,7 @@ def render_charts(analysis: dict, image_dir: Path) -> None:
         + ".\nPublication dates marked 'Not confirmed' are unknown; coverage cutoffs are not release dates."
         + "\n"
         + selected_period_note(analysis),
-        note_top=0.24,
+        note_top=0.26,
     )
 
 
@@ -948,8 +1007,9 @@ def write_reader_results(analysis: dict, output: Path) -> None:
         "Generated by `scripts/render_analysis_report.py` from checked local reporting CSVs.",
         "The companion [aggregate JSON](../images/lending_analysis.json) records exact values and input CSV SHA256 hashes.",
         "The [runtime guide](orchestration_runtime.md#reader-report-and-chart-generation) gives the repeatable generation command.",
-        "These are generated data charts, not Power BI screenshots. The manual Power BI report still needs Desktop correction;",
-        "paid Snowflake execution remains deferred. Chart generation itself performs no source refresh, warehouse rebuild or borrower-level publication.",
+        "These are generated data charts, not Power BI screenshots.",
+        language["page_status"],
+        "Paid Snowflake execution remains deferred. Chart generation itself performs no source refresh, warehouse rebuild or borrower-level publication.",
         "",
         "<details>",
         "<summary>Technical reference: frozen observation ages</summary>",

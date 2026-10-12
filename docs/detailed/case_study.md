@@ -4,9 +4,11 @@
 
 The HTML report is the main reading destination for recruiters and new readers.
 It connects the business question, findings, author contribution, consequential
-engineering decisions and evidence. The [offline copy](../../reports/portfolio/index.html)
-contains the same story and charts. This page routes readers to the maintained
-technical sources rather than maintaining another narrative.
+engineering decisions and evidence. Download the
+[offline report](../../reports/portfolio/index.html) to inspect the repository's
+current version in a browser; GitHub's file viewer shows HTML source. The hosted
+site reflects its last published revision. This page routes readers to the
+maintained technical sources.
 
 ## Engineering choices and proof
 
@@ -23,7 +25,9 @@ The report follows approval activity over time, geographic comparisons, program
 and industry composition, lender-name concentration and publication timelines.
 The [generated aggregate results](analysis_results.md) supply tables and six
 source charts as technical evidence. Exact values and input hashes are in the
-[aggregate JSON](../images/lending_analysis.json).
+[aggregate JSON](../images/lending_analysis.json). The report's evidence section
+also shows the exact aggregate and verification JSON inline, so inspection does
+not depend on downloading a file.
 
 ## Presentation verification
 
@@ -34,8 +38,13 @@ inputs and output; it does not prove a new data refresh. The
 [dated verification appendix](../implementation/lending_verification_history.md)
 owns recorded populations, checks and recovery limits.
 
-Power BI Desktop correction and paid live cloud execution remain deferred. The
-[Power BI handoff](../../powerbi/README.md) owns report status and manual work.
+The seven-page Power BI report was saved, reopened and verified locally on
+October 11, 2026. All 24 native DAX checks passed in the reopened report. Its PBIX,
+PDF and current Desktop captures are excluded from the public package and fresh
+checkouts. The [Power BI handoff](../../powerbi/README.md#october-11-local-desktop-verification)
+owns the dated artifact evidence; the
+[reader guide](../../powerbi/report_reader_guide.md#local-power-bi-pages) explains
+the page sequence and filter behavior. Paid live cloud execution remains deferred.
 
 ## Reproduce and inspect
 

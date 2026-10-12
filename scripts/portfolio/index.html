@@ -22,13 +22,23 @@
   <div class="masthead"><a href="$repo" class="brand">Steven Bangdiwala <span>/ Analytics engineering</span></a>
     <span class="edition">Public-data portfolio · Report 01</span></div>
   <header class="hero">
+    <div class="hero-copy">
     <p class="eyebrow">Small business lending · SBA 7(a) &amp; 504</p>
     <h1>Business lending,<br>in context.</h1>
     <p class="hero-deck">Where is loan approval activity concentrated, and how does the answer change
       when we compare it with the local business base?</p>
-    <p class="hero-finding">$movement.</p>
     <p class="hero-note">I built a Python and SQL pipeline that turns public agency files into validated
       snapshots, tested metrics and reproducible reports.</p>
+    <div class="hero-actions"><a href="#activity">Read the findings <span aria-hidden="true">↓</span></a>
+      <a href="#evidence">Inspect the evidence <span aria-hidden="true">↗</span></a></div>
+    </div>
+    <div class="hero-contrast" aria-label="Change from $prior_year to $year">
+      <p class="eyebrow">$prior_year → $year · Full calendar years</p>
+      <h2>$movement.</h2>
+      <div class="comparison"><div><span>Reported dollars</span><strong>$growth_signed</strong></div>
+        <div><span>Approval records</span><strong>$records_change</strong></div></div>
+      <p>Dollar totals describe scale. Record counts describe volume. Read both before interpreting the trend.</p>
+    </div>
     <div class="periods"><span>$year lending results</span><span>$context employer-location comparison</span>
       <span>Evidence checked $checked UTC</span></div>
   </header>
@@ -38,7 +48,7 @@
     <div class="metric"><span class="metric-label">Annual dollar change</span><strong>$growth</strong><span>Comparable full calendar years</span></div>
     <div class="metric"><span class="metric-label">Average reported amount</span><strong>$average</strong><span>Per record with a known amount</span></div>
   </div>
-  <p class="population">$scope · Recognized project state and calendar approval date.
+  <p class="population">$scope · Project location and calendar approval year.
     Includes canceled/not-funded approvals. Records are not unique borrowers or disbursements.</p>
 
   <div class="layout">
@@ -69,6 +79,14 @@
         <p>A lending analyst or economic-development researcher could use these comparisons to choose
           states, sectors or lender assignments for closer study. The results do not establish credit
           access, unmet demand or the effect of SBA programs.</p>
+        <div class="reading-path" aria-label="Key findings and where to read them">
+          <a href="#activity"><span>Scale &amp; volume · $year</span><strong>$records_change in records</strong>
+            <span>Against $growth in reported dollars.</span></a>
+          <a href="#geography"><span>Geographic context · $context</span><strong>$relative_leader leads relative activity</strong>
+            <span>$dollar_leader leads the dollar ranking.</span></a>
+          <a href="#lenders"><span>Reporting names · $year</span><strong>$lender_share in the top five</strong>
+            <span>Share of dollars with known lender names.</span></a>
+        </div>
       </section>
 
       <section id="activity">
@@ -85,7 +103,7 @@
 
       <section id="geography">
         <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">Geography &amp; context · $context</p>
-          <h2>Large dollar totals and high relative activity tell different stories.</h2></div></div>
+          <h2>$dollar_leader leads dollars. $relative_leader leads relative activity.</h2></div></div>
         <p>$geography_description The two rankings answer different questions about the same year.</p>
         $geography_chart
         <div class="callout"><strong>Why use $context here?</strong>
@@ -100,7 +118,7 @@
 
       <section id="composition">
         <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">Programs &amp; industries · $year</p>
-          <h2>Show what makes up the total.</h2></div></div>
+          <h2>$program_leader accounts for $program_leader_share of reported amounts.</h2></div></div>
         <p>$programs_description SBA 7(a) supports general business uses such as working capital,
           equipment and real estate. SBA 504 supports major fixed assets.</p>
         $program_chart
@@ -108,7 +126,8 @@
           7(a) reports whole loans. 504 reports the SBA/Certified Development Company portion.
           The combined total does not measure total project financing or comparable government exposure.</div>
         <details><summary>Inspect program amounts and records</summary>$program_table</details>
-        <p class="subsection-lead">$industries_description A known-industry share divides by known-sector dollars,
+        <h3 class="subsection-lead">Which industries account for the largest amounts?</h3>
+        <p>$industries_description A known-industry share divides by known-sector dollars,
           rather than by all dollars regardless of classification.</p>
         $industry_chart
         <p class="coverage-note">Unknown or unclassified sectors: $unknown_industry.</p>
@@ -117,9 +136,9 @@
 
       <section id="lenders">
         <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">Lender concentration · $year</p>
-          <h2>Rank names after combining the selected geography.</h2></div></div>
-        <p>$lenders_description Adding each state's top five would combine different memberships and
-          answer a different question.</p>
+          <h2>Five reporting lender names account for $lender_share of known-name dollars.</h2></div></div>
+        <p>The ranking combines amounts across $scope for $year before selecting the five largest names.
+          Adding each state's top five would combine different memberships and answer a different question.</p>
         $lender_chart
         <p>7(a) uses the currently assigned bank name; 504 uses the reported third-party lender name.
           Cleaning standardizes case and whitespace. These names describe snapshot assignments of
@@ -141,23 +160,27 @@
           A verified newer published period missing from saved data is stale. An expired check or old
           download requires verification. Opening this file later does not check publishers again.
           Unconfirmed publication dates remain unconfirmed.</div>
-        <p>The lending view uses $year and the geographic context comparison uses $context. Bureau of Labor Statistics (BLS) state
-          labor data is validated for the BI handoff; these charts do not report a lending–unemployment
-          relationship. October 2025 unemployment data was not published. Its 11-month mean is
-          descriptive, and an ordinary comparable annual change is suppressed.</p>
+        <p>The lending view uses $year and the geographic comparison uses $context. The local Power BI report
+          also shows single-state economic conditions from the matched context data through $context.
+          The separate Bureau of Labor Statistics (BLS) source extends to August 2026 in this saved snapshot.
+          These charts do not test a lending–unemployment relationship.</p>
+        <details><summary>Why some annual labor comparisons are unavailable</summary>
+          <p>October 2025 unemployment data was not published. The available 11-month mean is
+            descriptive; the model suppresses an ordinary comparable annual change for that year.
+            A missing publisher release is different from a failed download.</p></details>
       </section>
 
       <section id="engineering">
         <div class="section-heading"><span class="section-number">06</span><div><p class="eyebrow">What I built</p>
           <h2>Preserve the meaning from source file to report.</h2></div></div>
         <p>My contribution covers source adapters and validation, Python/Prefect orchestration,
-          dbt models and tests, reporting contracts, reproducible charts and the Power BI model handoff.
+          dbt models and tests, reporting contracts, reproducible charts and a seven-page local Power BI report.
           Public agencies supply the data. DuckDB, dbt, Prefect and Power BI supply the processing tools.</p>
         <ol class="pipeline" aria-label="Implemented reporting pipeline">
           <li><strong>Public files</strong><span>SBA · Census · BLS</span></li>
           <li><strong>Validated snapshots</strong><span>Python · checksums · manifests</span></li>
           <li><strong>Modeled metrics</strong><span>DuckDB · dbt SQL and tests</span></li>
-          <li><strong>Reporting</strong><span>Current charts · Power BI handoff</span></li>
+          <li><strong>Reporting</strong><span>HTML findings · local Power BI report</span></li>
         </ol>
         <div class="decision-grid">
           <article><h3>Define the population once</h3><p>dbt owns record eligibility, period alignment and
@@ -179,9 +202,14 @@
             environment versions, cache conditions and repeat counts. It cannot establish a controlled
             speedup or performance for the current larger warehouse. $decision_link.</p>
         </details>
-        <p class="status"><strong>Delivery status:</strong> Local data, tested models and this HTML report are available.
-          Power BI Desktop correction is pending. The S3/Snowflake route is implemented; paid live
-          cloud execution is deferred. $powerbi_link.</p>
+        <div class="report-delivery"><h3>Explore the local Power BI report</h3>
+          <p>Seven pages move from lending scale through states, reporting lender names and the program/industry mix,
+            then compare lending with employer locations, show single-state conditions and expose source checks.
+            Lending opens at $year; the business comparison and conditions open at $context.</p>
+          <p>$desktop_delivery_status $powerbi_link.</p></div>
+        <p class="status"><strong>Public delivery:</strong> This browser report contains the findings, charts,
+          definitions and downloadable aggregate evidence. The S3/Snowflake route is implemented;
+          paid live cloud execution is deferred.</p>
       </section>
 
       <section id="limits">
@@ -253,6 +281,10 @@
           </div>
           <p>The aggregate and check downloads are embedded in this file. Each chart has an SVG download.
             HTML provenance is supplied alongside the report. Optional project links below need a network connection.</p>
+          <details class="json-detail"><summary>Read exact aggregate JSON in this report</summary>
+            <pre class="json-preview" tabindex="0" aria-label="Exact aggregate JSON"><code>$aggregate_text</code></pre></details>
+          <details class="json-detail"><summary>Read saved-data and chart-check JSON in this report</summary>
+            <pre class="json-preview" tabindex="0" aria-label="Saved-data verification JSON"><code>$proof_text</code></pre></details>
           <h3>Rebuild this presentation from a fresh checkout</h3>
           <pre><code>python scripts/render_portfolio_report.py</code></pre>
           <p>This standard-library command reads versioned public aggregates and charts. It needs no raw
@@ -281,7 +313,8 @@ make ci-check</code></pre>
   <div class="viewer-toolbar"><h2 id="viewer-title">Chart</h2><div>
     <button type="button" id="size-toggle" aria-pressed="false">Use full size</button>
     <button type="button" id="close-viewer" aria-label="Close chart">Close ×</button></div></div>
-  <div class="viewer-scroll"><img id="viewer-image" alt=""></div>
+  <p class="viewer-hint">Scroll across the chart to inspect labels. “Fit to window” shows the full figure.</p>
+  <div class="viewer-scroll" tabindex="0" role="region" aria-label="Enlarged chart"><img id="viewer-image" alt=""></div>
   <p id="viewer-caption"></p>
 </dialog>
 <script>$script</script>

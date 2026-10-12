@@ -85,7 +85,7 @@ reload. The second reads them, checks CSV schema/type/grain/references and
 independent raw/fact/component totals, and writes small aggregate proof to
 `.tmp/pre-pbix/readiness.json`. It does not modify the warehouse or certify Desktop.
 [Power BI handoff](../../powerbi/README.md) owns dated selections, age/completion
-labels and the six-page plan. Paid Snowflake execution is deferred; the implemented
+labels and the seven-page local report. Paid Snowflake execution is deferred; the implemented
 route remains available.
 
 `make dbt-local` compiles with the local profile. `make dbt-build-local-fast` runs
@@ -99,12 +99,15 @@ large builds. Do not assume the fixture demonstrates a complete publisher year.
 ### HTML reader report
 
 The [hosted report](https://stevennitesh.github.io/small-business-lending-pipeline/)
-is the main reading destination. Open the identical
-[offline copy](../../reports/portfolio/index.html) in a browser for the findings,
+is the main reading destination. Download and open the self-contained
+[offline report](../../reports/portfolio/index.html) in a browser for the findings,
 methods, engineering story and evidence. The file
 embeds its six SVG charts, styling, interactions and aggregate/check JSON downloads.
 It works alone offline; `provenance.json` is supplied alongside it. Optional links
 to project documentation and publisher pages require a network connection.
+The checked-in file reflects the current repository revision; the hosted site
+reflects its last successful Pages deployment. Regeneration alone does not
+publish a change.
 
 Rebuild this presentation from the versioned public artifacts in a fresh checkout:
 
@@ -245,8 +248,10 @@ No monitoring schedule, retry service or new infrastructure is added.
 Raw extracts and retained manifests/validation are evidence; generated does not
 mean disposable. Keep warehouse files, CSV exports, dbt artifacts and scratch/cache
 outputs out of Git. `.tmp/` is ignored scratch space, not durable evidence storage.
-The unfinished manual PBIX and screenshots are ignored and kept locally until
-Desktop correction. Do not edit or publish them without the user's explicit request.
+Manual PBIX/project files and report captures stay ignored and local; the
+[Power BI handoff](../../powerbi/README.md) owns their current verification status.
+Do not edit or publish them without the user's explicit request. Keep the current
+report and small dated evidence rather than accumulating copies of old runs.
 
 ### Storage policy
 

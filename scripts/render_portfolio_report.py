@@ -171,6 +171,7 @@ def render(root: Path, output_dir: Path) -> dict:
     )
     top_state, top_intensity = geography[0], intensity[0]
     industry = a["industries"][0]
+    program_leader = max(a["programs"], key=lambda r: Decimal(r["amount"]))
     checked = display_date(a["freshness_checked_at_utc"])
     scope = (
         "50 states and Washington, DC"
@@ -271,17 +272,24 @@ def render(root: Path, output_dir: Path) -> dict:
         "year": str(year),
         "context": str(context),
         "checked": e(checked),
+        "desktop_delivery_status": e(language["page_status"]),
         "scope": e(scope),
         "movement": e(movement),
         "amount": e(money(h["amount"])),
         "records": f"{h['records']:,}",
         "known_records": f"{h['known_amount_records']:,}",
         "growth": pct(growth),
+        "growth_signed": ("+" if growth > 0 else "") + pct(growth),
         "records_change": pct(records_change),
         "average": money(h["average"], billions=False),
         "prior_year": str(year - 1),
         "trend_description": e(trend_description),
         "geography_description": e(geography_description),
+        "dollar_leader": e(top_state["label"]),
+        "relative_leader": e(top_intensity["label"]),
+        "lender_share": pct(a["top_five_lender_share"]),
+        "program_leader": e(program_leader["label"]),
+        "program_leader_share": pct(program_leader["share"]),
         "programs_description": e(programs_description),
         "industries_description": e(industries_description),
         "lenders_description": e(lenders_description),
@@ -397,9 +405,11 @@ def render(root: Path, output_dir: Path) -> dict:
         "aggregate_uri": data_uri(
             inputs["docs/images/lending_analysis.json"], "application/json"
         ),
+        "aggregate_text": e(inputs["docs/images/lending_analysis.json"]),
         "proof_uri": data_uri(
             inputs["docs/images/lending_verification.json"], "application/json"
         ),
+        "proof_text": e(inputs["docs/images/lending_verification.json"]),
         "method_link": doc("docs/detailed/kpi_definitions.md", "Metric definitions"),
         "architecture_link": doc(
             "docs/detailed/architecture.md", "Architecture and component ownership"
@@ -417,7 +427,7 @@ def render(root: Path, output_dir: Path) -> dict:
             "docs/detailed/orchestration_runtime.md", "Runtime and reproduction guide"
         ),
         "powerbi_link": doc(
-            "powerbi/README.md", "Power BI handoff and remaining Desktop work"
+            "powerbi/README.md", "Power BI report, model handoff and local verification"
         ),
         "repo": REPO,
         "site": SITE,

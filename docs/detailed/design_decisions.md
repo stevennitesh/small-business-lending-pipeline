@@ -93,4 +93,6 @@ external stage; there is no alternate local-file Snowflake route. Paid live clou
 execution is deferred. Old task plans and execution transcripts have been retired;
 the [documentation map](../README.md) identifies maintained owners and the
 [verification appendix](../implementation/lending_verification_history.md) records
-the dated October evidence and remaining report work.
+the October 5 source/build evidence and October 11 local Desktop verification.
+The verified seven-page report remains a local artifact; the HTML report is the
+public reading destination.

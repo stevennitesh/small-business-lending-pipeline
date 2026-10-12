@@ -8,9 +8,10 @@
   const toggle = document.getElementById('size-toggle');
   let opener;
   const resetSize = () => {
-    scroll.classList.remove('full');
-    toggle.setAttribute('aria-pressed', 'false');
-    toggle.textContent = 'Use full size';
+    const full = window.matchMedia('(max-width: 600px)').matches;
+    scroll.classList.toggle('full', full);
+    toggle.setAttribute('aria-pressed', String(full));
+    toggle.textContent = full ? 'Fit to window' : 'Use full size';
   };
   if (typeof viewer.showModal === 'function') {
     document.querySelectorAll('.zoom').forEach(button => {
@@ -48,12 +49,21 @@
   const revealHash = () => {
     const target = document.getElementById(location.hash.slice(1));
     if (!target) return;
-    if (target.tagName === 'DETAILS') target.open = true;
+    let revealed = false;
+    if (target.tagName === 'DETAILS' && !target.open) {
+      target.open = true;
+      revealed = true;
+    }
     let parent = target.parentElement;
     while (parent) {
-      if (parent.tagName === 'DETAILS') parent.open = true;
+      if (parent.tagName === 'DETAILS' && !parent.open) {
+        parent.open = true;
+        revealed = true;
+      }
       parent = parent.parentElement;
     }
+    // Fragment scrolling can happen before a collapsed section gains its height.
+    if (revealed) requestAnimationFrame(() => target.scrollIntoView({block: 'start'}));
   };
   window.addEventListener('hashchange', revealHash);
   revealHash();

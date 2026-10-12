@@ -1,5 +1,5 @@
 {
-  "purpose": "Reader-facing labels for planned Desktop pages and current reporting fields. Keep machine fields, measure names and export schemas unchanged; semantic expressions are maintained in the model contract.",
+  "purpose": "Reader-facing labels for the seven-page local Desktop report and current reporting fields. Keep machine fields, measure names and export schemas unchanged; semantic expressions are maintained in the model contract.",
   "sources": {
     "sba": "U.S. Small Business Administration (SBA) approval records",
     "census": "Census Business Dynamics Statistics (BDS): employer business locations",
@@ -19,8 +19,8 @@
       "tooltip": "Valid amounts including zero. Unknown amounts remain in approval-record totals but are excluded from the average denominator."
     },
     "state_name": {
-      "label": "Project state",
-      "tooltip": "Project location reported on the approval record, rather than borrower headquarters."
+      "label": "Project location (state / DC)",
+      "tooltip": "Project location reported on the approval record: 50 states and Washington, DC. This is separate from borrower headquarters."
     },
     "approval_year": {
       "label": "Calendar approval year",
@@ -59,8 +59,8 @@
       "tooltip": "When the saved public data was extracted; separate from observation date and modeled-table rebuild."
     },
     "latest_observation_date": {
-      "label": "Latest source observation/reference",
-      "tooltip": "Approval date for SBA; March 12 annual reference for Census; month end for BLS."
+      "label": "Source-wide latest reference date",
+      "tooltip": "Latest cutoff across the source system: approval date for SBA, March 12 annual reference for Census, and month end for BLS. SBA historical resource segments repeat the source-wide cutoff; it is not each file's own latest approval date."
     },
     "extract_age_days": {
       "label": "Days since source download",
@@ -154,7 +154,7 @@
       "title": "Lending at a glance",
       "default_calendar_year": 2025,
       "question": "How much approval activity is there, and how has it changed?",
-      "narration": "Start with reported amounts, record count, average known amount and full-year change. More dollars do not necessarily mean more records."
+      "narration": "Start with reported amounts, record count, average known amount and full-year change. More dollars do not necessarily mean more records. Label the partial October–December 1990 and January–June 2026 periods; do not compare them with full annual totals."
     },
     {
       "id": "state_lending_trends",
@@ -162,7 +162,7 @@
       "title": "How lending varies by state",
       "default_calendar_year": 2025,
       "question": "Where are reported amounts and approval records largest?",
-      "narration": "Compare states within the same calendar year. Use full-year trends; blank growth means the selected periods or state populations are not comparable."
+      "narration": "Compare the ten leading states within the selected calendar year and geography. The history chart retains complete calendar years independently of the year slicer; blank growth means the selected periods or state populations are not comparable."
     },
     {
       "id": "lender_concentration",
@@ -170,7 +170,7 @@
       "title": "Reporting lender names",
       "default_calendar_year": 2025,
       "question": "How much activity is assigned to the largest known names?",
-      "narration": "Rank names after adding amounts across the selected geography and years. Show known-name coverage and distinguish overall top five from combined state/year rankings."
+      "narration": "Show the ten leading names after adding amounts across the selected geography and years. Known-name coverage and the selection-wide top-five share retain all names, independently of the lender slicer and displayed ranking."
     },
     {
       "id": "industry_program_mix",
@@ -178,7 +178,7 @@
       "title": "Programs and industries",
       "default_calendar_year": 2025,
       "question": "What makes up the reported lending total?",
-      "narration": "Show program shares of all reported amounts and industry shares of known-sector amounts in separate panels. Category selections apply only to their own panel."
+      "narration": "Show program shares of all reported amounts and industry shares of known-sector amounts in separate panels. Category selections affect their selected-category cards while distribution charts retain the full mix. The ten-sector amount ranking includes unknowns where present; known-sector coverage explains the share denominator."
     },
     {
       "id": "regional_business_health",
@@ -186,7 +186,18 @@
       "title": "Lending relative to local businesses",
       "default_calendar_year": 2023,
       "question": "How does activity compare with the employer business base?",
-      "narration": "Use the same year for lending and employer locations. Single-year intensity is records per 1,000 locations; several years use establishment-years. Labor context is state-specific."
+      "available_calendar_years": { "first": 1991, "last": 2023 },
+      "narration": "Use complete lending years with same-year employer locations. Single-year intensity is records per 1,000 locations; several years use establishment-years. Restrict this view to comparable context; economic rates are on the separate single-state conditions page."
+    },
+    {
+      "id": "local_business_conditions",
+      "implementation_page": "Local Business Conditions",
+      "title": "Local business conditions",
+      "default_calendar_year": 2023,
+      "default_state": "California",
+      "available_calendar_years": { "first": 1990, "last": 2023 },
+      "question": "What economic conditions surround lending in one state?",
+      "narration": "Start with California in 2023. Show the state's mean monthly seasonally adjusted unemployment rate, change in percentage points, and published business entry and exit rates. Cards require one state and one year; history charts retain that state's available years. This matched-context view ends in 2023, even though the separate labor source has newer observations."
     },
     {
       "id": "pipeline_health",
@@ -194,7 +205,7 @@
       "title": "Source coverage and data checks",
       "default_calendar_year": null,
       "question": "What periods do these inputs cover, and can they be trusted?",
-      "narration": "Show reference periods, actual publication dates, download dates and publisher verification. Distinguish a missed published period from verification due; show validity and final completion separately."
+      "narration": "Show source-wide reference periods, actual publication dates, download dates and publisher verification. Historical SBA resource segments repeat the source-wide cutoff. Distinguish a missed published period from verification due; show validity and separately dated final completion independently."
     }
   ],
   "status_labels": {
@@ -225,5 +236,5 @@
     "census": "Annual; typically September, about two years after the reference year.",
     "bls": "Monthly; use the dated state release and its announced next release."
   },
-  "page_status": "Planned six-page Power BI Desktop correction; the outdated PBIX and five screenshots are preserved locally and excluded from Git. Current static charts follow the separate sequence in report_reader_guide.md."
+  "page_status": "The seven-page Power BI report was saved, reopened and verified locally on October 11, 2026; all 24 DAX checks passed. Its PBIX, PDF and Desktop captures are excluded from the public report and fresh checkouts. The HTML findings can be read without Power BI Desktop."
 }

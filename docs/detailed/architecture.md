@@ -1,8 +1,10 @@
 # Implemented architecture
 
 Python/Prefect → immutable validated snapshots → DuckDB or S3/Snowflake → dbt
-staging/facts/marts/BI → modeled Power BI sources and semantic measures.
-This remains local-first, with the cloud promotion route supported.
+staging/facts/marts/BI → modeled reporting outputs. Power BI consumes modeled
+tables or CSV exports with explicit semantic measures. The HTML report presents checked aggregate
+findings without requiring Desktop. This remains local-first; the cloud route is
+implemented, while paid live execution is deferred.
 
 ```mermaid
 flowchart LR
@@ -18,6 +20,8 @@ flowchart LR
     T --> B[Snowflake BI schema]
     C --> P[Power BI]
     B --> P
+    C --> G[Checked aggregate results and charts]
+    G --> H[Self-contained HTML report]
     F[Prefect stage timings + final run summary] --> E
     F --> T
 ```
@@ -34,6 +38,8 @@ flowchart LR
 | `config/` | Source settings, validation expectations, dated coverage and age policies |
 | `pipelines/flows/` | Route setup, stage sequence/timing, failure reporting and final summary |
 | `pipelines/powerbi/`, `powerbi/` | Modeled export contract, typed queries, relationships and small semantic measure layer |
+| `scripts/render_analysis_report.py` | Checked-export aggregation, source charts and public aggregate proof |
+| `scripts/render_portfolio_report.py`, `scripts/portfolio/` | HTML story, layout and embedded public evidence; no source refresh or warehouse write |
 
 The semantic layer follows [Power BI filter-responsive measures](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-measures).
 It may sum components, divide sums, remove the appropriate category filter or

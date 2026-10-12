@@ -68,7 +68,8 @@ state rates.
 BDS is updated annually, typically in September, about two years after its
 reference year. This differs from Census programs with longer survey cycles.
 [Official BDS release frequency and lag](https://www.census.gov/programs-surveys/bds/about/faq.html).
-The October 5 API refresh still ends in 2023, the latest published BDS year.
+The October 5 API refresh ends in 2023, the latest BDS reference year confirmed by
+that dated publisher check.
 The Census release was published September 25, 2025; observation lag remains
 visible separately from the new download timestamp. Release verification uses the
 maintained year/date/URL evidence and a 90-day local review window. Old observation
@@ -87,8 +88,10 @@ publisher exception is valid data, not ingestion failure, and is not imputed.
 [BLS notice](https://www.bls.gov/lau/launews1.htm).
 
 No national/regional rate is formed by averaging state rates. LAUS revisions and
-release delays remain possible. Use 2023 as the saved comparable context default;
-The validated October 5 LAUS extract has 23,052 rows through August 2026:
+release delays remain possible. Use 2023 as the saved comparable context default.
+The local conditions page uses the matched regional table ending in 2023; later
+LAUS observations remain in the source and labor marts. The validated October 5
+LAUS extract has 23,052 rows through August 2026:
 23,001 numeric state-month observations and 51 explicit missing October 2025 rows.
 Each state has eight observed/expected months in 2026, while SBA ends June 30.
 These are separate YTD periods and neither supports full-year growth. New source releases require verified
